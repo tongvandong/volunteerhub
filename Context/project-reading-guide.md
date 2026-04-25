@@ -97,6 +97,16 @@ Các file quan trọng:
 
 Không mặc định sửa `volunteerhub-frontend` nếu mục tiêu là app đang chạy thật.
 
+Landing page public đã được nâng cấp:
+
+- File chính: `D:\FW\FW\BaseCore\BaseCore.WebClient\src\pages\public\LandingPage.jsx`.
+- Hero dùng ảnh nền tình nguyện, headline `VolunteerHub`, CTA `Khám phá sự kiện` và `Đăng ký ngay`.
+- Có section phân vai cho `Tình nguyện viên`, `Ban tổ chức`, `Nhà tài trợ`, `Quản trị viên`.
+- Có quy trình 3 bước: `Khám phá`, `Đăng ký`, `Ghi nhận`.
+- Có section `Sự kiện nổi bật` gọi `eventApi.getAll({ status: 'Approved', page: 1, pageSize: 6 })`.
+- Khi verify landing, phát hiện API event list trả kèm `organizer.password` và `organizer.salt`; đã chặn serialize hai field này bằng `[JsonIgnore]` trong `BaseCore.Entities\User.cs`.
+- Playwright DOM check landing: hero/roles/steps/event links render được, text không mojibake.
+
 ## 7. Route Frontend Cũ
 
 Public:

@@ -1,240 +1,291 @@
-import React from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { eventApi } from '../../services/api';
+
+const heroImage =
+  'https://images.unsplash.com/photo-1488521787991-ed7bbaae773c?w=1800&auto=format&fit=crop&q=85';
 
 const roleCards = [
   {
     title: 'Tình nguyện viên',
-    description: 'Khám phá sự kiện, đăng ký tham gia, theo dõi chứng chỉ và hành trình đóng góp.',
+    description: 'Tìm sự kiện phù hợp, chọn ca tham gia, theo dõi lịch sử đóng góp, huy hiệu và chứng chỉ.',
     icon: 'fa-hand-holding-heart',
-    color: '#1b61c9',
+    tone: '#1b61c9',
+    to: '/events',
   },
   {
-    title: 'Nhà sáng lập',
-    description: 'Tạo chương trình cộng đồng, quản lý người tham gia và vận hành sự kiện.',
+    title: 'Ban tổ chức',
+    description: 'Tạo sự kiện, duyệt đăng ký, điểm danh bằng QR, quản lý kênh trao đổi và báo cáo.',
     icon: 'fa-calendar-check',
-    color: '#7c3aed',
+    tone: '#7c3aed',
+    to: '/login',
   },
   {
     title: 'Nhà tài trợ',
-    description: 'Tìm hoạt động phù hợp để đồng hành, tài trợ và theo dõi hiệu quả hỗ trợ.',
+    description: 'Khám phá chương trình cộng đồng, ghi nhận khoản tài trợ và theo dõi các sự kiện đã đồng hành.',
     icon: 'fa-hand-holding-dollar',
-    color: '#d97706',
+    tone: '#d97706',
+    to: '/login',
   },
   {
     title: 'Quản trị viên',
-    description: 'Giám sát hệ thống, duyệt dữ liệu, quản lý người dùng và danh mục nền tảng.',
+    description: 'Duyệt sự kiện, quản lý người dùng, danh mục, kỹ năng và xuất dữ liệu vận hành.',
     icon: 'fa-shield-halved',
-    color: '#dc2626',
+    tone: '#dc2626',
+    to: '/login',
   },
 ];
 
-const features = [
-  { title: 'Danh sách sự kiện', to: '/events', icon: 'fa-calendar-days' },
-  { title: 'Đăng ký tham gia', to: '/login', icon: 'fa-user-plus' },
-  { title: 'Quản lý chương trình', to: '/login', icon: 'fa-list-check' },
-  { title: 'Tài trợ sự kiện', to: '/login', icon: 'fa-sack-dollar' },
+const steps = [
+  {
+    title: 'Khám phá',
+    text: 'Lọc sự kiện theo chủ đề, địa điểm, kỹ năng và thời gian.',
+    icon: 'fa-magnifying-glass-location',
+  },
+  {
+    title: 'Đăng ký',
+    text: 'Chọn ca phù hợp, gửi đăng ký và nhận thông báo xác nhận.',
+    icon: 'fa-clipboard-check',
+  },
+  {
+    title: 'Ghi nhận',
+    text: 'Điểm danh, hoàn thành sự kiện và lưu lại đóng góp bằng chứng chỉ.',
+    icon: 'fa-award',
+  },
 ];
+
+const formatDate = (value) => {
+  if (!value) return '';
+  return new Date(value).toLocaleDateString('vi-VN', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  });
+};
+
+function FeaturedEventCard({ event }) {
+  return (
+    <Link
+      to={`/events/${event.id}`}
+      className="group block overflow-hidden rounded-lg border border-slate-200 bg-white no-underline shadow-sm transition hover:-translate-y-1 hover:border-blue-300 hover:shadow-xl"
+    >
+      <div className="relative h-44 overflow-hidden bg-slate-100">
+        {event.imageUrl ? (
+          <img
+            src={event.imageUrl}
+            alt={event.title}
+            className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
+          />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center text-blue-200">
+            <i className="fa-solid fa-calendar-days text-4xl" />
+          </div>
+        )}
+        <div className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-slate-950/55 to-transparent" />
+        <span className="absolute left-3 top-3 rounded-full bg-white/95 px-3 py-1 text-xs font-semibold text-blue-700">
+          {event.category?.name || 'Sự kiện'}
+        </span>
+      </div>
+      <div className="p-4">
+        <h3 className="line-clamp-2 min-h-[44px] text-base font-bold leading-snug text-slate-900 group-hover:text-blue-700">
+          {event.title}
+        </h3>
+        <div className="mt-3 space-y-2 text-sm text-slate-600">
+          <p className="flex items-center gap-2">
+            <i className="fa-solid fa-location-dot w-4 text-blue-600" />
+            <span className="truncate">{event.location || 'Chưa cập nhật địa điểm'}</span>
+          </p>
+          <p className="flex items-center gap-2">
+            <i className="fa-regular fa-calendar w-4 text-emerald-600" />
+            <span>{formatDate(event.startDate)}</span>
+          </p>
+        </div>
+        <div className="mt-4 flex items-center justify-between text-xs text-slate-500">
+          <span>
+            {event.currentParticipants || 0}/{event.maxParticipants || 0} người tham gia
+          </span>
+          <span className="font-semibold text-blue-700">Xem chi tiết</span>
+        </div>
+      </div>
+    </Link>
+  );
+}
 
 export default function LandingPage() {
   const { isAuthenticated } = useAuth();
+  const [featuredEvents, setFeaturedEvents] = useState([]);
+  const [loadingEvents, setLoadingEvents] = useState(true);
+
+  useEffect(() => {
+    let mounted = true;
+
+    eventApi
+      .getAll({ status: 'Approved', page: 1, pageSize: 6 })
+      .then((response) => {
+        if (!mounted) return;
+        setFeaturedEvents(response.data?.items || []);
+      })
+      .catch(() => {
+        if (!mounted) return;
+        setFeaturedEvents([]);
+      })
+      .finally(() => {
+        if (mounted) setLoadingEvents(false);
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const stats = useMemo(() => {
+    const totalSlots = featuredEvents.reduce((sum, event) => sum + (event.maxParticipants || 0), 0);
+
+    return [
+      { label: 'Vai trò vận hành', value: '4' },
+      { label: 'Sự kiện đang mở', value: featuredEvents.length ? `${featuredEvents.length}+` : '...' },
+      { label: 'Suất tham gia nổi bật', value: totalSlots ? `${totalSlots}+` : '...' },
+      { label: 'Gateway API', value: '1' },
+    ];
+  }, [featuredEvents]);
+
   const gatedTarget = isAuthenticated ? '/dashboard' : '/login';
 
   return (
-    <div>
-      <section
-        style={{
-          position: 'relative',
-          overflow: 'hidden',
-          background:
-            'linear-gradient(135deg, rgba(10,37,90,0.95) 0%, rgba(27,97,201,0.88) 52%, rgba(14,165,233,0.78) 100%)',
-        }}
-      >
-        <div
-          style={{
-            position: 'absolute',
-            inset: 0,
-            background:
-              'radial-gradient(circle at top right, rgba(255,255,255,0.24), transparent 32%), radial-gradient(circle at bottom left, rgba(255,255,255,0.12), transparent 26%)',
-          }}
-        />
-        <div style={{ position: 'relative', maxWidth: 1280, margin: '0 auto', padding: '84px 24px 92px' }}>
-          <div
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 8,
-              padding: '6px 14px',
-              borderRadius: 999,
-              background: 'rgba(255,255,255,0.16)',
-              color: '#fff',
-              border: '1px solid rgba(255,255,255,0.18)',
-              fontSize: 14,
-              fontWeight: 600,
-            }}
-          >
-            <i className="fa-solid fa-leaf" />
-            Nền tảng kết nối cộng đồng VolunteerHub
+    <div className="bg-slate-50">
+      <section className="relative min-h-[calc(100vh-60px)] overflow-hidden">
+        <img src={heroImage} alt="Tình nguyện viên trong hoạt động cộng đồng" className="absolute inset-0 h-full w-full object-cover" />
+        <div className="absolute inset-0 bg-slate-950/65" />
+        <div className="absolute inset-0 bg-gradient-to-b from-slate-950/30 via-slate-950/20 to-slate-50" />
+
+        <div className="relative mx-auto flex min-h-[calc(100vh-60px)] max-w-7xl flex-col justify-center px-5 py-20 sm:px-8">
+          <div className="max-w-3xl pt-10">
+            <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold text-white backdrop-blur">
+              <i className="fa-solid fa-leaf" />
+              Hệ sinh thái tình nguyện số
+            </div>
+
+            <h1 className="text-4xl font-extrabold leading-tight text-white sm:text-5xl lg:text-6xl">VolunteerHub</h1>
+            <p className="mt-5 max-w-2xl text-lg leading-8 text-white/82">
+              Kết nối tình nguyện viên, ban tổ chức và nhà tài trợ trong một nền tảng thống nhất: tìm sự kiện,
+              đăng ký tham gia, vận hành chương trình, ghi nhận đóng góp và lan tỏa tác động cộng đồng.
+            </p>
+
+            <div className="mt-8 flex flex-wrap gap-3">
+              <Link to="/events" className="btn-primary px-5 py-3">
+                <i className="fa-solid fa-calendar-days mr-2" />
+                Khám phá sự kiện
+              </Link>
+              <Link
+                to={isAuthenticated ? '/dashboard' : '/register'}
+                className="inline-flex items-center justify-center rounded-xl border border-white/25 bg-white px-5 py-3 font-bold text-slate-900 no-underline shadow-lg transition hover:-translate-y-0.5 hover:bg-blue-50"
+              >
+                <i className="fa-solid fa-user-plus mr-2 text-blue-700" />
+                {isAuthenticated ? 'Vào dashboard' : 'Đăng ký ngay'}
+              </Link>
+            </div>
           </div>
 
-          <div className="grid lg:grid-cols-2 gap-10 items-center mt-8">
-            <div>
-              <h1
-                style={{
-                  color: '#fff',
-                  fontWeight: 800,
-                  fontSize: 'clamp(32px, 5vw, 58px)',
-                  lineHeight: 1.08,
-                  marginBottom: 20,
-                  maxWidth: 700,
-                }}
-              >
-                Trang giới thiệu cho mọi vai trò trong hệ sinh thái tình nguyện
-              </h1>
-              <p
-                style={{
-                  color: 'rgba(255,255,255,0.80)',
-                  fontSize: 17,
-                  lineHeight: 1.7,
-                  maxWidth: 620,
-                  marginBottom: 32,
-                }}
-              >
-                Người truy cập ban đầu sẽ thấy trang giới thiệu, có menu đăng ký và đăng nhập rõ ràng.
-                Sau khi đăng nhập, mỗi loại tài khoản sẽ đi vào đúng giao diện riêng: tình nguyện viên,
-                nhà sáng lập, nhà tài trợ hoặc quản trị viên.
-              </p>
-
-              <div className="flex flex-wrap gap-3">
-                <Link to="/register" className="btn-primary" style={{ minWidth: 160, justifyContent: 'center' }}>
-                  <i className="fa-solid fa-user-plus mr-2" />
-                  Đăng ký
-                </Link>
-                <Link
-                  to="/login"
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    minWidth: 160,
-                    padding: '12px 20px',
-                    borderRadius: 12,
-                    border: '1px solid rgba(255,255,255,0.28)',
-                    color: '#fff',
-                    textDecoration: 'none',
-                    fontWeight: 700,
-                    background: 'rgba(255,255,255,0.08)',
-                  }}
-                >
-                  <i className="fa-solid fa-right-to-bracket mr-2" />
-                  Đăng nhập
-                </Link>
-                <Link
-                  to="/events"
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    minWidth: 180,
-                    padding: '12px 20px',
-                    borderRadius: 12,
-                    color: '#fff',
-                    textDecoration: 'none',
-                    fontWeight: 700,
-                    background: 'transparent',
-                  }}
-                >
-                  Xem sự kiện công khai
-                </Link>
+          <div className="mt-14 grid max-w-5xl grid-cols-2 gap-3 md:grid-cols-4">
+            {stats.map((item) => (
+              <div key={item.label} className="rounded-lg border border-white/15 bg-white/12 p-4 text-white backdrop-blur">
+                <div className="text-2xl font-extrabold">{item.value}</div>
+                <div className="mt-1 text-sm text-white/72">{item.label}</div>
               </div>
-            </div>
-
-            <div
-              style={{
-                background: 'rgba(255,255,255,0.10)',
-                border: '1px solid rgba(255,255,255,0.18)',
-                borderRadius: 28,
-                padding: 24,
-                backdropFilter: 'blur(14px)',
-              }}
-            >
-              <div className="grid grid-cols-2 gap-4">
-                {roleCards.map((card) => (
-                  <Link key={card.title} to={gatedTarget} style={{ textDecoration: 'none' }}>
-                    <div
-                      style={{
-                        height: '100%',
-                        background: '#fff',
-                        borderRadius: 20,
-                        padding: 18,
-                        minHeight: 180,
-                        boxShadow: '0 18px 36px rgba(15,23,42,0.08)',
-                      }}
-                    >
-                      <div
-                        style={{
-                          width: 44,
-                          height: 44,
-                          borderRadius: 14,
-                          background: `${card.color}16`,
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          marginBottom: 14,
-                        }}
-                      >
-                        <i className={`fa-solid ${card.icon}`} style={{ color: card.color, fontSize: 18 }} />
-                      </div>
-                      <h2 style={{ fontSize: 17, fontWeight: 700, color: '#181d26', marginBottom: 8 }}>{card.title}</h2>
-                      <p style={{ fontSize: 13.5, lineHeight: 1.6, color: 'rgba(4,14,32,0.62)' }}>{card.description}</p>
-                    </div>
-                  </Link>
-                ))}
-              </div>
-            </div>
+            ))}
           </div>
         </div>
       </section>
 
-      <section style={{ maxWidth: 1280, margin: '0 auto', padding: '44px 24px 0' }}>
-        <div className="grid md:grid-cols-4 gap-4">
-          {features.map((feature) => (
-            <Link key={feature.title} to={feature.to} style={{ textDecoration: 'none' }}>
+      <section className="mx-auto max-w-7xl px-5 py-14 sm:px-8">
+        <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+          <div>
+            <p className="text-sm font-bold uppercase tracking-[0.18em] text-blue-700">Dành cho mọi vai trò</p>
+            <h2 className="mt-2 text-3xl font-extrabold text-slate-900">Một luồng làm việc, nhiều cách tham gia</h2>
+          </div>
+          <Link to={gatedTarget} className="font-semibold text-blue-700 no-underline hover:underline">
+            {isAuthenticated ? 'Mở không gian làm việc' : 'Đăng nhập để bắt đầu'}
+          </Link>
+        </div>
+
+        <div className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          {roleCards.map((role) => (
+            <Link
+              key={role.title}
+              to={role.to === '/login' ? gatedTarget : role.to}
+              className="group rounded-lg border border-slate-200 bg-white p-5 no-underline shadow-sm transition hover:-translate-y-1 hover:shadow-xl"
+            >
               <div
-                style={{
-                  background: '#fff',
-                  border: '1px solid #e5e7eb',
-                  borderRadius: 18,
-                  padding: 20,
-                  boxShadow: '0 10px 24px rgba(15,23,42,0.04)',
-                  minHeight: 120,
-                }}
+                className="flex h-12 w-12 items-center justify-center rounded-lg"
+                style={{ background: `${role.tone}14`, color: role.tone }}
               >
-                <div
-                  style={{
-                    width: 40,
-                    height: 40,
-                    borderRadius: 14,
-                    background: '#eef4ff',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    marginBottom: 14,
-                    color: '#1b61c9',
-                  }}
-                >
-                  <i className={`fa-solid ${feature.icon}`} />
-                </div>
-                <h3 style={{ fontSize: 16, fontWeight: 700, color: '#181d26', marginBottom: 6 }}>{feature.title}</h3>
-                <p style={{ fontSize: 13.5, color: 'rgba(4,14,32,0.56)', lineHeight: 1.6 }}>
-                  {feature.to === '/events'
-                    ? 'Người dùng công khai có thể xem danh sách chương trình đang mở.'
-                    : 'Nếu chưa đăng nhập, thao tác sẽ dẫn tới màn hình đăng nhập trước khi sử dụng chức năng.'}
-                </p>
+                <i className={`fa-solid ${role.icon} text-lg`} />
               </div>
+              <h3 className="mt-5 text-lg font-bold text-slate-900 group-hover:text-blue-700">{role.title}</h3>
+              <p className="mt-2 text-sm leading-6 text-slate-600">{role.description}</p>
             </Link>
           ))}
         </div>
+      </section>
+
+      <section className="bg-white">
+        <div className="mx-auto grid max-w-7xl gap-10 px-5 py-14 sm:px-8 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
+          <div>
+            <p className="text-sm font-bold uppercase tracking-[0.18em] text-emerald-700">Quy trình</p>
+            <h2 className="mt-2 text-3xl font-extrabold text-slate-900">Từ ý định tốt đến đóng góp được ghi nhận</h2>
+            <p className="mt-4 leading-7 text-slate-600">
+              VolunteerHub không chỉ là danh sách sự kiện. Nền tảng giữ trọn mạch nghiệp vụ từ khám phá, đăng ký,
+              xác nhận, điểm danh đến chứng chỉ sau chương trình.
+            </p>
+          </div>
+          <div className="grid gap-4 md:grid-cols-3">
+            {steps.map((step, index) => (
+              <div key={step.title} className="rounded-lg border border-slate-200 bg-slate-50 p-5">
+                <div className="flex items-center justify-between">
+                  <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-emerald-100 text-emerald-700">
+                    <i className={`fa-solid ${step.icon}`} />
+                  </div>
+                  <span className="text-sm font-bold text-slate-300">0{index + 1}</span>
+                </div>
+                <h3 className="mt-5 text-lg font-bold text-slate-900">{step.title}</h3>
+                <p className="mt-2 text-sm leading-6 text-slate-600">{step.text}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="mx-auto max-w-7xl px-5 py-14 sm:px-8">
+        <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+          <div>
+            <p className="text-sm font-bold uppercase tracking-[0.18em] text-blue-700">Sự kiện nổi bật</p>
+            <h2 className="mt-2 text-3xl font-extrabold text-slate-900">Các chương trình đang mở</h2>
+          </div>
+          <Link to="/events" className="font-semibold text-blue-700 no-underline hover:underline">
+            Xem toàn bộ sự kiện
+          </Link>
+        </div>
+
+        {loadingEvents ? (
+          <div className="mt-8 grid gap-5 md:grid-cols-3">
+            {[1, 2, 3].map((item) => (
+              <div key={item} className="h-72 animate-pulse rounded-lg bg-slate-200" />
+            ))}
+          </div>
+        ) : featuredEvents.length > 0 ? (
+          <div className="mt-8 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+            {featuredEvents.slice(0, 6).map((event) => (
+              <FeaturedEventCard key={event.id} event={event} />
+            ))}
+          </div>
+        ) : (
+          <div className="mt-8 rounded-lg border border-dashed border-slate-300 bg-white p-8 text-center">
+            <i className="fa-regular fa-calendar text-3xl text-slate-300" />
+            <p className="mt-3 font-semibold text-slate-700">Chưa có sự kiện đang mở để hiển thị.</p>
+            <p className="mt-1 text-sm text-slate-500">Hãy đăng nhập bằng tài khoản ban tổ chức để tạo sự kiện mới.</p>
+          </div>
+        )}
       </section>
     </div>
   );
