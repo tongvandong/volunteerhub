@@ -106,6 +106,7 @@ Landing page public đã được nâng cấp:
 - Có section `Sự kiện nổi bật` gọi `eventApi.getAll({ status: 'Approved', page: 1, pageSize: 6 })`.
 - Khi verify landing, phát hiện API event list trả kèm `organizer.password` và `organizer.salt`; đã chặn serialize hai field này bằng `[JsonIgnore]` trong `BaseCore.Entities\User.cs`.
 - Playwright DOM check landing: hero/roles/steps/event links render được, text không mojibake.
+- Sau feedback UI, hero đã được tăng tương phản: thêm left-side dark scrim, chữ mô tả sáng hơn, text-shadow nhẹ, badge/thống kê dùng nền tối bán trong suốt để không bị chìm trên ảnh nền.
 
 ## 7. Route Frontend Cũ
 

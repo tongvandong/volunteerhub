@@ -156,18 +156,19 @@ export default function LandingPage() {
     <div className="bg-slate-50">
       <section className="relative min-h-[calc(100vh-60px)] overflow-hidden">
         <img src={heroImage} alt="Tình nguyện viên trong hoạt động cộng đồng" className="absolute inset-0 h-full w-full object-cover" />
-        <div className="absolute inset-0 bg-slate-950/65" />
-        <div className="absolute inset-0 bg-gradient-to-b from-slate-950/30 via-slate-950/20 to-slate-50" />
+        <div className="absolute inset-0 bg-slate-950/32" />
+        <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(2,6,23,0.86)_0%,rgba(2,6,23,0.64)_38%,rgba(2,6,23,0.24)_70%,rgba(2,6,23,0.08)_100%)]" />
+        <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(248,250,252,0)_0%,rgba(248,250,252,0)_68%,rgb(248,250,252)_100%)]" />
 
         <div className="relative mx-auto flex min-h-[calc(100vh-60px)] max-w-7xl flex-col justify-center px-5 py-20 sm:px-8">
           <div className="max-w-3xl pt-10">
-            <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold text-white backdrop-blur">
+            <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-white/25 bg-slate-950/45 px-4 py-2 text-sm font-semibold text-white shadow-lg backdrop-blur">
               <i className="fa-solid fa-leaf" />
               Hệ sinh thái tình nguyện số
             </div>
 
-            <h1 className="text-4xl font-extrabold leading-tight text-white sm:text-5xl lg:text-6xl">VolunteerHub</h1>
-            <p className="mt-5 max-w-2xl text-lg leading-8 text-white/82">
+            <h1 className="text-4xl font-extrabold leading-tight text-white sm:text-5xl lg:text-6xl" style={{ textShadow: '0 3px 22px rgba(0, 0, 0, 0.48)' }}>VolunteerHub</h1>
+            <p className="mt-5 max-w-2xl text-lg font-medium leading-8 text-white/95" style={{ textShadow: '0 2px 18px rgba(0, 0, 0, 0.55)' }}>
               Kết nối tình nguyện viên, ban tổ chức và nhà tài trợ trong một nền tảng thống nhất: tìm sự kiện,
               đăng ký tham gia, vận hành chương trình, ghi nhận đóng góp và lan tỏa tác động cộng đồng.
             </p>
@@ -189,9 +190,9 @@ export default function LandingPage() {
 
           <div className="mt-14 grid max-w-5xl grid-cols-2 gap-3 md:grid-cols-4">
             {stats.map((item) => (
-              <div key={item.label} className="rounded-lg border border-white/15 bg-white/12 p-4 text-white backdrop-blur">
-                <div className="text-2xl font-extrabold">{item.value}</div>
-                <div className="mt-1 text-sm text-white/72">{item.label}</div>
+              <div key={item.label} className="rounded-lg border border-white/25 bg-slate-950/36 p-4 text-white shadow-lg backdrop-blur">
+                <div className="text-2xl font-extrabold" style={{ textShadow: '0 2px 14px rgba(0, 0, 0, 0.38)' }}>{item.value}</div>
+                <div className="mt-1 text-sm font-semibold text-white/90">{item.label}</div>
               </div>
             ))}
           </div>
