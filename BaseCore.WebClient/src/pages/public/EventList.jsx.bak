@@ -1,0 +1,103 @@
+import React, { useState, useEffect } from 'react';
+import { eventApi, eventCategoryApi } from '../../services/api';
+import EventCard from '../../components/ui/EventCard';
+import Pagination from '../../components/ui/Pagination';
+import LoadingSpinner from '../../components/ui/LoadingSpinner';
+
+export default function EventList() {
+  const [events, setEvents] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [totalCount, setTotalCount] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [filters, setFilters] = useState({ keyword: '', categoryId: '', status: 'Approved', page: 1, pageSize: 12 });
+
+  useEffect(() => { eventCategoryApi.getAll().then(r => setCategories(r.data)).catch(() => {}); }, []);
+
+  useEffect(() => {
+    setLoading(true);
+    const params = Object.fromEntries(Object.entries(filters).filter(([, v]) => v !== ''));
+    eventApi.getAll(params)
+      .then(r => { setEvents(r.data.items || []); setTotalCount(r.data.totalCount || 0); })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [filters]);
+
+  const set = (key, val) => setFilters(f => ({ ...f, [key]: val, page: 1 }));
+
+  return (
+    <div>
+      {/* Hero */}
+      <div className="text-center py-16 px-6" style={{ background: 'linear-gradient(160deg, #181d26 0%, #1b3a6b 100%)' }}>
+        <div className="max-w-2xl mx-auto">
+          <div
+            className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm mb-5"
+            style={{ background: 'rgba(27,97,201,0.35)', color: '#7aaaf5', border: '1px solid rgba(27,97,201,0.40)', letterSpacing: '0.12px' }}
+          >
+            <i className="fa-solid fa-leaf" /> Kết nối tình nguyện
+          </div>
+          <h1
+            className="text-4xl sm:text-5xl mb-4"
+            style={{ color: '#ffffff', fontWeight: 400, lineHeight: 1.15 }}
+          >
+            VolunteerHub
+          </h1>
+          <p
+            className="text-lg"
+            style={{ color: 'rgba(255,255,255,0.65)', letterSpacing: '0.18px', lineHeight: 1.55 }}
+          >
+            Tìm kiếm sự kiện tình nguyện phù hợp với kỹ năng và đam mê của bạn
+          </p>
+        </div>
+      </div>
+
+      {/* Filters */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
+        <div className="bg-white rounded-xl border border-gray-200 p-4 flex flex-wrap gap-3 items-center">
+          <div className="relative flex-1 min-w-48">
+            <i className="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm" />
+            <input
+              type="text"
+              placeholder="Tìm kiếm sự kiện..."
+              value={filters.keyword}
+              onChange={e => set('keyword', e.target.value)}
+              className="input-field pl-9"
+            />
+          </div>
+          <select value={filters.categoryId} onChange={e => set('categoryId', e.target.value)} className="input-field w-auto min-w-36">
+            <option value="">Tất cả danh mục</option>
+            {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
+          <select value={filters.status} onChange={e => set('status', e.target.value)} className="input-field w-auto min-w-36">
+            <option value="">Tất cả trạng thái</option>
+            <option value="Approved">Đang mở đăng ký</option>
+            <option value="Completed">Đã hoàn thành</option>
+          </select>
+        </div>
+
+        {/* Results */}
+        <div className="mt-2 mb-4 flex items-center justify-between">
+          <p className="text-sm text-gray-500">
+            {loading ? 'Đang tải...' : `${totalCount} sự kiện`}
+          </p>
+        </div>
+
+        {loading ? <LoadingSpinner /> : events.length === 0 ? (
+          <div className="text-center py-16">
+            <i className="fa-solid fa-calendar-xmark text-4xl text-gray-300 mb-3 block" />
+            <p className="text-gray-500">Không tìm thấy sự kiện phù hợp</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+            {events.map(ev => <EventCard key={ev.id} event={ev} />)}
+          </div>
+        )}
+
+        <Pagination
+          page={filters.page}
+          totalPages={Math.ceil(totalCount / filters.pageSize)}
+          onPageChange={p => setFilters(f => ({ ...f, page: p }))}
+        />
+      </div>
+    </div>
+  );
+}

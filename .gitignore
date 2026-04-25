@@ -1,0 +1,51 @@
+# Build output
+bin/
+obj/
+dist/
+build/
+out/
+
+# Visual Studio / Rider
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+*.slnLaunch.user
+
+# Node / frontend
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.vite/
+
+# Local environment and secrets
+.env
+.env.*
+!.env.example
+appsettings.Local.json
+appsettings.*.Local.json
+
+# Logs and runtime artifacts
+*.log
+*.err.log
+auth-login-response.txt
+
+# Test/browser artifacts
+Context/e2e-screenshots/
+playwright-report/
+test-results/
+coverage/
+
+# OS files
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# NuGet
+*.nupkg
+packages/

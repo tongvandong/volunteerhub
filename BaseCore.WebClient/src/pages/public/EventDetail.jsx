@@ -1,0 +1,436 @@
+import React, { useState, useEffect } from 'react';
+import { useParams, Link, useNavigate } from 'react-router-dom';
+import { eventApi, registrationApi, sponsorApi, skillApi, profileApi } from '../../services/api';
+import { useAuth } from '../../contexts/AuthContext';
+import StatusBadge from '../../components/ui/StatusBadge';
+import LoadingSpinner from '../../components/ui/LoadingSpinner';
+
+function fmt(dt) {
+  if (!dt) return '';
+  return new Date(dt).toLocaleString('vi-VN', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
+export default function EventDetail() {
+  const { id } = useParams();
+  const { isAuthenticated, isVolunteer } = useAuth();
+  const navigate = useNavigate();
+  const [event, setEvent] = useState(null);
+  const [shifts, setShifts] = useState([]);
+  const [sponsors, setSponsors] = useState([]);
+  const [myRegistration, setMyRegistration] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [notFound, setNotFound] = useState(false);
+  const [registering, setRegistering] = useState(false);
+  const [withdrawing, setWithdrawing] = useState(false);
+  const [msg, setMsg] = useState({ type: '', text: '' });
+  const [note, setNote] = useState('');
+  const [selectedShiftId, setSelectedShiftId] = useState('');
+  const [allSkills, setAllSkills] = useState([]);
+  const [mySkillIds, setMySkillIds] = useState([]);
+
+  useEffect(() => {
+    skillApi.getAll().then((r) => setAllSkills(r.data || [])).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    profileApi.getMyProfile()
+      .then((r) => {
+        const skills = r.data?.volunteerSkills || r.data?.skills || [];
+        setMySkillIds(skills.map((s) => s.skillId || s.id));
+      })
+      .catch(() => {});
+  }, [isAuthenticated]);
+
+  const loadEventData = async ({ initial = false } = {}) => {
+    if (initial) {
+      setLoading(true);
+      setNotFound(false);
+    }
+
+    try {
+      const requests = [
+        eventApi.getById(id),
+        eventApi.getShifts(id).catch(() => ({ data: [] })),
+        sponsorApi.getByEvent(id).catch(() => ({ data: [] })),
+      ];
+
+      if (isAuthenticated && isVolunteer()) {
+        requests.push(registrationApi.getMyRegistration(id).catch(() => ({ data: null })));
+      }
+
+      const [evRes, shRes, spRes, myRegRes] = await Promise.all(requests);
+      setEvent(evRes.data);
+      setShifts(shRes.data || []);
+      setSponsors(spRes.data || []);
+      setMyRegistration(myRegRes?.data || null);
+    } catch {
+      setNotFound(true);
+    } finally {
+      if (initial) setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadEventData({ initial: true });
+  }, [id, isAuthenticated]);
+
+  const handleRegister = async () => {
+    if (!isAuthenticated) {
+      navigate('/login');
+      return;
+    }
+
+    setRegistering(true);
+    setMsg({ type: '', text: '' });
+
+    try {
+      await registrationApi.register(id, {
+        note,
+        shiftId: selectedShiftId ? Number(selectedShiftId) : null,
+      });
+      await loadEventData();
+      setSelectedShiftId('');
+      setNote('');
+      setMsg({ type: 'success', text: 'Đăng ký thành công! Chờ ban tổ chức xác nhận.' });
+    } catch (err) {
+      setMsg({ type: 'error', text: err.response?.data?.message || 'Đăng ký thất bại' });
+    } finally {
+      setRegistering(false);
+    }
+  };
+
+  const handleWithdraw = async () => {
+    if (!myRegistration) return;
+
+    setWithdrawing(true);
+    setMsg({ type: '', text: '' });
+
+    try {
+      await registrationApi.withdraw(id);
+      await loadEventData();
+      setMsg({ type: 'success', text: 'Bạn đã rút đăng ký khỏi sự kiện.' });
+    } catch (err) {
+      setMsg({ type: 'error', text: err.response?.data?.message || 'Rút đăng ký thất bại' });
+    } finally {
+      setWithdrawing(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="max-w-5xl mx-auto px-4 py-8">
+        <LoadingSpinner />
+      </div>
+    );
+  }
+
+  if (notFound || !event) {
+    return (
+      <div className="max-w-5xl mx-auto px-4 py-16 text-center">
+        <i className="fa-solid fa-calendar-xmark text-5xl text-gray-300 mb-4 block" />
+        <h2 className="text-lg font-semibold text-gray-700 mb-2">Không tìm thấy sự kiện</h2>
+        <p className="text-gray-400 text-sm mb-6">Sự kiện không tồn tại hoặc đã bị xóa.</p>
+        <Link to="/" className="btn-primary inline-flex items-center gap-2">
+          <i className="fa-solid fa-arrow-left" /> Quay lại danh sách
+        </Link>
+      </div>
+    );
+  }
+
+  const pct = event.maxParticipants > 0
+    ? Math.round((event.currentParticipants / event.maxParticipants) * 100)
+    : 0;
+  const canRegister = isAuthenticated && isVolunteer() && event.status === 'Approved' && !myRegistration;
+  const canWithdraw = myRegistration?.status === 'Pending';
+  const selectedShift = shifts.find((s) => String(s.id) === String(selectedShiftId));
+
+  return (
+    <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
+      <Link to="/" className="text-sm text-gray-500 hover:text-primary-600 mb-4 inline-flex items-center gap-1">
+        <i className="fa-solid fa-arrow-left" /> Quay lại danh sách
+      </Link>
+
+      <div className="grid lg:grid-cols-3 gap-6 mt-4">
+        <div className="lg:col-span-2 space-y-5">
+          <div className="card overflow-hidden">
+            <div className="h-56 bg-primary-100">
+              {event.imageUrl ? (
+                <img src={event.imageUrl} alt={event.title} className="w-full h-full object-cover" />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center">
+                  <i className="fa-solid fa-calendar-days text-6xl text-primary-300" />
+                </div>
+              )}
+            </div>
+            <div className="p-5">
+              <div className="flex flex-wrap gap-2 items-center mb-3">
+                <StatusBadge status={event.status} />
+                {event.category && (
+                  <span className="bg-primary-50 text-primary-700 text-xs px-2 py-0.5 rounded-full border border-primary-100 font-medium">
+                    {event.category.name}
+                  </span>
+                )}
+              </div>
+              <h1 className="text-xl font-bold text-gray-900 mb-4">{event.title}</h1>
+              {event.description && <p className="text-gray-600 text-sm leading-relaxed">{event.description}</p>}
+            </div>
+          </div>
+
+          <div className="card p-5">
+            <h3 className="font-semibold text-gray-900 mb-3">Thông tin chi tiết</h3>
+            <div className="space-y-2 text-sm text-gray-600">
+              {event.location && (
+                <div className="flex items-start gap-2">
+                  <i className="fa-solid fa-location-dot text-primary-500 w-4 mt-0.5" />
+                  <span>{event.location}</span>
+                </div>
+              )}
+              <div className="flex items-center gap-2">
+                <i className="fa-solid fa-calendar text-primary-500 w-4" />
+                <span>Bắt đầu: {fmt(event.startDate)}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <i className="fa-solid fa-calendar-check text-primary-500 w-4" />
+                <span>Kết thúc: {fmt(event.endDate)}</span>
+              </div>
+            </div>
+          </div>
+
+          {(() => {
+            let reqIds = [];
+            try {
+              reqIds = JSON.parse(event.requiredSkillIds || '[]');
+            } catch {}
+            if (reqIds.length === 0) return null;
+            const reqSkills = allSkills.filter((s) => reqIds.includes(s.id));
+            const matchCount = reqSkills.filter((s) => mySkillIds.includes(s.id)).length;
+            const matchPct = reqSkills.length > 0 ? Math.round((matchCount / reqSkills.length) * 100) : 0;
+
+            return (
+              <div className="card p-5">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="font-semibold" style={{ color: '#181d26' }}>Kỹ năng yêu cầu</h3>
+                  {isAuthenticated && reqSkills.length > 0 && (
+                    <span style={{
+                      fontSize: 12,
+                      fontWeight: 700,
+                      padding: '3px 10px',
+                      borderRadius: 20,
+                      background: matchPct === 100
+                        ? 'rgba(22,163,74,0.12)'
+                        : matchPct > 0
+                          ? 'rgba(27,97,201,0.10)'
+                          : 'rgba(245,158,11,0.10)',
+                      color: matchPct === 100 ? '#15803d' : matchPct > 0 ? '#1b61c9' : '#92400e',
+                    }}>
+                      {matchPct === 100 ? '✓ Đủ kỹ năng' : matchPct > 0 ? `Phù hợp ${matchPct}%` : 'Chưa có kỹ năng phù hợp'}
+                    </span>
+                  )}
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {reqSkills.map((s) => {
+                    const match = mySkillIds.includes(s.id);
+                    return (
+                      <span key={s.id} style={{
+                        padding: '4px 12px',
+                        borderRadius: 20,
+                        fontSize: 12.5,
+                        fontWeight: 600,
+                        background: match ? 'rgba(22,163,74,0.10)' : 'rgba(4,14,32,0.06)',
+                        color: match ? '#15803d' : 'rgba(4,14,32,0.55)',
+                        border: `1px solid ${match ? 'rgba(22,163,74,0.25)' : 'rgba(4,14,32,0.12)'}`,
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 5,
+                      }}>
+                        {match && <i className="fa-solid fa-check" style={{ fontSize: 10 }} />}
+                        {s.name}
+                      </span>
+                    );
+                  })}
+                </div>
+                {isAuthenticated && matchPct < 100 && (
+                  <p className="text-xs mt-3" style={{ color: 'rgba(4,14,32,0.45)' }}>
+                    Thêm kỹ năng vào{' '}
+                    <Link to="/profile" style={{ color: '#1b61c9', fontWeight: 600 }}>hồ sơ của bạn</Link>
+                    {' '}để tăng độ phù hợp.
+                  </p>
+                )}
+              </div>
+            );
+          })()}
+
+          {shifts.length > 0 && (
+            <div className="card p-5">
+              <h3 className="font-semibold text-gray-900 mb-3">Ca làm việc</h3>
+              <div className="space-y-2">
+                {shifts.map((s) => (
+                  <div key={s.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg text-sm">
+                    <span className="font-medium">{s.name}</span>
+                    <span className="text-gray-500">
+                      {fmt(s.startTime)} - {new Date(s.endTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                    <span className="text-primary-600 font-medium">Max {s.maxVolunteers}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {sponsors.length > 0 && (
+            <div className="card p-5">
+              <h3 className="font-semibold text-gray-900 mb-3">Nhà tài trợ</h3>
+              <div className="flex flex-wrap gap-2">
+                {sponsors.map((s) => (
+                  <span key={s.id} className="bg-purple-50 text-purple-700 border border-purple-100 px-3 py-1 rounded-full text-sm font-medium">
+                    {s.sponsor?.name || 'Nhà tài trợ'} · {s.contributionType}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="space-y-4">
+          <div className="card p-5">
+            <h3 className="font-semibold text-gray-900 mb-3">Tình nguyện viên</h3>
+            <div className="text-center mb-3">
+              <span className="text-3xl font-bold text-primary-600">{event.currentParticipants || 0}</span>
+              <span className="text-gray-400">/{event.maxParticipants}</span>
+            </div>
+            <div className="w-full bg-gray-100 rounded-full h-2 mb-1">
+              <div className="bg-primary-500 h-2 rounded-full" style={{ width: `${Math.min(pct, 100)}%` }} />
+            </div>
+            <p className="text-xs text-center text-gray-500">{pct}% đã đăng ký</p>
+          </div>
+
+          <div className="card p-5 space-y-3">
+            {msg.text && (
+              <div className={`p-3 rounded-lg text-sm ${msg.type === 'success' ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'}`}>
+                {msg.text}
+              </div>
+            )}
+
+            {myRegistration && (
+              <div className="space-y-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-medium text-gray-900">Trạng thái đăng ký của bạn</p>
+                    <p className="text-xs text-gray-500 mt-1">Đăng ký ngày {fmt(myRegistration.registeredAt)}</p>
+                  </div>
+                  <StatusBadge status={myRegistration.isAttended ? 'Completed' : myRegistration.status} />
+                </div>
+
+                {myRegistration.shift && (
+                  <div className="rounded-lg border border-primary-100 bg-primary-50 px-3 py-2 text-sm text-primary-700">
+                    <div className="font-medium">{myRegistration.shift.name}</div>
+                    <div className="text-xs text-primary-600 mt-1">
+                      {fmt(myRegistration.shift.startTime)} - {new Date(myRegistration.shift.endTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+                    </div>
+                  </div>
+                )}
+
+                {myRegistration.note && (
+                  <div className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-600 italic">
+                    "{myRegistration.note}"
+                  </div>
+                )}
+
+                {myRegistration.isAttended && (
+                  <div className="rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-700">
+                    Bạn đã tham gia sự kiện này và tổng giờ ghi nhận là {myRegistration.volunteerHours}h.
+                  </div>
+                )}
+
+                {canWithdraw && (
+                  <button onClick={handleWithdraw} disabled={withdrawing} className="btn-danger w-full flex items-center justify-center gap-2">
+                    {withdrawing && <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />}
+                    <i className="fa-solid fa-xmark" /> Rút đăng ký
+                  </button>
+                )}
+
+                {myRegistration.status === 'Confirmed' && !myRegistration.isAttended && (
+                  <p className="text-xs text-center text-gray-500">
+                    Đăng ký của bạn đã được xác nhận. Hiện không thể rút trên giao diện này.
+                  </p>
+                )}
+              </div>
+            )}
+
+            {canRegister && !msg.text && (
+              <>
+                {shifts.length > 0 && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Chọn ca làm việc</label>
+                    <select value={selectedShiftId} onChange={(e) => setSelectedShiftId(e.target.value)} className="input-field text-sm">
+                      <option value="">Không chọn ca cụ thể</option>
+                      {shifts.map((shift) => (
+                        <option key={shift.id} value={shift.id}>
+                          {shift.name} · {fmt(shift.startTime)}
+                        </option>
+                      ))}
+                    </select>
+                    {selectedShift && (
+                      <p className="text-xs text-gray-500 mt-1">
+                        {new Date(selectedShift.startTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+                        {' - '}
+                        {new Date(selectedShift.endTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                <textarea
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
+                  placeholder="Ghi chú khi đăng ký (tùy chọn)..."
+                  rows={2}
+                  className="input-field resize-none text-sm"
+                />
+
+                <button onClick={handleRegister} disabled={registering} className="btn-primary w-full flex items-center justify-center gap-2">
+                  {registering && <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />}
+                  <i className="fa-solid fa-hand-holding-heart" /> Đăng ký tham gia
+                </button>
+              </>
+            )}
+
+            {!isAuthenticated && (
+              <Link to="/login" className="btn-primary w-full text-center flex items-center justify-center gap-2">
+                <i className="fa-solid fa-right-to-bracket" /> Đăng nhập để đăng ký
+              </Link>
+            )}
+
+            {isAuthenticated && !isVolunteer() && (
+              <p className="text-xs text-center text-gray-400">Chỉ tình nguyện viên mới có thể đăng ký</p>
+            )}
+
+            {isAuthenticated && isVolunteer() && !myRegistration && event.status !== 'Approved' && (
+              <p className="text-xs text-center text-gray-400">Sự kiện chưa mở đăng ký.</p>
+            )}
+          </div>
+
+          {event.status === 'Approved' && isAuthenticated && event.channel?.id && (
+            <Link to={`/channels/${event.channel.id}`} className="card p-4 flex items-center gap-3 hover:shadow-md transition-shadow">
+              <div className="w-9 h-9 bg-primary-100 rounded-xl flex items-center justify-center">
+                <i className="fa-solid fa-comments text-primary-600" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-gray-900">Kênh trao đổi</p>
+                <p className="text-xs text-gray-500">Xem thảo luận của sự kiện</p>
+              </div>
+              <i className="fa-solid fa-chevron-right ml-auto text-gray-400 text-sm" />
+            </Link>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
