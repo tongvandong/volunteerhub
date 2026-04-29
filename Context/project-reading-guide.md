@@ -342,6 +342,26 @@ Backlog còn lại so với vision đầy đủ:
 - Sponsor tracking mới ở mức tài trợ và impact summary; chưa có timeline/progress riêng cho sponsor.
 - Performance lớn vẫn ở mức pagination/filter cơ bản; chưa có caching/rate limiting chuyên biệt cho chiến dịch khẩn cấp.
 
+Test mới đã chạy ngày 2026-04-29:
+
+- Build backend `dotnet build BaseCore.sln --no-incremental`: pass.
+- Build frontend `npm run build`: pass.
+- API E2E qua gateway pass 22 checks:
+  - Admin login, organizer/volunteer/sponsor register/login.
+  - Organizer tạo event, admin approve, sponsor tài trợ event approved.
+  - Organizer tạo shift, volunteer đăng ký shift.
+  - Volunteer bị chặn khi đọc `/api/events/{id}/registrations`.
+  - Organizer confirm, GPS check-in, complete event.
+  - Public impact phản ánh attended volunteer, volunteer hours, sponsor.
+  - Volunteer rating organizer và organizer rating volunteer pass.
+  - Sponsor rating volunteer bị chặn `403`.
+  - Certificate được cấp và PDF endpoint trả `application/pdf` với header `%PDF-`.
+- UI Playwright pass:
+  - Event detail render `Tac dong cong khai` và `Chia se`.
+  - Organizer manage event render rating UI và nút `Diem danh bang GPS`.
+  - Volunteer registrations render rating UI.
+  - My certificates render link `Tai PDF`.
+
 ## 15. Verify Sau Khi Sửa
 
 Các lệnh build đã dùng và hiện pass:
