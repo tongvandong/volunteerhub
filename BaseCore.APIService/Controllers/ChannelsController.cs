@@ -67,7 +67,9 @@ namespace BaseCore.APIService.Controllers
             if (uid == null) return Unauthorized();
             try
             {
-                await _channelService.UpdatePostAsync(postId, uid.Value, dto.Content, dto.ImageUrl);
+                if (!await _channelService.CanAccessChannelAsync(id, uid.Value) && !IsAdmin())
+                    return Forbid();
+                await _channelService.UpdatePostAsync(id, postId, uid.Value, dto.Content, dto.ImageUrl);
                 return Ok(new { message = "Updated" });
             }
             catch (Exception ex) { return BadRequest(new { message = ex.Message }); }
@@ -80,7 +82,9 @@ namespace BaseCore.APIService.Controllers
             if (uid == null) return Unauthorized();
             try
             {
-                await _channelService.DeletePostAsync(postId, uid.Value, IsAdmin());
+                if (!await _channelService.CanAccessChannelAsync(id, uid.Value) && !IsAdmin())
+                    return Forbid();
+                await _channelService.DeletePostAsync(id, postId, uid.Value, IsAdmin());
                 return Ok(new { message = "Deleted" });
             }
             catch (Exception ex) { return BadRequest(new { message = ex.Message }); }
@@ -93,7 +97,9 @@ namespace BaseCore.APIService.Controllers
             if (uid == null) return Unauthorized();
             try
             {
-                var liked = await _channelService.ToggleLikeAsync(postId, uid.Value);
+                if (!await _channelService.CanAccessChannelAsync(id, uid.Value) && !IsAdmin())
+                    return Forbid();
+                var liked = await _channelService.ToggleLikeAsync(id, postId, uid.Value);
                 return Ok(new { liked });
             }
             catch (Exception ex) { return BadRequest(new { message = ex.Message }); }
@@ -120,7 +126,7 @@ namespace BaseCore.APIService.Controllers
                 return Forbid();
             try
             {
-                var comment = await _channelService.AddCommentAsync(postId, uid.Value, dto.Content);
+                var comment = await _channelService.AddCommentAsync(id, postId, uid.Value, dto.Content);
                 return Ok(comment);
             }
             catch (Exception ex) { return BadRequest(new { message = ex.Message }); }
@@ -133,7 +139,9 @@ namespace BaseCore.APIService.Controllers
             if (uid == null) return Unauthorized();
             try
             {
-                await _channelService.DeleteCommentAsync(commentId, uid.Value, IsAdmin());
+                if (!await _channelService.CanAccessChannelAsync(id, uid.Value) && !IsAdmin())
+                    return Forbid();
+                await _channelService.DeleteCommentAsync(id, postId, commentId, uid.Value, IsAdmin());
                 return Ok(new { message = "Deleted" });
             }
             catch (Exception ex) { return BadRequest(new { message = ex.Message }); }

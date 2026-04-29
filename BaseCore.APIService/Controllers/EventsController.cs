@@ -147,6 +147,14 @@ namespace BaseCore.APIService.Controllers
         [HttpGet("{id}/registrations"), Authorize]
         public async Task<IActionResult> GetRegistrations(int id)
         {
+            if (!int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var userId))
+                return Unauthorized();
+
+            var role = User.FindFirst(ClaimTypes.Role)?.Value;
+            var ev = await _eventService.GetByIdAsync(id);
+            if (ev == null) return NotFound(new { message = "Event not found" });
+            if (role != "Admin" && ev.OrganizerId != userId) return Forbid();
+
             var regs = await _registrationService.GetByEventAsync(id);
             return Ok(regs);
         }

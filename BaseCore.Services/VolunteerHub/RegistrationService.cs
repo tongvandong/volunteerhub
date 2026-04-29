@@ -22,8 +22,41 @@ namespace BaseCore.Services.VolunteerHub
             if (ev.Status != "Approved") throw new Exception("Event is not open for registration");
             if (ev.CurrentParticipants >= ev.MaxParticipants) throw new Exception("Event is full");
 
-            var exists = await _context.Registrations.AnyAsync(r => r.EventId == eventId && r.UserId == userId);
-            if (exists) throw new Exception("Already registered");
+            if (shiftId.HasValue)
+            {
+                var shift = await _context.WorkShifts.FindAsync(shiftId.Value)
+                    ?? throw new Exception("Shift not found");
+                if (shift.EventId != eventId) throw new Exception("Shift does not belong to this event");
+
+                var shiftRegistrations = await _context.Registrations.CountAsync(r =>
+                    r.ShiftId == shiftId.Value && r.Status != "Cancelled");
+                if (shiftRegistrations >= shift.MaxVolunteers) throw new Exception("Shift is full");
+            }
+
+            var existing = await _context.Registrations
+                .FirstOrDefaultAsync(r => r.EventId == eventId && r.UserId == userId);
+            if (existing != null)
+            {
+                if (existing.Status != "Cancelled") throw new Exception("Already registered");
+
+                existing.ShiftId = shiftId;
+                existing.Status = "Pending";
+                existing.Note = note ?? "";
+                existing.RegisteredAt = DateTime.UtcNow;
+                existing.ConfirmedAt = null;
+                existing.IsAttended = false;
+                existing.AttendedAt = null;
+                existing.VolunteerHours = 0;
+                ev.CurrentParticipants++;
+                await _context.SaveChangesAsync();
+
+                var existingVolunteer = await _context.Users.FindAsync(userId);
+                await _notificationService.SendAsync(ev.OrganizerId,
+                    "ÄÄƒng kÃ½ má»›i", $"{existingVolunteer?.Name} Ä‘Ã£ Ä‘Äƒng kÃ½ sá»± kiá»‡n '{ev.Title}'.",
+                    "RegistrationConfirmed", eventId);
+
+                return existing;
+            }
 
             var reg = new Registration
             {
@@ -61,11 +94,12 @@ namespace BaseCore.Services.VolunteerHub
             await _context.SaveChangesAsync();
         }
 
-        public async Task<Registration> ConfirmAsync(int registrationId, int organizerId)
+        public async Task<Registration> ConfirmAsync(int eventId, int registrationId, int organizerId)
         {
             var reg = await _context.Registrations.Include(r => r.Event)
                 .FirstOrDefaultAsync(r => r.Id == registrationId)
                 ?? throw new Exception("Registration not found");
+            if (reg.EventId != eventId) throw new Exception("Registration not found in this event");
             if (reg.Event.OrganizerId != organizerId) throw new Exception("Not authorized");
 
             reg.Status = "Confirmed";
@@ -80,11 +114,12 @@ namespace BaseCore.Services.VolunteerHub
             return reg;
         }
 
-        public async Task<Registration> CancelAsync(int registrationId, int organizerId)
+        public async Task<Registration> CancelAsync(int eventId, int registrationId, int organizerId)
         {
             var reg = await _context.Registrations.Include(r => r.Event)
                 .FirstOrDefaultAsync(r => r.Id == registrationId)
                 ?? throw new Exception("Registration not found");
+            if (reg.EventId != eventId) throw new Exception("Registration not found in this event");
             if (reg.Event.OrganizerId != organizerId) throw new Exception("Not authorized");
 
             reg.Status = "Cancelled";
@@ -95,11 +130,12 @@ namespace BaseCore.Services.VolunteerHub
             return reg;
         }
 
-        public async Task<Registration> CheckInAsync(int registrationId, int organizerId, string qrCode)
+        public async Task<Registration> CheckInAsync(int eventId, int registrationId, int organizerId, string qrCode)
         {
             var reg = await _context.Registrations.Include(r => r.Event)
                 .FirstOrDefaultAsync(r => r.Id == registrationId)
                 ?? throw new Exception("Registration not found");
+            if (reg.EventId != eventId) throw new Exception("Registration not found in this event");
             if (reg.Event.OrganizerId != organizerId) throw new Exception("Not authorized");
             if (reg.Event.QrCode != qrCode) throw new Exception("Invalid QR code");
             if (reg.Status != "Confirmed") throw new Exception("Registration is not confirmed");

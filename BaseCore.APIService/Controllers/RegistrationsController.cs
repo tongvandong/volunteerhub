@@ -48,7 +48,7 @@ namespace BaseCore.APIService.Controllers
                 return Unauthorized();
             try
             {
-                var reg = await _registrationService.ConfirmAsync(regId, userId);
+                var reg = await _registrationService.ConfirmAsync(eventId, regId, userId);
                 return Ok(reg);
             }
             catch (Exception ex) { return BadRequest(new { message = ex.Message }); }
@@ -61,7 +61,7 @@ namespace BaseCore.APIService.Controllers
                 return Unauthorized();
             try
             {
-                var reg = await _registrationService.CancelAsync(regId, userId);
+                var reg = await _registrationService.CancelAsync(eventId, regId, userId);
                 return Ok(reg);
             }
             catch (Exception ex) { return BadRequest(new { message = ex.Message }); }
@@ -74,7 +74,7 @@ namespace BaseCore.APIService.Controllers
                 return Unauthorized();
             try
             {
-                var reg = await _registrationService.CheckInAsync(regId, userId, dto.QrCode);
+                var reg = await _registrationService.CheckInAsync(eventId, regId, userId, dto.QrCode);
                 return Ok(reg);
             }
             catch (Exception ex) { return BadRequest(new { message = ex.Message }); }

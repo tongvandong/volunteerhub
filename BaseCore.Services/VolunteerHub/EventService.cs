@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using BaseCore.Entities;
 using BaseCore.Repository;
+using System.Text.Json;
 
 namespace BaseCore.Services.VolunteerHub
 {
@@ -38,11 +39,9 @@ namespace BaseCore.Services.VolunteerHub
             if (!string.IsNullOrEmpty(status)) query = query.Where(e => e.Status == status);
             if (startDateFrom.HasValue) query = query.Where(e => e.StartDate >= startDateFrom.Value);
 
-            // Filter by required skill (JSON contains check)
             if (skillId.HasValue)
             {
-                var skillStr = skillId.Value.ToString();
-                query = query.Where(e => e.RequiredSkillIds != null && e.RequiredSkillIds.Contains(skillStr));
+                query = query.Where(e => e.RequiredSkillIds != null && e.RequiredSkillIds != "" && e.RequiredSkillIds != "[]");
             }
 
             // Filter by location text
@@ -50,6 +49,17 @@ namespace BaseCore.Services.VolunteerHub
             {
                 var loc = location.ToLower();
                 query = query.Where(e => e.Location != null && e.Location.ToLower().Contains(loc));
+            }
+
+            if (skillId.HasValue)
+            {
+                var candidates = await query.OrderByDescending(e => e.CreatedAt).ToListAsync();
+                var filtered = candidates
+                    .Where(e => RequiredSkillsContain(e.RequiredSkillIds, skillId.Value))
+                    .ToList();
+                var total = filtered.Count;
+                var pageItems = filtered.Skip((page - 1) * pageSize).Take(pageSize).ToList();
+                return (pageItems, total);
             }
 
             var totalCount = await query.CountAsync();
@@ -177,6 +187,7 @@ namespace BaseCore.Services.VolunteerHub
             var ev = await _context.Events.FindAsync(eventId)
                 ?? throw new Exception("Event not found");
             if (organizerId.HasValue && ev.OrganizerId != organizerId.Value) throw new Exception("Not authorized");
+            if (ev.Status != "Approved") throw new Exception("Only approved events can be completed");
 
             ev.Status = "Completed";
             await _context.SaveChangesAsync();
@@ -185,6 +196,21 @@ namespace BaseCore.Services.VolunteerHub
             await _certificateService.IssueCertificatesForEventAsync(eventId);
 
             return ev;
+        }
+
+        private static bool RequiredSkillsContain(string? requiredSkillIds, int skillId)
+        {
+            if (string.IsNullOrWhiteSpace(requiredSkillIds)) return false;
+
+            try
+            {
+                var ids = JsonSerializer.Deserialize<List<int>>(requiredSkillIds);
+                return ids?.Contains(skillId) == true;
+            }
+            catch
+            {
+                return false;
+            }
         }
     }
 }

@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using BaseCore.Entities;
+using BaseCore.Repository;
 using BaseCore.Repository.EFCore;
 using System.Security.Claims;
 
@@ -10,10 +11,12 @@ namespace BaseCore.APIService.Controllers
     public class SponsorController : ControllerBase
     {
         private readonly IEventSponsorRepositoryEF _sponsorRepo;
+        private readonly MySqlDbContext _context;
 
-        public SponsorController(IEventSponsorRepositoryEF sponsorRepo)
+        public SponsorController(IEventSponsorRepositoryEF sponsorRepo, MySqlDbContext context)
         {
             _sponsorRepo = sponsorRepo;
+            _context = context;
         }
 
         [HttpGet("api/events/{eventId}/sponsors")]
@@ -30,6 +33,10 @@ namespace BaseCore.APIService.Controllers
                 return Unauthorized();
             if (dto.Amount <= 0)
                 return BadRequest(new { message = "Sponsor amount must be greater than zero" });
+
+            var ev = await _context.Events.FindAsync(eventId);
+            if (ev == null) return NotFound(new { message = "Event not found" });
+            if (ev.Status != "Approved") return BadRequest(new { message = "Only approved events can be sponsored" });
 
             var sponsor = new EventSponsor
             {

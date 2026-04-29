@@ -65,10 +65,12 @@ namespace BaseCore.Services.VolunteerHub
             return post;
         }
 
-        public async Task UpdatePostAsync(int postId, int authorId, string content, string? imageUrl)
+        public async Task UpdatePostAsync(int channelId, int postId, int authorId, string content, string? imageUrl)
         {
             var post = await _context.Posts.FindAsync(postId)
                 ?? throw new Exception("Post not found");
+            if (post.ChannelId != channelId) throw new Exception("Post not found in this channel");
+            if (!await CanAccessChannelAsync(channelId, authorId)) throw new Exception("Not authorized");
             if (post.AuthorId != authorId) throw new Exception("Not authorized");
             post.Content = content;
             if (imageUrl != null) post.ImageUrl = imageUrl;
@@ -76,18 +78,22 @@ namespace BaseCore.Services.VolunteerHub
             await _context.SaveChangesAsync();
         }
 
-        public async Task DeletePostAsync(int postId, int userId, bool isAdmin)
+        public async Task DeletePostAsync(int channelId, int postId, int userId, bool isAdmin)
         {
             var post = await _context.Posts.FindAsync(postId) ?? throw new Exception("Post not found");
+            if (post.ChannelId != channelId) throw new Exception("Post not found in this channel");
+            if (!isAdmin && !await CanAccessChannelAsync(channelId, userId)) throw new Exception("Not authorized");
             if (!isAdmin && post.AuthorId != userId) throw new Exception("Not authorized");
             _context.Posts.Remove(post);
             await _context.SaveChangesAsync();
         }
 
-        public async Task<bool> ToggleLikeAsync(int postId, int userId)
+        public async Task<bool> ToggleLikeAsync(int channelId, int postId, int userId)
         {
             var existing = await _context.Likes.FirstOrDefaultAsync(l => l.PostId == postId && l.UserId == userId);
             var post = await _context.Posts.FindAsync(postId) ?? throw new Exception("Post not found");
+            if (post.ChannelId != channelId) throw new Exception("Post not found in this channel");
+            if (!await CanAccessChannelAsync(channelId, userId)) throw new Exception("Not authorized");
 
             if (existing != null)
             {
@@ -112,17 +118,27 @@ namespace BaseCore.Services.VolunteerHub
                 .ToListAsync();
         }
 
-        public async Task<Comment> AddCommentAsync(int postId, int authorId, string content)
+        public async Task<Comment> AddCommentAsync(int channelId, int postId, int authorId, string content)
         {
+            var post = await _context.Posts.FindAsync(postId) ?? throw new Exception("Post not found");
+            if (post.ChannelId != channelId) throw new Exception("Post not found in this channel");
+            if (!await CanAccessChannelAsync(channelId, authorId)) throw new Exception("Not authorized");
+
             var comment = new Comment { PostId = postId, AuthorId = authorId, Content = content, CreatedAt = DateTime.UtcNow };
             _context.Comments.Add(comment);
             await _context.SaveChangesAsync();
             return comment;
         }
 
-        public async Task DeleteCommentAsync(int commentId, int userId, bool isAdmin)
+        public async Task DeleteCommentAsync(int channelId, int postId, int commentId, int userId, bool isAdmin)
         {
-            var comment = await _context.Comments.FindAsync(commentId) ?? throw new Exception("Comment not found");
+            var comment = await _context.Comments
+                .Include(c => c.Post)
+                .FirstOrDefaultAsync(c => c.Id == commentId)
+                ?? throw new Exception("Comment not found");
+            if (comment.PostId != postId || comment.Post.ChannelId != channelId)
+                throw new Exception("Comment not found in this channel");
+            if (!isAdmin && !await CanAccessChannelAsync(channelId, userId)) throw new Exception("Not authorized");
             if (!isAdmin && comment.AuthorId != userId) throw new Exception("Not authorized");
             _context.Comments.Remove(comment);
             await _context.SaveChangesAsync();

@@ -303,13 +303,19 @@ Kết luận nghiệp vụ hiện tại:
 
 Điểm nên harden tiếp trước khi coi là “chắc nghiệp vụ”:
 
-- `GET /api/events/{id}/registrations` hiện chỉ `[Authorize]`; nên giới hạn chỉ organizer sở hữu event hoặc admin, vì hiện user đăng nhập bất kỳ có thể xem danh sách đăng ký của event.
-- Channel service đã kiểm quyền khi xem channel/posts/comments, nhưng `update/delete post`, `like`, `add/delete comment` nên xác thực thêm `postId` thật sự thuộc `channelId` và user có quyền truy cập channel đó.
-- Đăng ký theo ca mới lưu `ShiftId`, nhưng chưa validate shift thuộc event, chưa kiểm ca đầy, và chưa cập nhật `WorkShift.CurrentVolunteers`.
-- Nếu organizer hủy registration, record giữ trạng thái `Cancelled`; `RegisterAsync` đang chặn mọi record đã tồn tại, nên volunteer có thể không đăng ký lại được event đó sau khi bị hủy.
-- Sponsor add sponsorship chỉ kiểm amount, chưa kiểm event tồn tại/đang `Approved`; nên có thể tài trợ nhầm event không hợp lệ nếu gọi API trực tiếp.
-- Filter event theo skill đang dùng `RequiredSkillIds.Contains(skillStr)` trên chuỗi JSON; có nguy cơ match sai kiểu skill `1` khớp `[10]`. Nên parse JSON hoặc dùng bảng join nếu mở rộng nghiêm túc.
-- Hoàn thành event hiện không kiểm trạng thái trước khi complete; nên chỉ cho complete event `Approved` hoặc rule rõ ràng.
+- `GET /api/events/{id}/registrations` đã được giới hạn cho admin hoặc organizer sở hữu event.
+- Registration action `confirm/cancel/check-in` đã kiểm `regId` thuộc đúng `eventId` trên route.
+- Channel post/comment/like đã kiểm user có quyền vào channel và `postId/commentId` thuộc đúng `channelId`.
+- Đăng ký theo ca đã validate shift thuộc event và kiểm ca còn chỗ bằng số registration active trong ca.
+- Volunteer có thể đăng ký lại nếu registration cũ đang `Cancelled`; record được reset về `Pending`.
+- Sponsor add sponsorship đã kiểm event tồn tại và phải đang `Approved`.
+- Filter event theo skill đã parse JSON thay vì dùng `string.Contains`.
+- Hoàn thành event hiện chỉ cho event đang `Approved`.
+
+Điểm còn lại nếu muốn nâng cấp sâu hơn:
+
+- `WorkShift` chưa có cột `CurrentVolunteers`; hiện capacity ca được tính từ registration active thay vì lưu counter riêng.
+- Nếu cần hiệu năng cao cho filter skill, nên tách `RequiredSkillIds` từ chuỗi JSON sang bảng join.
 
 ## 14. Verify Sau Khi Sửa
 
