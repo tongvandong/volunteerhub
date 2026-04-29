@@ -1,6 +1,11 @@
 using Microsoft.EntityFrameworkCore;
 using BaseCore.Entities;
 using BaseCore.Repository;
+using System.Drawing;
+using System.Drawing.Drawing2D;
+using System.Drawing.Imaging;
+using System.Drawing.Text;
+using System.Runtime.Versioning;
 using System.Text;
 
 namespace BaseCore.Services.VolunteerHub
@@ -82,19 +87,14 @@ namespace BaseCore.Services.VolunteerHub
                 .FirstOrDefaultAsync(c => c.CertificateCode == code);
         }
 
+        [SupportedOSPlatform("windows")]
         public byte[] BuildCertificatePdf(Certificate cert, string verifyUrl)
         {
-            var title = EscapePdf("VOLUNTEERHUB CERTIFICATE");
-            var subtitle = EscapePdf("Certificate of Volunteer Contribution");
-            var volunteer = EscapePdf(cert.User?.Name ?? cert.User?.UserName ?? $"User #{cert.UserId}");
-            var ev = EscapePdf(cert.Event?.Title ?? $"Event #{cert.EventId}");
-            var code = EscapePdf(cert.CertificateCode);
-            var issued = EscapePdf(cert.IssuedAt.ToString("yyyy-MM-dd"));
-            var hours = EscapePdf($"{cert.VolunteerHours:0.##} volunteer hours");
-            var verify = EscapePdf(verifyUrl);
+            using var imageStream = BuildCertificateImage(cert, verifyUrl);
+            var imageBytes = imageStream.ToArray();
 
             var stream = new MemoryStream();
-            var writer = new StreamWriter(stream, Encoding.ASCII, leaveOpen: true);
+            var writer = new StreamWriter(stream, Encoding.ASCII, leaveOpen: true) { NewLine = "\n" };
             var offsets = new List<long>();
 
             void Write(string value) => writer.Write(value);
@@ -108,29 +108,18 @@ namespace BaseCore.Services.VolunteerHub
             Write("%PDF-1.4\n");
             Obj(1, "<< /Type /Catalog /Pages 2 0 R >>");
             Obj(2, "<< /Type /Pages /Kids [3 0 R] /Count 1 >>");
-            Obj(3, "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 842 595] /Resources << /Font << /F1 4 0 R /F2 5 0 R >> >> /Contents 6 0 R >>");
-            Obj(4, "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>");
-            Obj(5, "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>");
+            Obj(3, "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 842 595] /Resources << /XObject << /CertImage 4 0 R >> >> /Contents 5 0 R >>");
 
-            var content = string.Join("\n", new[]
-            {
-                "q",
-                "2 w 42 42 758 511 re S",
-                "BT /F2 30 Tf 230 500 Td (" + title + ") Tj ET",
-                "BT /F1 16 Tf 292 470 Td (" + subtitle + ") Tj ET",
-                "BT /F1 14 Tf 110 405 Td (This certifies that) Tj ET",
-                "BT /F2 28 Tf 110 365 Td (" + volunteer + ") Tj ET",
-                "BT /F1 14 Tf 110 325 Td (has completed volunteer service for) Tj ET",
-                "BT /F2 20 Tf 110 292 Td (" + ev + ") Tj ET",
-                "BT /F1 14 Tf 110 252 Td (Recognized contribution: " + hours + ") Tj ET",
-                "BT /F1 12 Tf 110 210 Td (Issued: " + issued + ") Tj ET",
-                "BT /F1 12 Tf 110 188 Td (Certificate code / QR identifier: " + code + ") Tj ET",
-                "BT /F1 10 Tf 110 166 Td (Verify: " + verify + ") Tj ET",
-                "BT /F2 12 Tf 610 100 Td (VolunteerHub) Tj ET",
-                "Q"
-            });
+            writer.Flush();
+            offsets.Add(stream.Position);
+            Write($"4 0 obj\n<< /Type /XObject /Subtype /Image /Width 1684 /Height 1190 /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length {imageBytes.Length} >>\nstream\n");
+            writer.Flush();
+            stream.Write(imageBytes, 0, imageBytes.Length);
+            Write("\nendstream\nendobj\n");
+
+            var content = "q\n842 0 0 595 0 0 cm\n/CertImage Do\nQ";
             var contentBytes = Encoding.ASCII.GetBytes(content);
-            Obj(6, $"<< /Length {contentBytes.Length} >>\nstream\n{content}\nendstream");
+            Obj(5, $"<< /Length {contentBytes.Length} >>\nstream\n{content}\nendstream");
 
             writer.Flush();
             var xrefPosition = stream.Position;
@@ -143,12 +132,71 @@ namespace BaseCore.Services.VolunteerHub
             return stream.ToArray();
         }
 
-        private static string EscapePdf(string value)
+        [SupportedOSPlatform("windows")]
+        private static MemoryStream BuildCertificateImage(Certificate cert, string verifyUrl)
         {
-            return value
-                .Replace("\\", "\\\\")
-                .Replace("(", "\\(")
-                .Replace(")", "\\)");
+            const int width = 1684;
+            const int height = 1190;
+            var volunteer = cert.User?.Name ?? cert.User?.UserName ?? $"User #{cert.UserId}";
+            var ev = cert.Event?.Title ?? $"Event #{cert.EventId}";
+            var issued = cert.IssuedAt.ToString("yyyy-MM-dd");
+            var hours = $"{cert.VolunteerHours:0.##} giờ tình nguyện";
+
+            using var bitmap = new Bitmap(width, height);
+            using var graphics = Graphics.FromImage(bitmap);
+            graphics.Clear(Color.White);
+            graphics.SmoothingMode = SmoothingMode.AntiAlias;
+            graphics.TextRenderingHint = TextRenderingHint.ClearTypeGridFit;
+
+            using var borderPen = new Pen(Color.FromArgb(20, 28, 45), 5);
+            graphics.DrawRectangle(borderPen, 84, 84, width - 168, height - 168);
+
+            using var titleFont = new Font("Arial", 58, FontStyle.Bold, GraphicsUnit.Pixel);
+            using var subtitleFont = new Font("Arial", 34, FontStyle.Regular, GraphicsUnit.Pixel);
+            using var labelFont = new Font("Arial", 28, FontStyle.Regular, GraphicsUnit.Pixel);
+            using var nameFont = new Font("Arial", 56, FontStyle.Bold, GraphicsUnit.Pixel);
+            using var eventFont = new Font("Arial", 42, FontStyle.Bold, GraphicsUnit.Pixel);
+            using var smallFont = new Font("Arial", 25, FontStyle.Regular, GraphicsUnit.Pixel);
+            using var tinyFont = new Font("Arial", 21, FontStyle.Regular, GraphicsUnit.Pixel);
+            using var brandFont = new Font("Arial", 27, FontStyle.Bold, GraphicsUnit.Pixel);
+            using var brush = new SolidBrush(Color.Black);
+
+            DrawCentered(graphics, "VOLUNTEERHUB CERTIFICATE", titleFont, brush, 150, width);
+            DrawCentered(graphics, "Chứng nhận đóng góp tình nguyện", subtitleFont, brush, 228, width);
+
+            var left = 222;
+            graphics.DrawString("Chứng nhận rằng", labelFont, brush, left, 362);
+            graphics.DrawString(volunteer, nameFont, brush, left, 420);
+            graphics.DrawString("đã hoàn thành hoạt động tình nguyện cho", labelFont, brush, left, 520);
+            DrawWrapped(graphics, ev, eventFont, brush, new RectangleF(left, 578, 1240, 110));
+            graphics.DrawString($"Ghi nhận đóng góp: {hours}", labelFont, brush, left, 690);
+            graphics.DrawString($"Ngày cấp: {issued}", smallFont, brush, left, 766);
+            graphics.DrawString($"Mã chứng chỉ / QR định danh: {cert.CertificateCode}", smallFont, brush, left, 810);
+            graphics.DrawString($"Xác thực: {verifyUrl}", tinyFont, brush, left, 858);
+            graphics.DrawString("VolunteerHub", brandFont, brush, 1220, 986);
+
+            var output = new MemoryStream();
+            bitmap.Save(output, ImageFormat.Jpeg);
+            output.Position = 0;
+            return output;
+        }
+
+        [SupportedOSPlatform("windows")]
+        private static void DrawCentered(Graphics graphics, string text, Font font, Brush brush, float y, float pageWidth)
+        {
+            var size = graphics.MeasureString(text, font);
+            graphics.DrawString(text, font, brush, (pageWidth - size.Width) / 2, y);
+        }
+
+        [SupportedOSPlatform("windows")]
+        private static void DrawWrapped(Graphics graphics, string text, Font font, Brush brush, RectangleF bounds)
+        {
+            using var format = new StringFormat
+            {
+                Trimming = StringTrimming.EllipsisWord,
+                FormatFlags = StringFormatFlags.LineLimit
+            };
+            graphics.DrawString(text, font, brush, bounds, format);
         }
     }
 }

@@ -436,6 +436,12 @@ E2E local đã chạy qua gateway + frontend dev:
   - Organizer mở `/events/:id/manage` và thấy volunteer trong danh sách đăng ký.
 - Screenshot E2E được lưu ở `D:\FW\FW\BaseCore\Context\e2e-screenshots`.
 
+Certificate PDF note:
+
+- Endpoint `GET /api/certificates/{code}/pdf` không dùng PDF text ASCII/Helvetica nữa vì không render được tiếng Việt.
+- PDF hiện render certificate thành ảnh JPEG bằng `System.Drawing` + font Arial rồi nhúng ảnh vào PDF. Cách này giữ đúng dấu tiếng Việt trong tên sự kiện/chứng chỉ trên môi trường Windows hiện tại.
+- Đã test lại với `CERT-2025-0001`: sự kiện `Dạy kỹ năng số cho người cao tuổi` hiển thị đúng dấu, không còn chuỗi `D?y k? n?ng...`.
+
 ## 16. Khi Nào Cập Nhật File Này
 
 Cập nhật file này khi có thay đổi thuộc một trong các nhóm:
