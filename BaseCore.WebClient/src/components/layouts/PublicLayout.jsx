@@ -65,7 +65,7 @@ export default function PublicLayout({ children }) {
                   <Link to="/login" className="btn-secondary btn-sm hidden sm:inline-flex">
                     Đăng nhập
                   </Link>
-                  <Link to="/register" className="btn-primary btn-sm">
+                  <Link to="/register" className="btn-primary btn-sm hidden sm:inline-flex">
                     Đăng ký
                   </Link>
                 </>

@@ -442,6 +442,13 @@ Certificate PDF note:
 - PDF hiện render certificate thành ảnh JPEG bằng `System.Drawing` + font Arial rồi nhúng ảnh vào PDF. Cách này giữ đúng dấu tiếng Việt trong tên sự kiện/chứng chỉ trên môi trường Windows hiện tại.
 - Đã test lại với `CERT-2025-0001`: sự kiện `Dạy kỹ năng số cho người cao tuổi` hiển thị đúng dấu, không còn chuỗi `D?y k? n?ng...`.
 
+Events mobile layout note:
+
+- Trang public `/events` dùng nhiều inline style nên responsive phải bọc thêm class CSS trong `EventList.jsx` và override ở `src/index.css`.
+- Mobile `< 768px`: category tabs không sticky, filter xếp 1 cột, nút grid/map/gần tôi/bán kính xếp lại, danh sách event 1 cột, sidebar `Sắp diễn ra` xuống dưới card sự kiện.
+- `EventCard` cần `display:block;width:100%;max-width:100%` ở link/card root để không làm vỡ ngang khi nằm trong mobile grid.
+- Header public ẩn nút `Đăng ký` trên mobile; người dùng vẫn mở được đăng ký từ menu hoặc CTA trong hero.
+
 ## 16. Khi Nào Cập Nhật File Này
 
 Cập nhật file này khi có thay đổi thuộc một trong các nhóm:

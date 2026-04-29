@@ -21,7 +21,7 @@ export default function EventCard({ event, distance }) {
   const st = STATUS_LABEL[event.status] || { label: event.status, bg: '#f1f5f9', color: '#64748b', border: '#e2e8f0' };
 
   return (
-    <Link to={`/events/${event.id}`} style={{ textDecoration: 'none' }}>
+    <Link to={`/events/${event.id}`} style={{ textDecoration: 'none', display: 'block', width: '100%', maxWidth: '100%', minWidth: 0 }}>
       <div style={{
         background: '#fff',
         border: `1px solid ${hovered ? '#93c5fd' : '#e5e7eb'}`,
@@ -35,6 +35,9 @@ export default function EventCard({ event, distance }) {
           : '0 1px 4px rgba(0,0,0,0.06)',
         transform: hovered ? 'translateY(-2px)' : 'translateY(0)',
         height: '100%',
+        width: '100%',
+        maxWidth: '100%',
+        minWidth: 0,
       }}
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}

@@ -257,8 +257,8 @@ export default function EventList() {
           </p>
 
           {/* Search row */}
-          <div style={{ display: 'flex', gap: 10, maxWidth: 580, flexWrap: 'wrap' }}>
-            <div style={{ position: 'relative', flex: 1, minWidth: 220 }}>
+          <div className="event-list-hero-search" style={{ display: 'flex', gap: 10, maxWidth: 580, flexWrap: 'wrap' }}>
+            <div className="event-list-hero-search-field" style={{ position: 'relative', flex: 1, minWidth: 220 }}>
               <i className="fa-solid fa-magnifying-glass" style={{
                 position: 'absolute', left: 16, top: '50%', transform: 'translateY(-50%)',
                 color: 'rgba(4,14,32,0.38)', fontSize: 14,
@@ -275,7 +275,7 @@ export default function EventList() {
                 }}
               />
             </div>
-            <Link to="/register" style={{
+            <Link className="event-list-hero-cta" to="/register" style={{
               display: 'inline-flex', alignItems: 'center', gap: 8,
               padding: '13px 22px', borderRadius: 12,
               background: '#fff', color: '#1b61c9', fontWeight: 700, fontSize: 15,
@@ -293,12 +293,12 @@ export default function EventList() {
       </section>
 
       {/* ════════ CATEGORY TABS ══════════════════════════════ */}
-      <section style={{
+      <section className="event-list-tabs-section" style={{
         background: '#fff', borderBottom: '1px solid #e5e7eb',
         position: 'sticky', top: 60, zIndex: 20,
       }}>
-        <div style={{ maxWidth: 1280, margin: '0 auto', padding: '0 24px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 4, overflowX: 'auto', padding: '10px 0', scrollbarWidth: 'none' }}>
+        <div className="event-list-tabs-inner" style={{ maxWidth: 1280, margin: '0 auto', padding: '0 24px' }}>
+          <div className="event-list-tabs-scroll" style={{ display: 'flex', alignItems: 'center', gap: 4, overflowX: 'auto', padding: '10px 0', scrollbarWidth: 'none' }}>
             {[{ id: '', name: 'Tất cả' }, ...categories].map(cat => {
               const key = cat.id === '' ? '' : String(cat.id);
               const isActive = activeTab === key;
@@ -322,11 +322,11 @@ export default function EventList() {
       </section>
 
       {/* ════════ MAIN CONTENT ════════════════════════════════ */}
-      <div style={{ maxWidth: 1280, margin: '0 auto', padding: '40px 24px' }}>
-        <div style={{ display: 'flex', gap: 32, alignItems: 'flex-start' }}>
+      <div className="event-list-main" style={{ maxWidth: 1280, margin: '0 auto', padding: '40px 24px' }}>
+        <div className="event-list-layout" style={{ display: 'flex', gap: 32, alignItems: 'flex-start' }}>
 
           {/* ── Event grid ──────────────────────────────────── */}
-          <div style={{ flex: 1, minWidth: 0 }}>
+          <div className="event-list-results" style={{ flex: 1, minWidth: 0 }}>
 
             {/* ── Recommended (Volunteer only) ── */}
             {isAuthenticated && user?.role === 'Volunteer' && (recLoading || recommended.length > 0) && (
@@ -343,7 +343,7 @@ export default function EventList() {
                 {recLoading ? (
                   <LoadingSpinner />
                 ) : (
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 16 }}>
+                  <div className="event-list-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 16 }}>
                     {recommended.map(ev => <EventCard key={ev.id} event={ev} highlight />)}
                   </div>
                 )}
@@ -352,13 +352,13 @@ export default function EventList() {
             )}
 
             {/* Filter bar */}
-            <div style={{
+            <div className="event-list-filter" style={{
               display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center',
               marginBottom: 20, padding: '12px 14px', borderRadius: 14,
               background: '#fff', border: '1px solid #e5e7eb',
             }}>
               {/* Keyword */}
-              <div style={{ position: 'relative', flex: 1, minWidth: 160 }}>
+              <div className="event-list-filter-field event-list-filter-keyword" style={{ position: 'relative', flex: 1, minWidth: 160 }}>
                 <i className="fa-solid fa-magnifying-glass" style={{
                   position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)',
                   color: 'rgba(4,14,32,0.35)', fontSize: 12,
@@ -369,7 +369,7 @@ export default function EventList() {
               </div>
 
               {/* Location */}
-              <div style={{ position: 'relative', minWidth: 140 }}>
+              <div className="event-list-filter-field" style={{ position: 'relative', minWidth: 140 }}>
                 <i className="fa-solid fa-location-dot" style={{
                   position: 'absolute', left: 11, top: '50%', transform: 'translateY(-50%)',
                   color: '#1b61c9', fontSize: 12,
@@ -380,22 +380,22 @@ export default function EventList() {
               </div>
 
               {/* Skill */}
-              <select value={filters.skillId} onChange={e => set('skillId', e.target.value)}
-                className="input-field" style={{ width: 'auto', minWidth: 140, fontSize: 13 }}>
+              <select className="event-list-filter-select input-field" value={filters.skillId} onChange={e => set('skillId', e.target.value)}
+                style={{ width: 'auto', minWidth: 140, fontSize: 13 }}>
                 <option value="">Kỹ năng cần có</option>
                 {skills.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
               </select>
 
               {/* Status */}
-              <select value={filters.status} onChange={e => set('status', e.target.value)}
-                className="input-field" style={{ width: 'auto', minWidth: 150, fontSize: 13 }}>
+              <select className="event-list-filter-select input-field" value={filters.status} onChange={e => set('status', e.target.value)}
+                style={{ width: 'auto', minWidth: 150, fontSize: 13 }}>
                 <option value="">Tất cả trạng thái</option>
                 <option value="Approved">Đang mở đăng ký</option>
                 <option value="Completed">Đã hoàn thành</option>
               </select>
 
               {/* View toggle + locate me */}
-              <div style={{ marginLeft: 'auto', display: 'flex', gap: 6, alignItems: 'center' }}>
+              <div className="event-list-view-actions" style={{ marginLeft: 'auto', display: 'flex', gap: 6, alignItems: 'center' }}>
                 <button title="Xem dạng lưới"
                   onClick={() => setViewMode('grid')}
                   style={{
@@ -446,7 +446,7 @@ export default function EventList() {
                   <option value={50}>50 km</option>
                   <option value={100}>100 km</option>
                 </select>
-                <span style={{ fontSize: 13, color: 'rgba(4,14,32,0.45)', marginLeft: 4, whiteSpace: 'nowrap' }}>
+                <span className="event-list-count" style={{ fontSize: 13, color: 'rgba(4,14,32,0.45)', marginLeft: 4, whiteSpace: 'nowrap' }}>
                   {radiusEvents != null
                     ? <><b style={{ color: '#059669' }}>{radiusEvents.length}</b> trong {radiusKm} km</>
                     : loading ? '…' : <><b style={{ color: '#181d26' }}>{totalCount}</b> sự kiện</>}
@@ -506,7 +506,7 @@ export default function EventList() {
                   <p style={{ color: 'rgba(4,14,32,0.35)', fontSize: 13, marginTop: 4 }}>Thử tăng bán kính hoặc xóa bộ lọc kỹ năng/danh mục</p>
                 </div>
               ) : (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 20 }}>
+                <div className="event-list-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 20 }}>
                   {radiusEvents.map(ev => <EventCard key={ev.id} event={ev} distance={ev._distance} />)}
                 </div>
               )
@@ -527,7 +527,7 @@ export default function EventList() {
                 </button>
               </div>
             ) : (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 20 }}>
+              <div className="event-list-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 20 }}>
                 {events.map(ev => <EventCard key={ev.id} event={ev} />)}
               </div>
             )}
@@ -544,7 +544,7 @@ export default function EventList() {
           </div>
 
           {/* ── Sidebar ─────────────────────────────────────── */}
-          <div style={{ width: 300, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 20 }}>
+          <div className="event-list-sidebar" style={{ width: 300, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 20 }}>
 
             {/* Upcoming */}
             <SidebarCard title="Sắp diễn ra" icon="fa-clock" iconColor="#7aaaf5">
