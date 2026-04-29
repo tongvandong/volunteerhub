@@ -30,5 +30,16 @@ namespace BaseCore.APIService.Controllers
             var cert = await _certificateService.GetByCodeAsync(code);
             return cert == null ? NotFound(new { message = "Certificate not found" }) : Ok(cert);
         }
+
+        [HttpGet("api/certificates/{code}/pdf")]
+        public async Task<IActionResult> DownloadCertificatePdf(string code)
+        {
+            var cert = await _certificateService.GetByCodeAsync(code);
+            if (cert == null) return NotFound(new { message = "Certificate not found" });
+
+            var verifyUrl = $"{Request.Scheme}://{Request.Host}/verify/{Uri.EscapeDataString(code)}";
+            var pdf = _certificateService.BuildCertificatePdf(cert, verifyUrl);
+            return File(pdf, "application/pdf", $"VolunteerHub-{code}.pdf");
+        }
     }
 }

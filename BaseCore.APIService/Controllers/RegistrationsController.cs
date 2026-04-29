@@ -74,7 +74,7 @@ namespace BaseCore.APIService.Controllers
                 return Unauthorized();
             try
             {
-                var reg = await _registrationService.CheckInAsync(eventId, regId, userId, dto.QrCode);
+                var reg = await _registrationService.CheckInAsync(eventId, regId, userId, dto.QrCode, dto.Latitude, dto.Longitude);
                 return Ok(reg);
             }
             catch (Exception ex) { return BadRequest(new { message = ex.Message }); }
@@ -108,6 +108,8 @@ namespace BaseCore.APIService.Controllers
 
     public class CheckInDto
     {
-        public string QrCode { get; set; } = "";
+        public string? QrCode { get; set; }
+        public decimal? Latitude { get; set; }
+        public decimal? Longitude { get; set; }
     }
 }

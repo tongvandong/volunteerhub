@@ -317,7 +317,32 @@ Kết luận nghiệp vụ hiện tại:
 - `WorkShift` chưa có cột `CurrentVolunteers`; hiện capacity ca được tính từ registration active thay vì lưu counter riêng.
 - Nếu cần hiệu năng cao cho filter skill, nên tách `RequiredSkillIds` từ chuỗi JSON sang bảng join.
 
-## 14. Verify Sau Khi Sửa
+## 14. Requirement Coverage 2026-04-29
+
+Đối chiếu với file yêu cầu Volunteer Hub:
+
+- Portfolio: đã có hồ sơ kỹ năng, nhóm máu, ngôn ngữ, sở thích, bio/avatar; Volunteer Passport có lịch sử tham gia, tổng giờ, chứng chỉ.
+- Event management: organizer đã tạo/sửa event với mô tả, kỹ năng, thời gian, địa điểm, số lượng; admin duyệt/từ chối event.
+- Matching theo kỹ năng/vị trí: đã có filter skill parse JSON, map event, geolocation và radius filter ở frontend.
+- Approval volunteer: organizer đã xem danh sách đăng ký, xác nhận/hủy, xem profile cơ bản qua dữ liệu user/registration.
+- Operations: đã có QR check-in và GPS check-in trong `ManageEvent.jsx`; backend nhận QR hoặc tọa độ trong `RegistrationService.CheckInAsync`.
+- Shift management: đã tạo ca, volunteer chọn ca khi đăng ký, backend kiểm shift thuộc event và capacity ca.
+- Certificate: khi event hoàn thành, backend tự cấp certificate cho volunteer đã điểm danh; có verify code và endpoint tải PDF tối thiểu `/api/certificates/{code}/pdf`.
+- Badge: badge được award tự động theo điều kiện `min_events`/`min_hours`.
+- Rating hai chiều: backend chỉ cho rating sau khi event `Completed`; volunteer đã tham gia đánh giá organizer, organizer sở hữu event đánh giá volunteer đã tham gia. UI có form rating ở `MyRegistrations.jsx` và `ManageEvent.jsx`.
+- Transparency: event completed có public impact endpoint `/api/events/{id}/impact` và `EventDetail.jsx` hiển thị số người tham gia, giờ đóng góp, chứng chỉ, sponsor.
+- Social sharing: `EventDetail.jsx` có nút share/copy link sự kiện.
+
+Backlog còn lại so với vision đầy đủ:
+
+- PDF certificate hiện là PDF tối thiểu với certificate code + verify URL; chưa render QR matrix thật trong PDF.
+- Chưa có workflow phỏng vấn trực tuyến riêng trước khi approve volunteer.
+- Chưa có module kiểm duyệt pháp lý organizer hoặc upload giấy tờ pháp lý.
+- Chưa có complaint/ticket workflow cho admin xử lý khiếu nại.
+- Sponsor tracking mới ở mức tài trợ và impact summary; chưa có timeline/progress riêng cho sponsor.
+- Performance lớn vẫn ở mức pagination/filter cơ bản; chưa có caching/rate limiting chuyên biệt cho chiến dịch khẩn cấp.
+
+## 15. Verify Sau Khi Sửa
 
 Các lệnh build đã dùng và hiện pass:
 
@@ -391,7 +416,7 @@ E2E local đã chạy qua gateway + frontend dev:
   - Organizer mở `/events/:id/manage` và thấy volunteer trong danh sách đăng ký.
 - Screenshot E2E được lưu ở `D:\FW\FW\BaseCore\Context\e2e-screenshots`.
 
-## 15. Khi Nào Cập Nhật File Này
+## 16. Khi Nào Cập Nhật File Này
 
 Cập nhật file này khi có thay đổi thuộc một trong các nhóm:
 

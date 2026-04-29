@@ -1,7 +1,9 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using BaseCore.Entities;
+using BaseCore.Repository;
 using BaseCore.Services.VolunteerHub;
+using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 
 namespace BaseCore.APIService.Controllers
@@ -12,11 +14,13 @@ namespace BaseCore.APIService.Controllers
     {
         private readonly IEventService _eventService;
         private readonly IRegistrationService _registrationService;
+        private readonly MySqlDbContext _context;
 
-        public EventsController(IEventService eventService, IRegistrationService registrationService)
+        public EventsController(IEventService eventService, IRegistrationService registrationService, MySqlDbContext context)
         {
             _eventService = eventService;
             _registrationService = registrationService;
+            _context = context;
         }
 
         [HttpGet]
@@ -54,6 +58,41 @@ namespace BaseCore.APIService.Controllers
         {
             var ev = await _eventService.GetByIdAsync(id);
             return ev == null ? NotFound(new { message = "Event not found" }) : Ok(ev);
+        }
+
+        [HttpGet("{id}/impact")]
+        public async Task<IActionResult> GetImpact(int id)
+        {
+            var ev = await _context.Events
+                .Include(e => e.Category)
+                .Include(e => e.Organizer)
+                .FirstOrDefaultAsync(e => e.Id == id);
+            if (ev == null) return NotFound(new { message = "Event not found" });
+
+            var registrations = await _context.Registrations
+                .Where(r => r.EventId == id)
+                .ToListAsync();
+            var sponsors = await _context.EventSponsors
+                .Where(s => s.EventId == id)
+                .ToListAsync();
+            var certificates = await _context.Certificates
+                .CountAsync(c => c.EventId == id);
+
+            return Ok(new
+            {
+                eventId = id,
+                title = ev.Title,
+                status = ev.Status,
+                organizer = ev.Organizer != null ? ev.Organizer.Name : "",
+                category = ev.Category != null ? ev.Category.Name : "",
+                totalRegistrations = registrations.Count,
+                confirmedRegistrations = registrations.Count(r => r.Status == "Confirmed"),
+                attendedVolunteers = registrations.Count(r => r.IsAttended),
+                totalVolunteerHours = registrations.Where(r => r.IsAttended).Sum(r => r.VolunteerHours),
+                certificatesIssued = certificates,
+                sponsorCount = sponsors.Count,
+                sponsorAmount = sponsors.Sum(s => s.Amount)
+            });
         }
 
         [HttpPost, Authorize(Roles = "Organizer")]

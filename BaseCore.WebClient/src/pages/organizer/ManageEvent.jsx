@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
-import { eventApi, registrationApi } from '../../services/api';
+import { eventApi, registrationApi, ratingApi } from '../../services/api';
 import StatusBadge from '../../components/ui/StatusBadge';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import Modal from '../../components/ui/Modal';
@@ -29,6 +29,8 @@ export default function ManageEvent() {
   const [shiftForm, setShiftForm] = useState({ name: '', startTime: '', endTime: '', maxVolunteers: 10 });
   const [shiftSaving, setShiftSaving] = useState(false);
   const [selectedCheckinRegId, setSelectedCheckinRegId] = useState('');
+  const [usingGps, setUsingGps] = useState(false);
+  const [ratingForms, setRatingForms] = useState({});
 
   useEffect(() => {
     Promise.all([
@@ -95,6 +97,54 @@ export default function ManageEvent() {
       setCheckinMsg(`error:${err.response?.data?.message || 'Mã không hợp lệ'}`);
     } finally {
       setCheckinLoading(false);
+    }
+  };
+
+  const handleGpsCheckin = async () => {
+    if (!selectedCheckinRegId) return;
+    if (!navigator.geolocation) {
+      setCheckinMsg('error:Trinh duyet khong ho tro GPS');
+      return;
+    }
+
+    setUsingGps(true);
+    setCheckinMsg('');
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        try {
+          await registrationApi.checkin(id, selectedCheckinRegId, {
+            latitude: pos.coords.latitude,
+            longitude: pos.coords.longitude,
+          });
+          setCheckinMsg('success:Diem danh GPS thanh cong!');
+          setSelectedCheckinRegId('');
+          const r = await eventApi.getRegistrations(id);
+          setRegistrations(r.data || []);
+        } catch (err) {
+          setCheckinMsg(`error:${err.response?.data?.message || 'GPS khong hop le'}`);
+        } finally {
+          setUsingGps(false);
+        }
+      },
+      () => {
+        setCheckinMsg('error:Khong lay duoc vi tri hien tai');
+        setUsingGps(false);
+      },
+      { timeout: 8000, maximumAge: 30000 }
+    );
+  };
+
+  const submitVolunteerRating = async (registration) => {
+    const form = ratingForms[registration.id] || { score: 5, comment: '' };
+    try {
+      await ratingApi.create(id, {
+        rateeId: registration.userId,
+        score: Number(form.score) || 5,
+        comment: form.comment || '',
+      });
+      setRatingForms((prev) => ({ ...prev, [registration.id]: { ...form, done: true } }));
+    } catch (err) {
+      alert(err.response?.data?.message || 'Danh gia that bai');
     }
   };
 
@@ -217,6 +267,30 @@ export default function ManageEvent() {
                         <div className="font-medium text-gray-900">{r.user?.name || r.user?.userName || `User #${r.userId}`}</div>
                         {r.note && <p className="text-xs text-gray-400 italic mt-0.5">"{r.note}"</p>}
                         {r.shift?.name && <p className="text-xs text-primary-600 mt-0.5">Ca: {r.shift.name}</p>}
+                        {r.isAttended && event?.status === 'Completed' && (
+                          <div className="mt-2 rounded-lg border border-gray-100 bg-gray-50 p-2">
+                            {ratingForms[r.id]?.done ? (
+                              <p className="text-xs text-green-700">Da danh gia tinh nguyen vien</p>
+                            ) : (
+                              <div className="flex flex-col gap-1 sm:flex-row">
+                                <select
+                                  value={ratingForms[r.id]?.score || 5}
+                                  onChange={(e) => setRatingForms((prev) => ({ ...prev, [r.id]: { ...(prev[r.id] || {}), score: e.target.value } }))}
+                                  className="input-field text-xs sm:w-24"
+                                >
+                                  {[5, 4, 3, 2, 1].map((score) => <option key={score} value={score}>{score} sao</option>)}
+                                </select>
+                                <input
+                                  value={ratingForms[r.id]?.comment || ''}
+                                  onChange={(e) => setRatingForms((prev) => ({ ...prev, [r.id]: { ...(prev[r.id] || {}), comment: e.target.value } }))}
+                                  className="input-field text-xs"
+                                  placeholder="Nhan xet..."
+                                />
+                                <button onClick={() => submitVolunteerRating(r)} className="btn-primary btn-sm text-xs">Danh gia</button>
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </td>
                       <td className="px-4 py-3 text-gray-500">{fmt(r.registeredAt)}</td>
                       <td className="px-4 py-3"><StatusBadge status={r.status} /></td>
@@ -368,6 +442,10 @@ export default function ManageEvent() {
                     <i className="fa-solid fa-check-circle" /> Xác nhận điểm danh
                   </>
                 )}
+              </button>
+              <button type="button" onClick={handleGpsCheckin} disabled={usingGps || !selectedCheckinRegId} className="btn-secondary w-full flex items-center justify-center gap-2">
+                {usingGps ? <div className="w-4 h-4 border-2 border-primary-600 border-t-transparent rounded-full animate-spin" /> : <i className="fa-solid fa-location-crosshairs" />}
+                Diem danh bang GPS
               </button>
             </form>
 

@@ -130,15 +130,18 @@ namespace BaseCore.Services.VolunteerHub
             return reg;
         }
 
-        public async Task<Registration> CheckInAsync(int eventId, int registrationId, int organizerId, string qrCode)
+        public async Task<Registration> CheckInAsync(int eventId, int registrationId, int organizerId, string? qrCode, decimal? latitude = null, decimal? longitude = null)
         {
             var reg = await _context.Registrations.Include(r => r.Event)
                 .FirstOrDefaultAsync(r => r.Id == registrationId)
                 ?? throw new Exception("Registration not found");
             if (reg.EventId != eventId) throw new Exception("Registration not found in this event");
             if (reg.Event.OrganizerId != organizerId) throw new Exception("Not authorized");
-            if (reg.Event.QrCode != qrCode) throw new Exception("Invalid QR code");
             if (reg.Status != "Confirmed") throw new Exception("Registration is not confirmed");
+
+            var qrValid = !string.IsNullOrWhiteSpace(qrCode) && reg.Event.QrCode == qrCode.Trim();
+            var gpsValid = IsWithinEventRadius(reg.Event, latitude, longitude);
+            if (!qrValid && !gpsValid) throw new Exception("Invalid QR code or GPS location");
 
             reg.IsAttended = true;
             reg.AttendedAt = DateTime.UtcNow;
@@ -150,6 +153,33 @@ namespace BaseCore.Services.VolunteerHub
             await _context.SaveChangesAsync();
             return reg;
         }
+
+        private static bool IsWithinEventRadius(Entities.Event ev, decimal? latitude, decimal? longitude)
+        {
+            if (!latitude.HasValue || !longitude.HasValue || !ev.Latitude.HasValue || !ev.Longitude.HasValue)
+                return false;
+
+            var distanceKm = HaversineKm(
+                (double)latitude.Value,
+                (double)longitude.Value,
+                (double)ev.Latitude.Value,
+                (double)ev.Longitude.Value);
+
+            return distanceKm <= 0.5;
+        }
+
+        private static double HaversineKm(double lat1, double lon1, double lat2, double lon2)
+        {
+            const double radiusKm = 6371;
+            var dLat = ToRadians(lat2 - lat1);
+            var dLon = ToRadians(lon2 - lon1);
+            var a = Math.Sin(dLat / 2) * Math.Sin(dLat / 2) +
+                    Math.Cos(ToRadians(lat1)) * Math.Cos(ToRadians(lat2)) *
+                    Math.Sin(dLon / 2) * Math.Sin(dLon / 2);
+            return radiusKm * 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a));
+        }
+
+        private static double ToRadians(double degrees) => degrees * Math.PI / 180;
 
         public async Task<List<Registration>> GetByEventAsync(int eventId)
         {
@@ -165,6 +195,7 @@ namespace BaseCore.Services.VolunteerHub
         {
             return await _context.Registrations
                 .Include(r => r.Event).ThenInclude(e => e.Category)
+                .Include(r => r.Event).ThenInclude(e => e.Organizer)
                 .Include(r => r.Shift)
                 .Where(r => r.UserId == userId)
                 .OrderByDescending(r => r.RegisteredAt)

@@ -142,6 +142,7 @@ export const eventApi = {
   getMine: () => api.get('/events/my'),
   getById: (id) => api.get(`/events/${id}`),
   getRecommended: () => api.get('/events/recommended'),
+  getImpact: (id) => api.get(`/events/${id}/impact`),
   create: (data) => api.post('/events', data),
   update: (id, data) => api.put(`/events/${id}`, data),
   delete: (id) => api.delete(`/events/${id}`),
@@ -211,6 +212,7 @@ export const profileSkillApi = {
 export const certificateApi = {
   getMyCertificates: () => api.get('/certificates'),
   verify: (code) => api.get(`/certificates/${code}`),
+  getPdfUrl: (code) => `/api/certificates/${encodeURIComponent(code)}/pdf`,
 };
 
 export const badgeApi = {

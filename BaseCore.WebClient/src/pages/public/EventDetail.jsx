@@ -33,6 +33,8 @@ export default function EventDetail() {
   const [selectedShiftId, setSelectedShiftId] = useState('');
   const [allSkills, setAllSkills] = useState([]);
   const [mySkillIds, setMySkillIds] = useState([]);
+  const [impact, setImpact] = useState(null);
+  const [shareMsg, setShareMsg] = useState('');
 
   useEffect(() => {
     skillApi.getAll().then((r) => setAllSkills(r.data || [])).catch(() => {});
@@ -59,16 +61,18 @@ export default function EventDetail() {
         eventApi.getById(id),
         eventApi.getShifts(id).catch(() => ({ data: [] })),
         sponsorApi.getByEvent(id).catch(() => ({ data: [] })),
+        eventApi.getImpact(id).catch(() => ({ data: null })),
       ];
 
       if (isAuthenticated && isVolunteer()) {
         requests.push(registrationApi.getMyRegistration(id).catch(() => ({ data: null })));
       }
 
-      const [evRes, shRes, spRes, myRegRes] = await Promise.all(requests);
+      const [evRes, shRes, spRes, impactRes, myRegRes] = await Promise.all(requests);
       setEvent(evRes.data);
       setShifts(shRes.data || []);
       setSponsors(spRes.data || []);
+      setImpact(impactRes?.data || null);
       setMyRegistration(myRegRes?.data || null);
     } catch {
       setNotFound(true);
@@ -120,6 +124,21 @@ export default function EventDetail() {
       setMsg({ type: 'error', text: err.response?.data?.message || 'Rút đăng ký thất bại' });
     } finally {
       setWithdrawing(false);
+    }
+  };
+
+  const handleShare = async () => {
+    const url = window.location.href;
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: event?.title || 'VolunteerHub', text: event?.description || '', url });
+      } else {
+        await navigator.clipboard.writeText(url);
+        setShareMsg('Da copy link su kien');
+        setTimeout(() => setShareMsg(''), 2000);
+      }
+    } catch {
+      setShareMsg('');
     }
   };
 
@@ -180,8 +199,34 @@ export default function EventDetail() {
               </div>
               <h1 className="text-xl font-bold text-gray-900 mb-4">{event.title}</h1>
               {event.description && <p className="text-gray-600 text-sm leading-relaxed">{event.description}</p>}
+              <div className="mt-4 flex flex-wrap gap-2">
+                <button onClick={handleShare} className="btn-secondary btn-sm flex items-center gap-1">
+                  <i className="fa-solid fa-share-nodes" /> Chia se
+                </button>
+                {shareMsg && <span className="text-xs text-primary-600 self-center">{shareMsg}</span>}
+              </div>
             </div>
           </div>
+
+          {event.status === 'Completed' && impact && (
+            <div className="card p-5">
+              <h3 className="font-semibold text-gray-900 mb-3">Tac dong cong khai</h3>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                {[
+                  { label: 'Da tham gia', value: impact.attendedVolunteers || 0, icon: 'fa-user-check' },
+                  { label: 'Gio dong gop', value: `${impact.totalVolunteerHours || 0}h`, icon: 'fa-clock' },
+                  { label: 'Chung chi', value: impact.certificatesIssued || 0, icon: 'fa-certificate' },
+                  { label: 'Nha tai tro', value: impact.sponsorCount || 0, icon: 'fa-handshake' },
+                ].map((item) => (
+                  <div key={item.label} className="rounded-lg border border-gray-100 bg-gray-50 p-3">
+                    <i className={`fa-solid ${item.icon} text-primary-600 mb-2`} />
+                    <p className="text-lg font-bold text-gray-900">{item.value}</p>
+                    <p className="text-xs text-gray-500">{item.label}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           <div className="card p-5">
             <h3 className="font-semibold text-gray-900 mb-3">Thông tin chi tiết</h3>

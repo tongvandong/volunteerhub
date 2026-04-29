@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { registrationApi } from '../../services/api';
+import { registrationApi, ratingApi } from '../../services/api';
 import { Link } from 'react-router-dom';
 import StatusBadge from '../../components/ui/StatusBadge';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
@@ -10,6 +10,7 @@ export default function MyRegistrations() {
   const [regs, setRegs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
+  const [ratingForms, setRatingForms] = useState({});
 
   useEffect(() => {
     registrationApi.getMyRegistrations()
@@ -24,6 +25,26 @@ export default function MyRegistrations() {
       await registrationApi.withdraw(eventId);
       setRegs(prev => prev.filter(r => r.eventId !== eventId));
     } catch (err) { alert(err.response?.data?.message || 'Rút đăng ký thất bại'); }
+  };
+
+  const submitRating = async (registration) => {
+    const form = ratingForms[registration.id] || { score: 5, comment: '' };
+    const rateeId = registration.event?.organizerId;
+    if (!rateeId) return alert('Khong tim thay ban to chuc de danh gia');
+
+    try {
+      await ratingApi.create(registration.eventId, {
+        rateeId,
+        score: Number(form.score) || 5,
+        comment: form.comment || '',
+      });
+      setRatingForms((prev) => ({
+        ...prev,
+        [registration.id]: { ...form, done: true },
+      }));
+    } catch (err) {
+      alert(err.response?.data?.message || 'Danh gia that bai');
+    }
   };
 
   const filtered = filter === 'all' ? regs : regs.filter(r => filter === 'attended' ? r.isAttended : r.status === filter);
@@ -76,6 +97,34 @@ export default function MyRegistrations() {
                   {r.isAttended && <span className="text-primary-600 font-medium"><i className="fa-solid fa-clock mr-1" />{r.volunteerHours}h</span>}
                 </div>
                 {r.note && <p className="text-xs text-gray-400 mt-1 italic">"{r.note}"</p>}
+                {r.isAttended && r.event?.status === 'Completed' && (
+                  <div className="mt-3 rounded-lg border border-gray-100 bg-gray-50 p-3">
+                    {ratingForms[r.id]?.done ? (
+                      <p className="text-xs font-medium text-green-700">
+                        <i className="fa-solid fa-check mr-1" /> Da gui danh gia ban to chuc
+                      </p>
+                    ) : (
+                      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                        <select
+                          value={ratingForms[r.id]?.score || 5}
+                          onChange={(e) => setRatingForms((prev) => ({ ...prev, [r.id]: { ...(prev[r.id] || {}), score: e.target.value } }))}
+                          className="input-field text-xs sm:w-24"
+                        >
+                          {[5, 4, 3, 2, 1].map((score) => <option key={score} value={score}>{score} sao</option>)}
+                        </select>
+                        <input
+                          value={ratingForms[r.id]?.comment || ''}
+                          onChange={(e) => setRatingForms((prev) => ({ ...prev, [r.id]: { ...(prev[r.id] || {}), comment: e.target.value } }))}
+                          className="input-field text-xs"
+                          placeholder="Nhan xet ve ban to chuc..."
+                        />
+                        <button onClick={() => submitRating(r)} className="btn-primary btn-sm text-xs">
+                          Gui danh gia
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
               <div className="flex items-center gap-3">
                 <StatusBadge status={r.isAttended ? 'Confirmed' : r.status} />
