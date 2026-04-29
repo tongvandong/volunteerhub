@@ -284,7 +284,34 @@ Các sửa quan trọng đã làm:
   - `Confirmed`
   - `Cancelled`
 
-## 13. Verify Sau Khi Sửa
+## 13. Flow Audit 2026-04-29
+
+Build kiểm chứng:
+
+- `dotnet build BaseCore.sln --no-incremental`: pass, `0 Warning(s)`, `0 Error(s)`.
+- `npm run build` trong `BaseCore.WebClient`: pass.
+
+Kết luận nghiệp vụ hiện tại:
+
+- Luồng public/auth/volunteer/organizer/sponsor/admin đã có đủ màn hình chính và API chính.
+- Frontend chính vẫn là `BaseCore.WebClient`; router, `api.js`, controller và service đang khớp tốt hơn nhiều so với giai đoạn đầu.
+- Các flow cốt lõi đã có:
+  - Volunteer xem event, đăng ký, chọn ca, rút khi `Pending`, xem lịch sử, thông báo, channel, dashboard.
+  - Organizer tạo/sửa event, tạo ca, xem event của mình, xác nhận/hủy đăng ký, check-in bằng QR, hoàn thành event, xem báo cáo, vào channel, dashboard.
+  - Admin duyệt/từ chối/hoàn thành event, quản lý user/category/skill, export.
+  - Sponsor xem event đã duyệt, gửi tài trợ, xem danh sách tài trợ, dashboard.
+
+Điểm nên harden tiếp trước khi coi là “chắc nghiệp vụ”:
+
+- `GET /api/events/{id}/registrations` hiện chỉ `[Authorize]`; nên giới hạn chỉ organizer sở hữu event hoặc admin, vì hiện user đăng nhập bất kỳ có thể xem danh sách đăng ký của event.
+- Channel service đã kiểm quyền khi xem channel/posts/comments, nhưng `update/delete post`, `like`, `add/delete comment` nên xác thực thêm `postId` thật sự thuộc `channelId` và user có quyền truy cập channel đó.
+- Đăng ký theo ca mới lưu `ShiftId`, nhưng chưa validate shift thuộc event, chưa kiểm ca đầy, và chưa cập nhật `WorkShift.CurrentVolunteers`.
+- Nếu organizer hủy registration, record giữ trạng thái `Cancelled`; `RegisterAsync` đang chặn mọi record đã tồn tại, nên volunteer có thể không đăng ký lại được event đó sau khi bị hủy.
+- Sponsor add sponsorship chỉ kiểm amount, chưa kiểm event tồn tại/đang `Approved`; nên có thể tài trợ nhầm event không hợp lệ nếu gọi API trực tiếp.
+- Filter event theo skill đang dùng `RequiredSkillIds.Contains(skillStr)` trên chuỗi JSON; có nguy cơ match sai kiểu skill `1` khớp `[10]`. Nên parse JSON hoặc dùng bảng join nếu mở rộng nghiêm túc.
+- Hoàn thành event hiện không kiểm trạng thái trước khi complete; nên chỉ cho complete event `Approved` hoặc rule rõ ràng.
+
+## 14. Verify Sau Khi Sửa
 
 Các lệnh build đã dùng và hiện pass:
 
@@ -358,7 +385,7 @@ E2E local đã chạy qua gateway + frontend dev:
   - Organizer mở `/events/:id/manage` và thấy volunteer trong danh sách đăng ký.
 - Screenshot E2E được lưu ở `D:\FW\FW\BaseCore\Context\e2e-screenshots`.
 
-## 14. Khi Nào Cập Nhật File Này
+## 15. Khi Nào Cập Nhật File Này
 
 Cập nhật file này khi có thay đổi thuộc một trong các nhóm:
 
