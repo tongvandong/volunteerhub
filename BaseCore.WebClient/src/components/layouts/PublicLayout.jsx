@@ -120,7 +120,7 @@ export default function PublicLayout({ children }) {
 
       <main>{children}</main>
 
-      <footer style={{ background: '#181d26', marginTop: 80 }}>
+      <footer style={{ background: '#181d26' }}>
         <div className="max-w-7xl mx-auto px-5 sm:px-8 py-10">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
             <div>
