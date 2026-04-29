@@ -134,7 +134,7 @@ export default function EventDetail() {
         await navigator.share({ title: event?.title || 'VolunteerHub', text: event?.description || '', url });
       } else {
         await navigator.clipboard.writeText(url);
-        setShareMsg('Da copy link su kien');
+        setShareMsg('Đã copy link sự kiện');
         setTimeout(() => setShareMsg(''), 2000);
       }
     } catch {
@@ -201,7 +201,7 @@ export default function EventDetail() {
               {event.description && <p className="text-gray-600 text-sm leading-relaxed">{event.description}</p>}
               <div className="mt-4 flex flex-wrap gap-2">
                 <button onClick={handleShare} className="btn-secondary btn-sm flex items-center gap-1">
-                  <i className="fa-solid fa-share-nodes" /> Chia se
+                  <i className="fa-solid fa-share-nodes" /> Chia sẻ
                 </button>
                 {shareMsg && <span className="text-xs text-primary-600 self-center">{shareMsg}</span>}
               </div>
@@ -210,13 +210,13 @@ export default function EventDetail() {
 
           {event.status === 'Completed' && impact && (
             <div className="card p-5">
-              <h3 className="font-semibold text-gray-900 mb-3">Tac dong cong khai</h3>
+              <h3 className="font-semibold text-gray-900 mb-3">Tác động công khai</h3>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 {[
-                  { label: 'Da tham gia', value: impact.attendedVolunteers || 0, icon: 'fa-user-check' },
-                  { label: 'Gio dong gop', value: `${impact.totalVolunteerHours || 0}h`, icon: 'fa-clock' },
-                  { label: 'Chung chi', value: impact.certificatesIssued || 0, icon: 'fa-certificate' },
-                  { label: 'Nha tai tro', value: impact.sponsorCount || 0, icon: 'fa-handshake' },
+                  { label: 'Đã tham gia', value: impact.attendedVolunteers || 0, icon: 'fa-user-check' },
+                  { label: 'Giờ đóng góp', value: `${impact.totalVolunteerHours || 0}h`, icon: 'fa-clock' },
+                  { label: 'Chứng chỉ', value: impact.certificatesIssued || 0, icon: 'fa-certificate' },
+                  { label: 'Nhà tài trợ', value: impact.sponsorCount || 0, icon: 'fa-handshake' },
                 ].map((item) => (
                   <div key={item.label} className="rounded-lg border border-gray-100 bg-gray-50 p-3">
                     <i className={`fa-solid ${item.icon} text-primary-600 mb-2`} />

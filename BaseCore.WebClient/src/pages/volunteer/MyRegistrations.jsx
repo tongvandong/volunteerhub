@@ -30,7 +30,7 @@ export default function MyRegistrations() {
   const submitRating = async (registration) => {
     const form = ratingForms[registration.id] || { score: 5, comment: '' };
     const rateeId = registration.event?.organizerId;
-    if (!rateeId) return alert('Khong tim thay ban to chuc de danh gia');
+    if (!rateeId) return alert('Không tìm thấy ban tổ chức để đánh giá');
 
     try {
       await ratingApi.create(registration.eventId, {
@@ -43,7 +43,7 @@ export default function MyRegistrations() {
         [registration.id]: { ...form, done: true },
       }));
     } catch (err) {
-      alert(err.response?.data?.message || 'Danh gia that bai');
+      alert(err.response?.data?.message || 'Đánh giá thất bại');
     }
   };
 
@@ -101,7 +101,7 @@ export default function MyRegistrations() {
                   <div className="mt-3 rounded-lg border border-gray-100 bg-gray-50 p-3">
                     {ratingForms[r.id]?.done ? (
                       <p className="text-xs font-medium text-green-700">
-                        <i className="fa-solid fa-check mr-1" /> Da gui danh gia ban to chuc
+                        <i className="fa-solid fa-check mr-1" /> Đã gửi đánh giá ban tổ chức
                       </p>
                     ) : (
                       <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
@@ -116,10 +116,10 @@ export default function MyRegistrations() {
                           value={ratingForms[r.id]?.comment || ''}
                           onChange={(e) => setRatingForms((prev) => ({ ...prev, [r.id]: { ...(prev[r.id] || {}), comment: e.target.value } }))}
                           className="input-field text-xs"
-                          placeholder="Nhan xet ve ban to chuc..."
+                          placeholder="Nhận xét về ban tổ chức..."
                         />
                         <button onClick={() => submitRating(r)} className="btn-primary btn-sm text-xs">
-                          Gui danh gia
+                          Gửi đánh giá
                         </button>
                       </div>
                     )}

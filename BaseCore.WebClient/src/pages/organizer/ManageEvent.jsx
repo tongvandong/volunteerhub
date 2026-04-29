@@ -103,7 +103,7 @@ export default function ManageEvent() {
   const handleGpsCheckin = async () => {
     if (!selectedCheckinRegId) return;
     if (!navigator.geolocation) {
-      setCheckinMsg('error:Trinh duyet khong ho tro GPS');
+      setCheckinMsg('error:Trình duyệt không hỗ trợ GPS');
       return;
     }
 
@@ -116,18 +116,18 @@ export default function ManageEvent() {
             latitude: pos.coords.latitude,
             longitude: pos.coords.longitude,
           });
-          setCheckinMsg('success:Diem danh GPS thanh cong!');
+          setCheckinMsg('success:Điểm danh GPS thành công!');
           setSelectedCheckinRegId('');
           const r = await eventApi.getRegistrations(id);
           setRegistrations(r.data || []);
         } catch (err) {
-          setCheckinMsg(`error:${err.response?.data?.message || 'GPS khong hop le'}`);
+          setCheckinMsg(`error:${err.response?.data?.message || 'GPS không hợp lệ'}`);
         } finally {
           setUsingGps(false);
         }
       },
       () => {
-        setCheckinMsg('error:Khong lay duoc vi tri hien tai');
+        setCheckinMsg('error:Không lấy được vị trí hiện tại');
         setUsingGps(false);
       },
       { timeout: 8000, maximumAge: 30000 }
@@ -144,7 +144,7 @@ export default function ManageEvent() {
       });
       setRatingForms((prev) => ({ ...prev, [registration.id]: { ...form, done: true } }));
     } catch (err) {
-      alert(err.response?.data?.message || 'Danh gia that bai');
+      alert(err.response?.data?.message || 'Đánh giá thất bại');
     }
   };
 
@@ -270,7 +270,7 @@ export default function ManageEvent() {
                         {r.isAttended && event?.status === 'Completed' && (
                           <div className="mt-2 rounded-lg border border-gray-100 bg-gray-50 p-2">
                             {ratingForms[r.id]?.done ? (
-                              <p className="text-xs text-green-700">Da danh gia tinh nguyen vien</p>
+                              <p className="text-xs text-green-700">Đã đánh giá tình nguyện viên</p>
                             ) : (
                               <div className="flex flex-col gap-1 sm:flex-row">
                                 <select
@@ -284,9 +284,9 @@ export default function ManageEvent() {
                                   value={ratingForms[r.id]?.comment || ''}
                                   onChange={(e) => setRatingForms((prev) => ({ ...prev, [r.id]: { ...(prev[r.id] || {}), comment: e.target.value } }))}
                                   className="input-field text-xs"
-                                  placeholder="Nhan xet..."
+                                  placeholder="Nhận xét..."
                                 />
-                                <button onClick={() => submitVolunteerRating(r)} className="btn-primary btn-sm text-xs">Danh gia</button>
+                                <button onClick={() => submitVolunteerRating(r)} className="btn-primary btn-sm text-xs">Đánh giá</button>
                               </div>
                             )}
                           </div>
@@ -445,7 +445,7 @@ export default function ManageEvent() {
               </button>
               <button type="button" onClick={handleGpsCheckin} disabled={usingGps || !selectedCheckinRegId} className="btn-secondary w-full flex items-center justify-center gap-2">
                 {usingGps ? <div className="w-4 h-4 border-2 border-primary-600 border-t-transparent rounded-full animate-spin" /> : <i className="fa-solid fa-location-crosshairs" />}
-                Diem danh bang GPS
+                Điểm danh bằng GPS
               </button>
             </form>
 

@@ -49,7 +49,7 @@ export default function MyCertificates() {
                   <i className="fa-solid fa-certificate" />
                   <span className="text-sm font-medium">Chứng chỉ Tình nguyện</span>
                 </div>
-                <h3 className="font-bold line-clamp-2">{c.event?.title}</h3>
+                <h3 className="font-bold line-clamp-2 text-white">{c.event?.title}</h3>
               </div>
 
               {/* Body */}
@@ -77,7 +77,7 @@ export default function MyCertificates() {
                 </a>
                 <a href={certificateApi.getPdfUrl(c.certificateCode)} target="_blank" rel="noreferrer"
                   className="flex items-center justify-center gap-1.5 text-xs text-primary-600 hover:underline">
-                  <i className="fa-solid fa-file-pdf" /> Tai PDF
+                  <i className="fa-solid fa-file-pdf" /> Tải PDF
                 </a>
               </div>
             </div>
