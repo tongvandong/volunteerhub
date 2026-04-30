@@ -45,6 +45,7 @@ namespace BaseCore.Repository
         public DbSet<EventSponsor> EventSponsors { get; set; }
         public DbSet<Notification> Notifications { get; set; }
         public DbSet<AuthRefreshToken> AuthRefreshTokens { get; set; }
+        public DbSet<AuditLog> AuditLogs { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -79,6 +80,21 @@ namespace BaseCore.Repository
                       .HasForeignKey(e => e.UserId)
                       .OnDelete(DeleteBehavior.Cascade);
                 entity.HasIndex(e => e.TokenHash).IsUnique();
+            });
+
+            modelBuilder.Entity<AuditLog>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Action).HasMaxLength(100).IsRequired();
+                entity.Property(e => e.EntityType).HasMaxLength(100).IsRequired();
+                entity.Property(e => e.Metadata).HasMaxLength(1000).IsRequired(false);
+                entity.Property(e => e.IpAddress).HasMaxLength(64).IsRequired(false);
+                entity.HasOne(e => e.User)
+                      .WithMany()
+                      .HasForeignKey(e => e.UserId)
+                      .OnDelete(DeleteBehavior.SetNull);
+                entity.HasIndex(e => e.CreatedAtUtc);
+                entity.HasIndex(e => new { e.EntityType, e.EntityId });
             });
 
             modelBuilder.Entity<Category>(entity =>

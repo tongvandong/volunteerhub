@@ -7,6 +7,7 @@ using System.Drawing.Imaging;
 using System.Drawing.Text;
 using System.Runtime.Versioning;
 using System.Text;
+using QRCoder;
 
 namespace BaseCore.Services.VolunteerHub
 {
@@ -171,9 +172,18 @@ namespace BaseCore.Services.VolunteerHub
             DrawWrapped(graphics, ev, eventFont, brush, new RectangleF(left, 578, 1240, 110));
             graphics.DrawString($"Ghi nhận đóng góp: {hours}", labelFont, brush, left, 690);
             graphics.DrawString($"Ngày cấp: {issued}", smallFont, brush, left, 766);
-            graphics.DrawString($"Mã chứng chỉ / QR định danh: {cert.CertificateCode}", smallFont, brush, left, 810);
+            graphics.DrawString($"Mã chứng chỉ: {cert.CertificateCode}", smallFont, brush, left, 810);
             graphics.DrawString($"Xác thực: {verifyUrl}", tinyFont, brush, left, 858);
             graphics.DrawString("VolunteerHub", brandFont, brush, 1220, 986);
+
+            using var qrBitmap = BuildQrBitmap(verifyUrl, 230);
+            using var qrBackgroundBrush = new SolidBrush(Color.White);
+            using var qrBorderPen = new Pen(Color.FromArgb(20, 28, 45), 3);
+            var qrBox = new Rectangle(1220, 720, 280, 320);
+            graphics.FillRectangle(qrBackgroundBrush, qrBox);
+            graphics.DrawRectangle(qrBorderPen, qrBox);
+            graphics.DrawImage(qrBitmap, 1245, 745, 230, 230);
+            DrawCenteredInRect(graphics, "Quét để xác thực", tinyFont, brush, new RectangleF(1220, 990, 280, 36));
 
             var output = new MemoryStream();
             bitmap.Save(output, ImageFormat.Jpeg);
@@ -195,6 +205,30 @@ namespace BaseCore.Services.VolunteerHub
             {
                 Trimming = StringTrimming.EllipsisWord,
                 FormatFlags = StringFormatFlags.LineLimit
+            };
+            graphics.DrawString(text, font, brush, bounds, format);
+        }
+
+        [SupportedOSPlatform("windows")]
+        private static Bitmap BuildQrBitmap(string payload, int size)
+        {
+            using var generator = new QRCodeGenerator();
+            using var data = generator.CreateQrCode(payload, QRCodeGenerator.ECCLevel.Q);
+            var qrCode = new PngByteQRCode(data);
+            var bytes = qrCode.GetGraphic(12);
+            using var stream = new MemoryStream(bytes);
+            using var raw = new Bitmap(stream);
+            return new Bitmap(raw, new Size(size, size));
+        }
+
+        [SupportedOSPlatform("windows")]
+        private static void DrawCenteredInRect(Graphics graphics, string text, Font font, Brush brush, RectangleF bounds)
+        {
+            using var format = new StringFormat
+            {
+                Alignment = StringAlignment.Center,
+                LineAlignment = StringAlignment.Center,
+                Trimming = StringTrimming.EllipsisWord
             };
             graphics.DrawString(text, font, brush, bounds, format);
         }

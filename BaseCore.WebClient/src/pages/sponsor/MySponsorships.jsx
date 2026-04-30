@@ -16,6 +16,9 @@ export default function MySponsorships() {
   const [form, setForm] = useState({ eventId: '', amount: '', description: '' });
   const [saving, setSaving] = useState(false);
   const [allEvents, setAllEvents] = useState([]);
+  const [trackingModal, setTrackingModal] = useState(false);
+  const [tracking, setTracking] = useState(null);
+  const [trackingLoading, setTrackingLoading] = useState(false);
 
   const loadSponsorships = async () => {
     const r = await sponsorApi.getMySponsorships();
@@ -53,6 +56,22 @@ export default function MySponsorships() {
   };
 
   const totalAmount = sponsorships.reduce((sum, s) => sum + (Number(s.amount) || 0), 0);
+
+  const openTracking = async (sponsorshipId) => {
+    setTrackingModal(true);
+    setTracking(null);
+    setTrackingLoading(true);
+
+    try {
+      const res = await sponsorApi.getMySponsorshipTracking(sponsorshipId);
+      setTracking(res.data);
+    } catch (err) {
+      alert(err.response?.data?.message || 'Không tải được tiến độ tài trợ');
+      setTrackingModal(false);
+    } finally {
+      setTrackingLoading(false);
+    }
+  };
 
   if (loading) return <LoadingSpinner />;
 
@@ -112,6 +131,9 @@ export default function MySponsorships() {
                 <span className="text-primary-700 font-bold text-sm bg-primary-50 px-3 py-1 rounded-full border border-primary-200">
                   {(Number(s.amount) || 0).toLocaleString('vi-VN')}đ
                 </span>
+                <button onClick={() => openTracking(s.id)} className="btn-secondary btn-sm flex items-center gap-1">
+                  <i className="fa-solid fa-chart-line" /> Theo dõi
+                </button>
               </div>
             </div>
           ))}
@@ -163,6 +185,71 @@ export default function MySponsorships() {
             </button>
           </div>
         </form>
+      </Modal>
+
+      <Modal isOpen={trackingModal} onClose={() => setTrackingModal(false)} title="Theo dõi tài trợ" size="lg">
+        {trackingLoading ? (
+          <LoadingSpinner />
+        ) : tracking ? (
+          <div className="space-y-5">
+            <div>
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h3 className="font-semibold text-gray-900">{tracking.eventInfo?.title}</h3>
+                  <p className="text-xs text-gray-500 mt-1">
+                    {tracking.eventInfo?.organizer} · {tracking.eventInfo?.category} · {tracking.eventInfo?.location}
+                  </p>
+                </div>
+                <StatusBadge status={tracking.eventInfo?.status} />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              {[
+                { label: 'Đăng ký', value: tracking.impact?.totalRegistrations || 0, icon: 'fa-clipboard-list' },
+                { label: 'Đã điểm danh', value: tracking.impact?.attendedVolunteers || 0, icon: 'fa-user-check' },
+                { label: 'Giờ đóng góp', value: `${tracking.impact?.totalVolunteerHours || 0}h`, icon: 'fa-clock' },
+                { label: 'Chứng chỉ', value: tracking.impact?.certificatesIssued || 0, icon: 'fa-certificate' },
+              ].map((item) => (
+                <div key={item.label} className="rounded-lg border border-gray-100 bg-gray-50 p-3">
+                  <i className={`fa-solid ${item.icon} text-primary-600 mb-2`} />
+                  <p className="text-lg font-bold text-gray-900">{item.value}</p>
+                  <p className="text-xs text-gray-500">{item.label}</p>
+                </div>
+              ))}
+            </div>
+
+            <div className="rounded-lg border border-primary-100 bg-primary-50 p-3 text-sm text-primary-800">
+              <p className="font-semibold">Tổng tài trợ cho sự kiện</p>
+              <p className="mt-1">
+                {(Number(tracking.impact?.sponsorAmount) || 0).toLocaleString('vi-VN')}đ từ {tracking.impact?.sponsorCount || 0} nhà tài trợ.
+              </p>
+            </div>
+
+            <div>
+              <h3 className="font-semibold text-gray-900 mb-3">Timeline tiến độ</h3>
+              <div className="space-y-3">
+                {(tracking.timeline || []).map((item, index) => (
+                  <div key={`${item.title}-${index}`} className="flex gap-3">
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
+                      item.status === 'Done' ? 'bg-green-100 text-green-700' :
+                        item.status === 'Upcoming' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-500'
+                    }`}>
+                      <i className={`fa-solid ${item.status === 'Done' ? 'fa-check' : item.status === 'Upcoming' ? 'fa-calendar' : 'fa-hourglass-half'} text-xs`} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-3">
+                        <p className="text-sm font-semibold text-gray-900">{item.title}</p>
+                        <span className="text-xs text-gray-400">{fmt(item.date)}</span>
+                      </div>
+                      <p className="text-xs text-gray-500 mt-0.5">{item.description}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        ) : null}
       </Modal>
     </div>
   );

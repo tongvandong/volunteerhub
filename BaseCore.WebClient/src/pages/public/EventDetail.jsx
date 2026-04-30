@@ -166,8 +166,9 @@ export default function EventDetail() {
   const pct = event.maxParticipants > 0
     ? Math.round((event.currentParticipants / event.maxParticipants) * 100)
     : 0;
-  const canRegister = isAuthenticated && isVolunteer() && event.status === 'Approved' && !myRegistration;
-  const canWithdraw = myRegistration?.status === 'Pending';
+  const activeRegistration = myRegistration?.status === 'Cancelled' ? null : myRegistration;
+  const canRegister = isAuthenticated && isVolunteer() && event.status === 'Approved' && !activeRegistration;
+  const canWithdraw = activeRegistration?.status === 'Pending';
   const selectedShift = shifts.find((s) => String(s.id) === String(selectedShiftId));
 
   return (
@@ -363,34 +364,34 @@ export default function EventDetail() {
               </div>
             )}
 
-            {myRegistration && (
+            {activeRegistration && (
               <div className="space-y-3">
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <p className="text-sm font-medium text-gray-900">Trạng thái đăng ký của bạn</p>
-                    <p className="text-xs text-gray-500 mt-1">Đăng ký ngày {fmt(myRegistration.registeredAt)}</p>
+                    <p className="text-xs text-gray-500 mt-1">Đăng ký ngày {fmt(activeRegistration.registeredAt)}</p>
                   </div>
-                  <StatusBadge status={myRegistration.isAttended ? 'Completed' : myRegistration.status} />
+                  <StatusBadge status={activeRegistration.isAttended ? 'Completed' : activeRegistration.status} />
                 </div>
 
-                {myRegistration.shift && (
+                {activeRegistration.shift && (
                   <div className="rounded-lg border border-primary-100 bg-primary-50 px-3 py-2 text-sm text-primary-700">
-                    <div className="font-medium">{myRegistration.shift.name}</div>
+                    <div className="font-medium">{activeRegistration.shift.name}</div>
                     <div className="text-xs text-primary-600 mt-1">
-                      {fmt(myRegistration.shift.startTime)} - {new Date(myRegistration.shift.endTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+                      {fmt(activeRegistration.shift.startTime)} - {new Date(activeRegistration.shift.endTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
                     </div>
                   </div>
                 )}
 
-                {myRegistration.note && (
+                {activeRegistration.note && (
                   <div className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-600 italic">
-                    "{myRegistration.note}"
+                    "{activeRegistration.note}"
                   </div>
                 )}
 
-                {myRegistration.isAttended && (
+                {activeRegistration.isAttended && (
                   <div className="rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-700">
-                    Bạn đã tham gia sự kiện này và tổng giờ ghi nhận là {myRegistration.volunteerHours}h.
+                    Bạn đã tham gia sự kiện này và tổng giờ ghi nhận là {activeRegistration.volunteerHours}h.
                   </div>
                 )}
 
@@ -401,7 +402,7 @@ export default function EventDetail() {
                   </button>
                 )}
 
-                {myRegistration.status === 'Confirmed' && !myRegistration.isAttended && (
+                {activeRegistration.status === 'Confirmed' && !activeRegistration.isAttended && (
                   <p className="text-xs text-center text-gray-500">
                     Đăng ký của bạn đã được xác nhận. Hiện không thể rút trên giao diện này.
                   </p>
@@ -409,7 +410,7 @@ export default function EventDetail() {
               </div>
             )}
 
-            {canRegister && !msg.text && (
+            {canRegister && (
               <>
                 {shifts.length > 0 && (
                   <div>
@@ -457,7 +458,7 @@ export default function EventDetail() {
               <p className="text-xs text-center text-gray-400">Chỉ tình nguyện viên mới có thể đăng ký</p>
             )}
 
-            {isAuthenticated && isVolunteer() && !myRegistration && event.status !== 'Approved' && (
+            {isAuthenticated && isVolunteer() && !activeRegistration && event.status !== 'Approved' && (
               <p className="text-xs text-center text-gray-400">Sự kiện chưa mở đăng ký.</p>
             )}
           </div>

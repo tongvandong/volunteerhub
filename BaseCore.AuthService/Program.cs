@@ -5,12 +5,14 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using Microsoft.AspNetCore.RateLimiting;
 using BaseCore.Repository;
 using BaseCore.Repository.Infrastructure;
 using BaseCore.Repository.Authen;
 using BaseCore.Common.Infrastructure;
 using BaseCore.Services.Authen;
 using System.Text;
+using System.Threading.RateLimiting;
 
 DotEnvLoader.LoadIfPresent(AppContext.BaseDirectory);
 var builder = WebApplication.CreateBuilder(args);
@@ -21,6 +23,24 @@ builder.Services.AddControllers()
         options.JsonSerializerOptions.PropertyNameCaseInsensitive = true;
     });
 builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddHealthChecks();
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.AddPolicy("auth-sensitive", context =>
+    {
+        var partitionKey = context.Connection.RemoteIpAddress?.ToString() ?? "anonymous";
+
+        return RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey,
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 10,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0
+            });
+    });
+});
 
 builder.Services.AddCors(options =>
 {
@@ -111,8 +131,10 @@ if (app.Environment.IsDevelopment())
 
 app.UseCors("AllowAll");
 app.UseAuthentication();
+app.UseRateLimiter();
 app.UseAuthorization();
 app.MapControllers();
+app.MapHealthChecks("/health");
 
 Console.WriteLine("BaseCore Auth Service running on port 5002");
 Console.WriteLine("Endpoints: /api/auth, /api/users");

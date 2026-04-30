@@ -7,6 +7,8 @@ using BaseCore.Repository;
 using BaseCore.Repository.Infrastructure;
 using BaseCore.Repository.EFCore;
 using BaseCore.Services.VolunteerHub;
+using Microsoft.AspNetCore.RateLimiting;
+using System.Threading.RateLimiting;
 using System.Text;
 
 DotEnvLoader.LoadIfPresent(AppContext.BaseDirectory);
@@ -21,6 +23,26 @@ builder.Services.AddControllers()
     });
 
 builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddHealthChecks();
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.AddPolicy("write-sensitive", context =>
+    {
+        var partitionKey = context.User.Identity?.IsAuthenticated == true
+            ? context.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "authenticated"
+            : context.Connection.RemoteIpAddress?.ToString() ?? "anonymous";
+
+        return RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey,
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 60,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0
+            });
+    });
+});
 
 // Swagger Configuration
 builder.Services.AddSwaggerGen(c =>
@@ -102,6 +124,7 @@ builder.Services.AddScoped<ICertificateService, CertificateService>();
 builder.Services.AddScoped<IEventService, EventService>();
 builder.Services.AddScoped<IRegistrationService, RegistrationService>();
 builder.Services.AddScoped<IChannelService, ChannelService>();
+builder.Services.AddScoped<IAuditLogService, AuditLogService>();
 
 // JWT Authentication
 var key = Encoding.ASCII.GetBytes(builder.Configuration["Jwt:SecretKey"] ?? "YourSecretKeyForAuthenticationShouldBeLongEnough");
@@ -141,8 +164,10 @@ if (app.Environment.IsDevelopment())
 
 app.UseCors("AllowAll");
 app.UseAuthentication();
+app.UseRateLimiter();
 app.UseAuthorization();
 app.MapControllers();
+app.MapHealthChecks("/health");
 
 Console.WriteLine("BaseCore API Service running on port 5001");
 Console.WriteLine("Endpoints: /api/products, /api/categories, /api/orders, /api/events, /api/channels, ...");

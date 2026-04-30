@@ -1,8 +1,10 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using BaseCore.Entities;
 using BaseCore.Repository;
 using BaseCore.Repository.EFCore;
+using BaseCore.Services.VolunteerHub;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 
@@ -13,14 +15,17 @@ namespace BaseCore.APIService.Controllers
     {
         private readonly IRatingRepositoryEF _ratingRepo;
         private readonly MySqlDbContext _context;
+        private readonly IAuditLogService _auditLogService;
 
-        public RatingsController(IRatingRepositoryEF ratingRepo, MySqlDbContext context)
+        public RatingsController(IRatingRepositoryEF ratingRepo, MySqlDbContext context, IAuditLogService auditLogService)
         {
             _ratingRepo = ratingRepo;
             _context = context;
+            _auditLogService = auditLogService;
         }
 
         [HttpPost("api/events/{eventId}/ratings"), Authorize]
+        [EnableRateLimiting("write-sensitive")]
         public async Task<IActionResult> CreateRating(int eventId, [FromBody] RatingCreateDto dto)
         {
             if (!int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var userId))
@@ -62,6 +67,13 @@ namespace BaseCore.APIService.Controllers
                 CreatedAt = DateTime.UtcNow
             };
             await _ratingRepo.AddAsync(rating);
+            await _auditLogService.RecordAsync(
+                userId,
+                "Rating.Create",
+                "Rating",
+                rating.Id,
+                $"EventId={eventId};RateeId={dto.RateeId};Score={dto.Score}",
+                HttpContext.Connection.RemoteIpAddress?.ToString());
             return Ok(rating);
         }
 

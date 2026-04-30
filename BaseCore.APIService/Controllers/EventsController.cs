@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using BaseCore.Entities;
 using BaseCore.Repository;
 using BaseCore.Services.VolunteerHub;
@@ -14,12 +15,18 @@ namespace BaseCore.APIService.Controllers
     {
         private readonly IEventService _eventService;
         private readonly IRegistrationService _registrationService;
+        private readonly IAuditLogService _auditLogService;
         private readonly MySqlDbContext _context;
 
-        public EventsController(IEventService eventService, IRegistrationService registrationService, MySqlDbContext context)
+        public EventsController(
+            IEventService eventService,
+            IRegistrationService registrationService,
+            IAuditLogService auditLogService,
+            MySqlDbContext context)
         {
             _eventService = eventService;
             _registrationService = registrationService;
+            _auditLogService = auditLogService;
             _context = context;
         }
 
@@ -96,6 +103,7 @@ namespace BaseCore.APIService.Controllers
         }
 
         [HttpPost, Authorize(Roles = "Organizer")]
+        [EnableRateLimiting("write-sensitive")]
         public async Task<IActionResult> Create([FromBody] EventCreateDto dto)
         {
             if (!int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var userId))
@@ -113,10 +121,12 @@ namespace BaseCore.APIService.Controllers
                 RequiredSkillIds = dto.RequiredSkillIds ?? "[]"
             };
             await _eventService.CreateAsync(ev);
+            await RecordAuditAsync(userId, "Event.Create", "Event", ev.Id, $"Title={ev.Title}");
             return CreatedAtAction(nameof(GetById), new { id = ev.Id }, ev);
         }
 
         [HttpPut("{id}"), Authorize(Roles = "Organizer")]
+        [EnableRateLimiting("write-sensitive")]
         public async Task<IActionResult> Update(int id, [FromBody] EventUpdateDto dto)
         {
             if (!int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var userId))
@@ -141,10 +151,12 @@ namespace BaseCore.APIService.Controllers
             ev.RequiredSkillIds = dto.RequiredSkillIds ?? ev.RequiredSkillIds;
 
             await _eventService.UpdateAsync(ev);
+            await RecordAuditAsync(userId, "Event.Update", "Event", ev.Id, $"Status={ev.Status}");
             return Ok(ev);
         }
 
         [HttpDelete("{id}"), Authorize]
+        [EnableRateLimiting("write-sensitive")]
         public async Task<IActionResult> Delete(int id)
         {
             if (!int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var userId))
@@ -156,30 +168,53 @@ namespace BaseCore.APIService.Controllers
             if (role != "Admin" && ev.OrganizerId != userId) return Forbid();
 
             await _eventService.DeleteAsync(id);
+            await RecordAuditAsync(userId, "Event.Delete", "Event", id);
             return Ok(new { message = "Deleted" });
         }
 
         [HttpPut("{id}/approve"), Authorize(Roles = "Admin")]
+        [EnableRateLimiting("write-sensitive")]
         public async Task<IActionResult> Approve(int id)
         {
-            try { var ev = await _eventService.ApproveAsync(id); return Ok(ev); }
+            if (!int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var userId))
+                return Unauthorized();
+            try
+            {
+                var ev = await _eventService.ApproveAsync(id);
+                await RecordAuditAsync(userId, "Event.Approve", "Event", ev.Id);
+                return Ok(ev);
+            }
             catch (Exception ex) { return BadRequest(new { message = ex.Message }); }
         }
 
         [HttpPut("{id}/reject"), Authorize(Roles = "Admin")]
+        [EnableRateLimiting("write-sensitive")]
         public async Task<IActionResult> Reject(int id)
         {
-            try { var ev = await _eventService.RejectAsync(id); return Ok(ev); }
+            if (!int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var userId))
+                return Unauthorized();
+            try
+            {
+                var ev = await _eventService.RejectAsync(id);
+                await RecordAuditAsync(userId, "Event.Reject", "Event", ev.Id);
+                return Ok(ev);
+            }
             catch (Exception ex) { return BadRequest(new { message = ex.Message }); }
         }
 
         [HttpPut("{id}/complete"), Authorize(Roles = "Organizer,Admin")]
+        [EnableRateLimiting("write-sensitive")]
         public async Task<IActionResult> Complete(int id)
         {
             if (!int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var userId))
                 return Unauthorized();
             var role = User.FindFirst(ClaimTypes.Role)?.Value;
-            try { var ev = await _eventService.CompleteAsync(id, role == "Admin" ? null : userId); return Ok(ev); }
+            try
+            {
+                var ev = await _eventService.CompleteAsync(id, role == "Admin" ? null : userId);
+                await RecordAuditAsync(userId, "Event.Complete", "Event", ev.Id);
+                return Ok(ev);
+            }
             catch (Exception ex) { return BadRequest(new { message = ex.Message }); }
         }
 
@@ -196,6 +231,17 @@ namespace BaseCore.APIService.Controllers
 
             var regs = await _registrationService.GetByEventAsync(id);
             return Ok(regs);
+        }
+
+        private Task RecordAuditAsync(int? userId, string action, string entityType, int? entityId = null, string? metadata = null)
+        {
+            return _auditLogService.RecordAsync(
+                userId,
+                action,
+                entityType,
+                entityId,
+                metadata,
+                HttpContext.Connection.RemoteIpAddress?.ToString());
         }
     }
 

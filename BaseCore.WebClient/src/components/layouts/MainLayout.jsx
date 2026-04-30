@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -55,10 +55,37 @@ export default function MainLayout({ children }) {
   const { user, logout } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [isMobile, setIsMobile] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(() => (
+    typeof window === 'undefined' ? true : window.innerWidth >= 768
+  ));
+  const mobileModeRef = useRef(null);
 
   const navItems = NAV[user?.role] || [];
   const isActive = (path) => location.pathname === path || (path !== '/' && location.pathname.startsWith(path));
+
+  useEffect(() => {
+    const syncLayout = () => {
+      const nextIsMobile = window.innerWidth < 768;
+      setIsMobile(nextIsMobile);
+
+      if (mobileModeRef.current !== nextIsMobile) {
+        mobileModeRef.current = nextIsMobile;
+        setSidebarOpen(!nextIsMobile);
+      }
+    };
+
+    syncLayout();
+    window.addEventListener('resize', syncLayout);
+
+    return () => window.removeEventListener('resize', syncLayout);
+  }, []);
+
+  const closeSidebarOnMobile = () => {
+    if (isMobile) {
+      setSidebarOpen(false);
+    }
+  };
 
   const handleLogout = () => {
     logout();
@@ -69,9 +96,22 @@ export default function MainLayout({ children }) {
   const roleBadge = ROLE_BADGE[user?.role] || { bg: 'rgba(255,255,255,0.15)', color: '#fff' };
 
   return (
-    <div className="flex h-screen overflow-hidden" style={{ background: '#f8fafc' }}>
+    <div className="relative flex h-screen overflow-hidden" style={{ background: '#f8fafc' }}>
+      {isMobile && sidebarOpen && (
+        <button
+          type="button"
+          aria-label="Đóng menu"
+          className="fixed inset-0 z-30 bg-black/40"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
       <aside
-        className={`${sidebarOpen ? 'w-60' : 'w-0 overflow-hidden'} flex-shrink-0 flex flex-col transition-all duration-300`}
+        className={
+          isMobile
+            ? `${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} fixed inset-y-0 left-0 z-40 w-60 flex-shrink-0 flex flex-col transition-transform duration-300`
+            : `${sidebarOpen ? 'w-60' : 'w-0 overflow-hidden'} flex-shrink-0 flex flex-col transition-all duration-300`
+        }
         style={{ background: '#181d26', borderRight: '1px solid rgba(255,255,255,0.06)' }}
       >
         <div className="flex items-center gap-2.5 px-5 py-4" style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
@@ -103,7 +143,12 @@ export default function MainLayout({ children }) {
 
         <nav className="flex-1 px-3 py-3 space-y-0.5 overflow-y-auto">
           {navItems.map((item) => (
-            <Link key={item.to} to={item.to} className={`sidebar-link ${isActive(item.to) ? 'active' : ''}`}>
+            <Link
+              key={item.to}
+              to={item.to}
+              onClick={closeSidebarOnMobile}
+              className={`sidebar-link ${isActive(item.to) ? 'active' : ''}`}
+            >
               <i className={`fa-solid ${item.icon} w-4 text-center`} style={{ fontSize: 13 }} />
               <span>{item.label}</span>
             </Link>
@@ -180,7 +225,7 @@ export default function MainLayout({ children }) {
           </div>
         </header>
 
-        <main className="flex-1 overflow-y-auto p-6">{children}</main>
+        <main className="flex-1 overflow-y-auto p-4 sm:p-6">{children}</main>
       </div>
     </div>
   );

@@ -8,6 +8,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Configuration.AddJsonFile("ocelot.json", optional: false, reloadOnChange: true);
 
 builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddHealthChecks();
 builder.Services.AddSwaggerGen();
 builder.Services.AddCors(options =>
 {
@@ -29,6 +30,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseCors("AllowAll");
+app.MapHealthChecks("/health");
 await app.UseOcelot();
 
 Console.WriteLine(@"

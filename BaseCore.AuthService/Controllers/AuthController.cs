@@ -3,6 +3,7 @@ using BaseCore.Entities;
 using BaseCore.Services.Authen;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using System.Security.Claims;
 
 namespace BaseCore.AuthService.Controllers
@@ -27,6 +28,7 @@ namespace BaseCore.AuthService.Controllers
         }
 
         [HttpPost("login")]
+        [EnableRateLimiting("auth-sensitive")]
         public async Task<IActionResult> Login([FromBody] LoginRequest request)
         {
             if (request == null || string.IsNullOrWhiteSpace(request.Password))
@@ -50,6 +52,7 @@ namespace BaseCore.AuthService.Controllers
         }
 
         [HttpPost("register")]
+        [EnableRateLimiting("auth-sensitive")]
         public async Task<IActionResult> Register([FromBody] RegisterRequest request)
         {
             if (request == null)
@@ -115,6 +118,7 @@ namespace BaseCore.AuthService.Controllers
         }
 
         [HttpPost("refresh")]
+        [EnableRateLimiting("auth-sensitive")]
         public async Task<IActionResult> Refresh([FromBody] RefreshTokenRequest request)
         {
             if (request == null || string.IsNullOrWhiteSpace(request.RefreshToken))
@@ -139,6 +143,7 @@ namespace BaseCore.AuthService.Controllers
 
         [HttpPost("change-password")]
         [Authorize]
+        [EnableRateLimiting("auth-sensitive")]
         public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordRequest request)
         {
             if (request == null ||
@@ -181,6 +186,7 @@ namespace BaseCore.AuthService.Controllers
         }
 
         [HttpPost("logout")]
+        [EnableRateLimiting("auth-sensitive")]
         public async Task<IActionResult> Logout([FromBody] RefreshTokenRequest? request)
         {
             if (!string.IsNullOrWhiteSpace(request?.RefreshToken))

@@ -229,6 +229,7 @@ export const sponsorApi = {
   getByEvent: (eventId) => api.get(`/events/${eventId}/sponsors`),
   addSponsor: (eventId, data) => api.post(`/events/${eventId}/sponsors`, data),
   getMySponsorships: () => api.get('/sponsors/my'),
+  getMySponsorshipTracking: (id) => api.get(`/sponsors/my/${id}/tracking`),
 };
 
 export const dashboardApi = {

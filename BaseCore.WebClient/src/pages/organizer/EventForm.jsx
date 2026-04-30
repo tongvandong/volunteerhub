@@ -1,6 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { lazy, Suspense, useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { eventApi, eventCategoryApi, skillApi } from '../../services/api';
+
+const LocationPickerMap = lazy(() => import('../../components/ui/LocationPickerMap'));
 
 const INIT = {
   title: '',
@@ -26,6 +28,8 @@ export default function EventForm() {
   const [loading, setLoading] = useState(isEdit);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [locating, setLocating] = useState(false);
+  const [locationNote, setLocationNote] = useState('');
 
   const selectedSkillIds = (() => {
     try {
@@ -36,6 +40,9 @@ export default function EventForm() {
   })();
 
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
+  const setMapLocation = useCallback(({ latitude, longitude }) => {
+    setForm((f) => ({ ...f, latitude, longitude }));
+  }, []);
 
   const toggleSkill = (skillId) => {
     const next = selectedSkillIds.includes(skillId)
@@ -95,6 +102,30 @@ export default function EventForm() {
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleUseCurrentLocation = () => {
+    if (!navigator.geolocation) {
+      setLocationNote('Trình duyệt không hỗ trợ định vị. Bạn vẫn có thể click trên bản đồ hoặc nhập tọa độ thủ công.');
+      return;
+    }
+
+    setLocating(true);
+    setLocationNote('');
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setMapLocation({
+          latitude: pos.coords.latitude.toFixed(6),
+          longitude: pos.coords.longitude.toFixed(6),
+        });
+        setLocating(false);
+      },
+      () => {
+        setLocationNote('Không lấy được vị trí hiện tại. Hãy kiểm tra quyền định vị hoặc click trực tiếp trên bản đồ.');
+        setLocating(false);
+      },
+      { timeout: 8000, maximumAge: 60000 }
+    );
   };
 
   if (loading) {
@@ -166,6 +197,31 @@ export default function EventForm() {
             <label className="block text-sm font-medium text-gray-700 mb-1">Địa điểm</label>
             <input type="text" value={form.location} onChange={(e) => set('location', e.target.value)} className="input-field" placeholder="Số nhà, đường, quận, thành phố..." />
           </div>
+          <div className="space-y-2">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <label className="block text-sm font-medium text-gray-700">Chọn vị trí trên bản đồ</label>
+              <button
+                type="button"
+                onClick={handleUseCurrentLocation}
+                disabled={locating}
+                className="btn-secondary btn-sm flex items-center gap-2"
+              >
+                <i className={`fa-solid fa-location-crosshairs ${locating ? 'fa-spin' : ''}`} />
+                {locating ? 'Đang định vị...' : 'Lấy vị trí hiện tại'}
+              </button>
+            </div>
+            <Suspense fallback={<div className="h-72 rounded-xl bg-gray-100 animate-pulse" />}>
+              <LocationPickerMap
+                latitude={form.latitude}
+                longitude={form.longitude}
+                onChange={setMapLocation}
+                height={300}
+              />
+            </Suspense>
+            <p className="text-xs text-gray-400">
+              Click trên bản đồ hoặc kéo marker để cập nhật tọa độ. Có tọa độ thì sự kiện sẽ xuất hiện trong bản đồ công khai và bộ lọc gần tôi.
+            </p>
+          </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -184,6 +240,18 @@ export default function EventForm() {
             Tọa độ giúp sự kiện hiển thị trên bản đồ tình nguyện. Tra cứu tại{' '}
             <a href="https://maps.google.com" target="_blank" rel="noreferrer" style={{ color: '#1b61c9' }}>Google Maps</a>.
           </p>
+          {!form.latitude || !form.longitude ? (
+            <div className="rounded-lg border border-yellow-200 bg-yellow-50 px-3 py-2 text-xs text-yellow-800">
+              <i className="fa-solid fa-triangle-exclamation mr-1" />
+              Sự kiện chưa có tọa độ nên sẽ không xuất hiện trên bản đồ và không được tính trong lọc bán kính.
+            </div>
+          ) : null}
+          {locationNote && (
+            <div className="rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-xs text-blue-700">
+              <i className="fa-solid fa-circle-info mr-1" />
+              {locationNote}
+            </div>
+          )}
         </div>
 
         {skills.length > 0 && (
