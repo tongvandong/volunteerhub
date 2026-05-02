@@ -37,9 +37,37 @@ namespace BaseCore.APIService.Controllers
             var cert = await _certificateService.GetByCodeAsync(code);
             if (cert == null) return NotFound(new { message = "Certificate not found" });
 
+            var pdfPath = ResolveGeneratedPdfPath(cert.PdfUrl);
+            if (pdfPath != null && System.IO.File.Exists(pdfPath))
+            {
+                return PhysicalFile(pdfPath, "application/pdf", $"VolunteerHub-{code}.pdf");
+            }
+
+            if (string.IsNullOrWhiteSpace(cert.PdfUrl))
+            {
+                return Accepted(new { message = "Certificate PDF is being generated" });
+            }
+
             var verifyUrl = $"{Request.Scheme}://{Request.Host}/verify/{Uri.EscapeDataString(code)}";
             var pdf = _certificateService.BuildCertificatePdf(cert, verifyUrl);
             return File(pdf, "application/pdf", $"VolunteerHub-{code}.pdf");
+        }
+
+        private static string? ResolveGeneratedPdfPath(string? pdfUrl)
+        {
+            const string prefix = "/certificates/";
+            if (string.IsNullOrWhiteSpace(pdfUrl) || !pdfUrl.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+            {
+                return null;
+            }
+
+            var fileName = Path.GetFileName(pdfUrl);
+            if (string.IsNullOrWhiteSpace(fileName))
+            {
+                return null;
+            }
+
+            return Path.Combine(AppContext.BaseDirectory, "wwwroot", "certificates", fileName);
         }
     }
 }

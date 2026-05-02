@@ -49,7 +49,7 @@ namespace BaseCore.Services.VolunteerHub
                     CertificateCode = code,
                     IssuedAt = DateTime.UtcNow,
                     VolunteerHours = reg.VolunteerHours,
-                    PdfUrl = $"/api/certificates/{code}/pdf"
+                    PdfUrl = ""
                 };
                 _context.Certificates.Add(cert);
 
@@ -58,6 +58,14 @@ namespace BaseCore.Services.VolunteerHub
                 if (profile != null)
                     profile.TotalVolunteerHours += reg.VolunteerHours;
 
+                await _context.SaveChangesAsync();
+
+                _context.CertificateJobs.Add(new CertificateJob
+                {
+                    CertificateId = cert.Id,
+                    Status = "Pending",
+                    CreatedAtUtc = DateTime.UtcNow
+                });
                 await _context.SaveChangesAsync();
 
                 // Notify volunteer

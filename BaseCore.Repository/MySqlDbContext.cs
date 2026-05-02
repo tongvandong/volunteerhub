@@ -46,6 +46,7 @@ namespace BaseCore.Repository
         public DbSet<Notification> Notifications { get; set; }
         public DbSet<AuthRefreshToken> AuthRefreshTokens { get; set; }
         public DbSet<AuditLog> AuditLogs { get; set; }
+        public DbSet<CertificateJob> CertificateJobs { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -334,6 +335,19 @@ namespace BaseCore.Repository
                       .OnDelete(DeleteBehavior.Restrict);
                 entity.HasIndex(e => e.CertificateCode).IsUnique();
                 entity.HasIndex(e => new { e.UserId, e.EventId }).IsUnique();
+            });
+
+            modelBuilder.Entity<CertificateJob>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Status).HasMaxLength(50).IsRequired();
+                entity.Property(e => e.ErrorMessage).HasMaxLength(1000).IsRequired(false);
+                entity.HasOne(e => e.Certificate)
+                      .WithMany()
+                      .HasForeignKey(e => e.CertificateId)
+                      .OnDelete(DeleteBehavior.Cascade);
+                entity.HasIndex(e => e.CertificateId);
+                entity.HasIndex(e => new { e.Status, e.CreatedAtUtc });
             });
 
             modelBuilder.Entity<Badge>(entity =>
