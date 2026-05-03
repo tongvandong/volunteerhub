@@ -43,6 +43,7 @@ namespace BaseCore.Repository
 
         // --- VolunteerHub: Sponsor & Notification ---
         public DbSet<EventSponsor> EventSponsors { get; set; }
+        public DbSet<SponsorProjectMilestone> SponsorProjectMilestones { get; set; }
         public DbSet<Notification> Notifications { get; set; }
         public DbSet<AuthRefreshToken> AuthRefreshTokens { get; set; }
         public DbSet<AuditLog> AuditLogs { get; set; }
@@ -410,6 +411,19 @@ namespace BaseCore.Repository
                       .WithMany()
                       .HasForeignKey(e => e.SponsorId)
                       .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            modelBuilder.Entity<SponsorProjectMilestone>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Title).HasMaxLength(200).IsRequired();
+                entity.Property(e => e.Description).HasMaxLength(1000).IsRequired(false);
+                entity.Property(e => e.Status).HasMaxLength(50).IsRequired();
+                entity.HasOne(e => e.Event)
+                      .WithMany()
+                      .HasForeignKey(e => e.EventId)
+                      .OnDelete(DeleteBehavior.Cascade);
+                entity.HasIndex(e => new { e.EventId, e.SortOrder });
             });
 
             modelBuilder.Entity<Notification>(entity =>

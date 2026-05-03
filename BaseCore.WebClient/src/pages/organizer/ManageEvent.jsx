@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
-import { eventApi, registrationApi, ratingApi } from '../../services/api';
+import { eventApi, registrationApi, ratingApi, sponsorApi } from '../../services/api';
 import StatusBadge from '../../components/ui/StatusBadge';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import Modal from '../../components/ui/Modal';
@@ -31,17 +31,31 @@ export default function ManageEvent() {
   const [selectedCheckinRegId, setSelectedCheckinRegId] = useState('');
   const [usingGps, setUsingGps] = useState(false);
   const [ratingForms, setRatingForms] = useState({});
+  const [milestones, setMilestones] = useState([]);
+  const [milestoneModal, setMilestoneModal] = useState(false);
+  const [editingMilestone, setEditingMilestone] = useState(null);
+  const [milestoneSaving, setMilestoneSaving] = useState(false);
+  const [milestoneForm, setMilestoneForm] = useState({
+    title: '',
+    description: '',
+    dueDate: '',
+    status: 'Planned',
+    progressPercent: 0,
+    sortOrder: 0,
+  });
 
   useEffect(() => {
     Promise.all([
       eventApi.getById(id),
       eventApi.getRegistrations(id),
       eventApi.getShifts(id),
+      sponsorApi.getMilestones(id),
     ])
-      .then(([evRes, regRes, shiftRes]) => {
+      .then(([evRes, regRes, shiftRes, milestoneRes]) => {
         setEvent(evRes.data);
         setRegistrations(regRes.data || []);
         setShifts(shiftRes.data || []);
+        setMilestones(milestoneRes.data || []);
       })
       .catch(() => navigate('/my-events'))
       .finally(() => setLoading(false));
@@ -171,6 +185,79 @@ export default function ManageEvent() {
     }
   };
 
+  const resetMilestoneForm = () => {
+    setEditingMilestone(null);
+    setMilestoneForm({
+      title: '',
+      description: '',
+      dueDate: '',
+      status: 'Planned',
+      progressPercent: 0,
+      sortOrder: milestones.length + 1,
+    });
+  };
+
+  const openCreateMilestone = () => {
+    resetMilestoneForm();
+    setMilestoneModal(true);
+  };
+
+  const openEditMilestone = (milestone) => {
+    setEditingMilestone(milestone);
+    setMilestoneForm({
+      title: milestone.title || '',
+      description: milestone.description || '',
+      dueDate: milestone.dueDate ? new Date(milestone.dueDate).toISOString().slice(0, 16) : '',
+      status: milestone.status || 'Planned',
+      progressPercent: milestone.progressPercent || 0,
+      sortOrder: milestone.sortOrder || 0,
+    });
+    setMilestoneModal(true);
+  };
+
+  const reloadMilestones = async () => {
+    const r = await sponsorApi.getMilestones(id);
+    setMilestones(r.data || []);
+  };
+
+  const submitMilestone = async (e) => {
+    e.preventDefault();
+    setMilestoneSaving(true);
+
+    const payload = {
+      ...milestoneForm,
+      dueDate: milestoneForm.dueDate ? new Date(milestoneForm.dueDate).toISOString() : null,
+      progressPercent: Number(milestoneForm.progressPercent) || 0,
+      sortOrder: Number(milestoneForm.sortOrder) || 0,
+    };
+
+    try {
+      if (editingMilestone) {
+        await sponsorApi.updateMilestone(id, editingMilestone.id, payload);
+      } else {
+        await sponsorApi.createMilestone(id, payload);
+      }
+      await reloadMilestones();
+      setMilestoneModal(false);
+      resetMilestoneForm();
+    } catch (err) {
+      alert(err.response?.data?.message || 'Save milestone failed');
+    } finally {
+      setMilestoneSaving(false);
+    }
+  };
+
+  const deleteMilestone = async (milestone) => {
+    if (!confirm('Delete this milestone?')) return;
+
+    try {
+      await sponsorApi.deleteMilestone(id, milestone.id);
+      setMilestones((prev) => prev.filter((m) => m.id !== milestone.id));
+    } catch (err) {
+      alert(err.response?.data?.message || 'Delete milestone failed');
+    }
+  };
+
   if (loading) return <LoadingSpinner />;
 
   const pending = registrations.filter((r) => r.status === 'Pending');
@@ -178,6 +265,10 @@ export default function ManageEvent() {
   const cancelled = registrations.filter((r) => r.status === 'Cancelled');
   const attended = registrations.filter((r) => r.isAttended);
   const totalHours = attended.reduce((sum, r) => sum + (Number(r.volunteerHours) || 0), 0);
+  const completedMilestones = milestones.filter((m) => m.status === 'Completed' || Number(m.progressPercent) >= 100).length;
+  const projectProgress = milestones.length > 0
+    ? Math.round(milestones.reduce((sum, m) => sum + (Number(m.progressPercent) || 0), 0) / milestones.length)
+    : 0;
   const capacity = event?.maxParticipants || 0;
   const fillRate = capacity > 0 ? Math.round((registrations.length / capacity) * 100) : 0;
   const attendanceRate = confirmed.length > 0 ? Math.round((attended.length / confirmed.length) * 100) : 0;
@@ -227,6 +318,7 @@ export default function ManageEvent() {
           { key: 'registrations', label: 'Danh sách đăng ký', icon: 'fa-list' },
           { key: 'shifts', label: 'Ca làm việc', icon: 'fa-clock' },
           { key: 'checkin', label: 'Điểm danh', icon: 'fa-qrcode' },
+          { key: 'milestones', label: 'Tiến độ tài trợ', icon: 'fa-timeline' },
           { key: 'report', label: 'Báo cáo', icon: 'fa-chart-column' },
         ].map((t) => (
           <button
@@ -482,6 +574,136 @@ export default function ManageEvent() {
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {tab === 'milestones' && (
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="card p-4">
+              <p className="text-xs text-gray-500">Tiến độ dự án</p>
+              <p className="text-2xl font-bold text-primary-700 mt-1">{projectProgress}%</p>
+              <div className="mt-3 h-2 rounded-full bg-gray-100 overflow-hidden">
+                <div className="h-full bg-primary-500" style={{ width: `${Math.min(projectProgress, 100)}%` }} />
+              </div>
+            </div>
+            <div className="card p-4">
+              <p className="text-xs text-gray-500">Mốc hoàn thành</p>
+              <p className="text-2xl font-bold text-green-700 mt-1">{completedMilestones}/{milestones.length}</p>
+            </div>
+            <div className="card p-4 flex items-center justify-between gap-3">
+              <div>
+                <p className="text-xs text-gray-500">Timeline tài trợ</p>
+                <p className="text-sm text-gray-600 mt-1">Cập nhật cho sponsor theo từng mốc.</p>
+              </div>
+              <button onClick={openCreateMilestone} className="btn-primary btn-sm flex items-center gap-1">
+                <i className="fa-solid fa-plus" /> Thêm
+              </button>
+            </div>
+          </div>
+
+          {milestones.length === 0 ? (
+            <div className="card p-12 text-center">
+              <i className="fa-solid fa-timeline text-4xl text-gray-300 mb-3 block" />
+              <p className="text-gray-500">Chưa có mốc tiến độ tài trợ</p>
+              <button onClick={openCreateMilestone} className="btn-primary mt-4 inline-flex items-center gap-2">
+                <i className="fa-solid fa-plus" /> Thêm mốc đầu tiên
+              </button>
+            </div>
+          ) : (
+            <div className="card overflow-hidden">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="table-header">
+                    <th className="text-left px-4 py-3">Mốc tiến độ</th>
+                    <th className="text-left px-4 py-3">Hạn dự kiến</th>
+                    <th className="text-left px-4 py-3">Trạng thái</th>
+                    <th className="text-left px-4 py-3">Tiến độ</th>
+                    <th className="px-4 py-3"></th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {milestones.map((m) => (
+                    <tr key={m.id} className="odd:bg-gray-50/50 hover:bg-gray-50">
+                      <td className="px-4 py-3">
+                        <p className="font-medium text-gray-900">{m.title}</p>
+                        {m.description && <p className="text-xs text-gray-500 mt-0.5">{m.description}</p>}
+                      </td>
+                      <td className="px-4 py-3 text-gray-600">{fmt(m.dueDate)}</td>
+                      <td className="px-4 py-3">
+                        <span className="text-xs font-medium rounded-full border border-gray-200 bg-white px-2 py-0.5">
+                          {m.status}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2 min-w-32">
+                          <div className="h-2 flex-1 rounded-full bg-gray-100 overflow-hidden">
+                            <div className="h-full bg-primary-500" style={{ width: `${Math.min(Number(m.progressPercent) || 0, 100)}%` }} />
+                          </div>
+                          <span className="text-xs font-medium text-gray-700">{m.progressPercent || 0}%</span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-1.5 justify-end">
+                          <button onClick={() => openEditMilestone(m)} className="btn-secondary btn-sm text-xs">
+                            <i className="fa-solid fa-pen" />
+                          </button>
+                          <button onClick={() => deleteMilestone(m)} className="btn-danger btn-sm text-xs">
+                            <i className="fa-solid fa-trash" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          <Modal isOpen={milestoneModal} onClose={() => setMilestoneModal(false)} title={editingMilestone ? 'Cập nhật mốc tiến độ' : 'Thêm mốc tiến độ'} size="md">
+            <form onSubmit={submitMilestone} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Tiêu đề *</label>
+                <input value={milestoneForm.title} onChange={(e) => setMilestoneForm((f) => ({ ...f, title: e.target.value }))} required className="input-field" placeholder="VD: Hoàn tất mua vật tư" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Mô tả</label>
+                <textarea rows={3} value={milestoneForm.description} onChange={(e) => setMilestoneForm((f) => ({ ...f, description: e.target.value }))} className="input-field resize-none" />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Hạn dự kiến</label>
+                  <input type="datetime-local" value={milestoneForm.dueDate} onChange={(e) => setMilestoneForm((f) => ({ ...f, dueDate: e.target.value }))} className="input-field" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Thứ tự</label>
+                  <input type="number" value={milestoneForm.sortOrder} onChange={(e) => setMilestoneForm((f) => ({ ...f, sortOrder: e.target.value }))} className="input-field" />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Trạng thái</label>
+                  <select value={milestoneForm.status} onChange={(e) => setMilestoneForm((f) => ({ ...f, status: e.target.value }))} className="input-field">
+                    <option value="Planned">Planned</option>
+                    <option value="InProgress">InProgress</option>
+                    <option value="Completed">Completed</option>
+                    <option value="Blocked">Blocked</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Tiến độ (%)</label>
+                  <input type="number" min={0} max={100} value={milestoneForm.progressPercent} onChange={(e) => setMilestoneForm((f) => ({ ...f, progressPercent: e.target.value }))} className="input-field" />
+                </div>
+              </div>
+              <div className="flex gap-3 justify-end pt-2">
+                <button type="button" onClick={() => setMilestoneModal(false)} className="btn-secondary">Hủy</button>
+                <button type="submit" disabled={milestoneSaving} className="btn-primary flex items-center gap-2">
+                  {milestoneSaving && <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />}
+                  Lưu
+                </button>
+              </div>
+            </form>
+          </Modal>
         </div>
       )}
 

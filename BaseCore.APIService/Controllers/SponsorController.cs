@@ -71,6 +71,109 @@ namespace BaseCore.APIService.Controllers
             return Ok(sponsors);
         }
 
+        [HttpGet("api/events/{eventId}/sponsor-milestones"), Authorize(Roles = "Organizer,Admin,Sponsor")]
+        public async Task<IActionResult> GetMilestones(int eventId)
+        {
+            if (!int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var userId))
+                return Unauthorized();
+
+            var ev = await _context.Events.FindAsync(eventId);
+            if (ev == null) return NotFound(new { message = "Event not found" });
+            if (!await CanReadMilestonesAsync(ev, userId)) return Forbid();
+
+            var milestones = await GetMilestonesForEvent(eventId).ToListAsync();
+            return Ok(milestones);
+        }
+
+        [HttpPost("api/events/{eventId}/sponsor-milestones"), Authorize(Roles = "Organizer,Admin")]
+        [EnableRateLimiting("write-sensitive")]
+        public async Task<IActionResult> CreateMilestone(int eventId, [FromBody] SponsorProjectMilestoneDto dto)
+        {
+            if (!int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var userId))
+                return Unauthorized();
+
+            var ev = await _context.Events.FindAsync(eventId);
+            if (ev == null) return NotFound(new { message = "Event not found" });
+            if (!CanWriteMilestones(ev, userId)) return Forbid();
+
+            var validation = ValidateMilestone(dto);
+            if (validation != null) return BadRequest(new { message = validation });
+
+            var milestone = new SponsorProjectMilestone
+            {
+                EventId = eventId,
+                Title = dto.Title.Trim(),
+                Description = dto.Description?.Trim() ?? "",
+                DueDate = dto.DueDate,
+                Status = NormalizeMilestoneStatus(dto.Status),
+                ProgressPercent = ClampProgress(dto.ProgressPercent),
+                SortOrder = dto.SortOrder,
+                CreatedAtUtc = DateTime.UtcNow
+            };
+            ApplyCompletionFields(milestone);
+
+            _context.SponsorProjectMilestones.Add(milestone);
+            await _context.SaveChangesAsync();
+            await RecordAuditAsync(userId, "SponsorMilestone.Create", "SponsorProjectMilestone", milestone.Id, $"EventId={eventId};Title={milestone.Title}");
+
+            return Ok(milestone);
+        }
+
+        [HttpPut("api/events/{eventId}/sponsor-milestones/{milestoneId}"), Authorize(Roles = "Organizer,Admin")]
+        [EnableRateLimiting("write-sensitive")]
+        public async Task<IActionResult> UpdateMilestone(int eventId, int milestoneId, [FromBody] SponsorProjectMilestoneDto dto)
+        {
+            if (!int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var userId))
+                return Unauthorized();
+
+            var ev = await _context.Events.FindAsync(eventId);
+            if (ev == null) return NotFound(new { message = "Event not found" });
+            if (!CanWriteMilestones(ev, userId)) return Forbid();
+
+            var milestone = await _context.SponsorProjectMilestones
+                .FirstOrDefaultAsync(m => m.Id == milestoneId && m.EventId == eventId);
+            if (milestone == null) return NotFound(new { message = "Milestone not found" });
+
+            var validation = ValidateMilestone(dto);
+            if (validation != null) return BadRequest(new { message = validation });
+
+            milestone.Title = dto.Title.Trim();
+            milestone.Description = dto.Description?.Trim() ?? "";
+            milestone.DueDate = dto.DueDate;
+            milestone.Status = NormalizeMilestoneStatus(dto.Status);
+            milestone.ProgressPercent = ClampProgress(dto.ProgressPercent);
+            milestone.SortOrder = dto.SortOrder;
+            milestone.UpdatedAtUtc = DateTime.UtcNow;
+            ApplyCompletionFields(milestone);
+
+            await _context.SaveChangesAsync();
+            await RecordAuditAsync(userId, "SponsorMilestone.Update", "SponsorProjectMilestone", milestone.Id, $"EventId={eventId};Status={milestone.Status};Progress={milestone.ProgressPercent}");
+
+            return Ok(milestone);
+        }
+
+        [HttpDelete("api/events/{eventId}/sponsor-milestones/{milestoneId}"), Authorize(Roles = "Organizer,Admin")]
+        [EnableRateLimiting("write-sensitive")]
+        public async Task<IActionResult> DeleteMilestone(int eventId, int milestoneId)
+        {
+            if (!int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var userId))
+                return Unauthorized();
+
+            var ev = await _context.Events.FindAsync(eventId);
+            if (ev == null) return NotFound(new { message = "Event not found" });
+            if (!CanWriteMilestones(ev, userId)) return Forbid();
+
+            var milestone = await _context.SponsorProjectMilestones
+                .FirstOrDefaultAsync(m => m.Id == milestoneId && m.EventId == eventId);
+            if (milestone == null) return NotFound(new { message = "Milestone not found" });
+
+            _context.SponsorProjectMilestones.Remove(milestone);
+            await _context.SaveChangesAsync();
+            await RecordAuditAsync(userId, "SponsorMilestone.Delete", "SponsorProjectMilestone", milestoneId, $"EventId={eventId}");
+
+            return Ok(new { message = "Deleted" });
+        }
+
         [HttpGet("api/sponsors/my/{sponsorshipId}/tracking"), Authorize(Roles = "Sponsor")]
         public async Task<IActionResult> GetMySponsorshipTracking(int sponsorshipId)
         {
@@ -93,54 +196,23 @@ namespace BaseCore.APIService.Controllers
             var sponsors = await _context.EventSponsors
                 .Where(s => s.EventId == eventId)
                 .ToListAsync();
+            var milestones = await GetMilestonesForEvent(eventId).ToListAsync();
             var ev = sponsorship.Event;
 
-            var timeline = new List<object>
-            {
-                new
+            var completedMilestones = milestones.Count(m => m.Status == "Completed" || m.ProgressPercent >= 100);
+            var projectProgress = milestones.Count > 0
+                ? (int)Math.Round(milestones.Average(m => ClampProgress(m.ProgressPercent)))
+                : CalculateFallbackProgress(ev, registrations, certificatesIssued);
+            var timeline = milestones.Count > 0
+                ? milestones.Select(m => new
                 {
-                    title = "Sự kiện được tạo",
-                    date = ev.CreatedAt,
-                    status = "Done",
-                    description = "Ban tổ chức đã gửi sự kiện lên VolunteerHub."
-                },
-                new
-                {
-                    title = "Tài trợ được ghi nhận",
-                    date = sponsorship.SponsoredAt,
-                    status = "Done",
-                    description = $"{sponsorship.ContributionType} - {sponsorship.Amount:0.##} VNĐ"
-                }
-            };
-
-            if (ev.Status is "Approved" or "Completed")
-            {
-                timeline.Add(new
-                {
-                    title = "Sự kiện đã được duyệt",
-                    date = ev.CreatedAt,
-                    status = "Done",
-                    description = "Sự kiện đủ điều kiện công khai và nhận đăng ký."
-                });
-            }
-
-            timeline.Add(new
-            {
-                title = "Diễn ra sự kiện",
-                date = ev.StartDate,
-                status = DateTime.UtcNow >= ev.StartDate || ev.Status == "Completed" ? "Done" : "Upcoming",
-                description = $"{ev.Location} - {ev.StartDate:dd/MM/yyyy HH:mm}"
-            });
-
-            timeline.Add(new
-            {
-                title = "Tổng kết tác động",
-                date = ev.EndDate,
-                status = ev.Status == "Completed" ? "Done" : "Pending",
-                description = ev.Status == "Completed"
-                    ? "Sự kiện đã hoàn thành và tác động đã được ghi nhận."
-                    : "Tác động sẽ được cập nhật khi sự kiện hoàn thành."
-            });
+                    title = m.Title,
+                    date = m.CompletedAtUtc ?? m.DueDate ?? m.CreatedAtUtc,
+                    status = MapMilestoneStatusForTimeline(m),
+                    description = m.Description,
+                    progressPercent = m.ProgressPercent
+                }).Cast<object>().ToList()
+                : BuildFallbackTimeline(ev, sponsorship);
 
             return Ok(new
             {
@@ -164,10 +236,147 @@ namespace BaseCore.APIService.Controllers
                     totalVolunteerHours = registrations.Where(r => r.IsAttended).Sum(r => r.VolunteerHours),
                     certificatesIssued,
                     sponsorCount = sponsors.Count,
-                    sponsorAmount = sponsors.Sum(s => s.Amount)
+                    sponsorAmount = sponsors.Sum(s => s.Amount),
+                    projectProgress,
+                    milestoneCount = milestones.Count,
+                    completedMilestones
                 },
                 timeline
             });
+        }
+
+        private IQueryable<SponsorProjectMilestone> GetMilestonesForEvent(int eventId)
+        {
+            return _context.SponsorProjectMilestones
+                .Where(m => m.EventId == eventId)
+                .OrderBy(m => m.SortOrder)
+                .ThenBy(m => m.DueDate)
+                .ThenBy(m => m.Id);
+        }
+
+        private async Task<bool> CanReadMilestonesAsync(Entities.Event ev, int userId)
+        {
+            var role = User.FindFirst(ClaimTypes.Role)?.Value;
+            if (role == "Admin" || ev.OrganizerId == userId) return true;
+            if (role == "Sponsor")
+            {
+                return await _context.EventSponsors.AnyAsync(s => s.EventId == ev.Id && s.SponsorId == userId);
+            }
+
+            return false;
+        }
+
+        private bool CanWriteMilestones(Entities.Event ev, int userId)
+        {
+            var role = User.FindFirst(ClaimTypes.Role)?.Value;
+            return role == "Admin" || ev.OrganizerId == userId;
+        }
+
+        private static string? ValidateMilestone(SponsorProjectMilestoneDto dto)
+        {
+            if (string.IsNullOrWhiteSpace(dto.Title))
+                return "Milestone title is required";
+            if (dto.Title.Length > 200)
+                return "Milestone title is too long";
+            if ((dto.Description?.Length ?? 0) > 1000)
+                return "Milestone description is too long";
+            if (dto.ProgressPercent < 0 || dto.ProgressPercent > 100)
+                return "Progress percent must be between 0 and 100";
+
+            return null;
+        }
+
+        private static string NormalizeMilestoneStatus(string? status)
+        {
+            return status?.Trim() switch
+            {
+                "InProgress" => "InProgress",
+                "Completed" => "Completed",
+                "Blocked" => "Blocked",
+                _ => "Planned"
+            };
+        }
+
+        private static void ApplyCompletionFields(SponsorProjectMilestone milestone)
+        {
+            if (milestone.Status == "Completed" || milestone.ProgressPercent >= 100)
+            {
+                milestone.Status = "Completed";
+                milestone.ProgressPercent = 100;
+                milestone.CompletedAtUtc ??= DateTime.UtcNow;
+            }
+            else
+            {
+                milestone.CompletedAtUtc = null;
+            }
+        }
+
+        private static int ClampProgress(int progress)
+        {
+            return Math.Min(100, Math.Max(0, progress));
+        }
+
+        private static string MapMilestoneStatusForTimeline(SponsorProjectMilestone milestone)
+        {
+            if (milestone.Status == "Completed" || milestone.ProgressPercent >= 100) return "Done";
+            if (milestone.Status == "InProgress") return "InProgress";
+            if (milestone.Status == "Blocked") return "Blocked";
+            return "Pending";
+        }
+
+        private static int CalculateFallbackProgress(Entities.Event ev, List<Registration> registrations, int certificatesIssued)
+        {
+            if (ev.Status == "Completed") return 100;
+            if (registrations.Any(r => r.IsAttended) || certificatesIssued > 0) return 75;
+            if (DateTime.UtcNow >= ev.StartDate) return 60;
+            if (ev.Status == "Approved") return 35;
+            return 10;
+        }
+
+        private static List<object> BuildFallbackTimeline(Entities.Event ev, EventSponsor sponsorship)
+        {
+            var timeline = new List<object>
+            {
+                new
+                {
+                    title = "Event created",
+                    date = ev.CreatedAt,
+                    status = "Done",
+                    description = "Organizer submitted the event to VolunteerHub.",
+                    progressPercent = 10
+                },
+                new
+                {
+                    title = "Sponsorship recorded",
+                    date = sponsorship.SponsoredAt,
+                    status = "Done",
+                    description = $"{sponsorship.ContributionType} - {sponsorship.Amount:0.##} VND",
+                    progressPercent = 35
+                }
+            };
+
+            if (ev.Status is "Approved" or "Completed")
+            {
+                timeline.Add(new
+                {
+                    title = "Event approved",
+                    date = ev.CreatedAt,
+                    status = "Done",
+                    description = "Event is public and open for registration.",
+                    progressPercent = 50
+                });
+            }
+
+            timeline.Add(new
+            {
+                title = "Event delivery",
+                date = ev.StartDate,
+                status = DateTime.UtcNow >= ev.StartDate || ev.Status == "Completed" ? "Done" : "Pending",
+                description = $"{ev.Location} - {ev.StartDate:dd/MM/yyyy HH:mm}",
+                progressPercent = ev.Status == "Completed" ? 100 : 75
+            });
+
+            return timeline;
         }
 
         private Task RecordAuditAsync(int? userId, string action, string entityType, int? entityId = null, string? metadata = null)
@@ -187,5 +396,15 @@ namespace BaseCore.APIService.Controllers
         public string ContributionType { get; set; } = "Financial";
         public decimal Amount { get; set; }
         public string? Note { get; set; }
+    }
+
+    public class SponsorProjectMilestoneDto
+    {
+        public string Title { get; set; } = "";
+        public string? Description { get; set; }
+        public DateTime? DueDate { get; set; }
+        public string? Status { get; set; }
+        public int ProgressPercent { get; set; }
+        public int SortOrder { get; set; }
     }
 }

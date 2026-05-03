@@ -204,6 +204,23 @@ export default function MySponsorships() {
               </div>
             </div>
 
+            <div className="rounded-lg border border-primary-100 bg-white p-4">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold text-gray-900">Tiến độ dự án</p>
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    {tracking.impact?.milestoneCount
+                      ? `${tracking.impact.completedMilestones || 0}/${tracking.impact.milestoneCount} mốc hoàn thành`
+                      : 'Tính theo trạng thái sự kiện hiện tại'}
+                  </p>
+                </div>
+                <span className="text-lg font-bold text-primary-700">{tracking.impact?.projectProgress || 0}%</span>
+              </div>
+              <div className="mt-3 h-2 rounded-full bg-gray-100 overflow-hidden">
+                <div className="h-full bg-primary-500" style={{ width: `${Math.min(tracking.impact?.projectProgress || 0, 100)}%` }} />
+              </div>
+            </div>
+
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               {[
                 { label: 'Đăng ký', value: tracking.impact?.totalRegistrations || 0, icon: 'fa-clipboard-list' },
@@ -233,9 +250,10 @@ export default function MySponsorships() {
                   <div key={`${item.title}-${index}`} className="flex gap-3">
                     <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
                       item.status === 'Done' ? 'bg-green-100 text-green-700' :
-                        item.status === 'Upcoming' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-500'
+                        item.status === 'InProgress' ? 'bg-blue-100 text-blue-700' :
+                          item.status === 'Blocked' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-500'
                     }`}>
-                      <i className={`fa-solid ${item.status === 'Done' ? 'fa-check' : item.status === 'Upcoming' ? 'fa-calendar' : 'fa-hourglass-half'} text-xs`} />
+                      <i className={`fa-solid ${item.status === 'Done' ? 'fa-check' : item.status === 'InProgress' ? 'fa-spinner' : item.status === 'Blocked' ? 'fa-triangle-exclamation' : 'fa-hourglass-half'} text-xs`} />
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between gap-3">
@@ -243,6 +261,14 @@ export default function MySponsorships() {
                         <span className="text-xs text-gray-400">{fmt(item.date)}</span>
                       </div>
                       <p className="text-xs text-gray-500 mt-0.5">{item.description}</p>
+                      {typeof item.progressPercent === 'number' && (
+                        <div className="mt-2 flex items-center gap-2">
+                          <div className="h-1.5 flex-1 rounded-full bg-gray-100 overflow-hidden">
+                            <div className="h-full bg-primary-500" style={{ width: `${Math.min(item.progressPercent, 100)}%` }} />
+                          </div>
+                          <span className="text-[11px] font-medium text-gray-500">{item.progressPercent}%</span>
+                        </div>
+                      )}
                     </div>
                   </div>
                 ))}

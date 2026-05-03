@@ -230,6 +230,10 @@ export const sponsorApi = {
   addSponsor: (eventId, data) => api.post(`/events/${eventId}/sponsors`, data),
   getMySponsorships: () => api.get('/sponsors/my'),
   getMySponsorshipTracking: (id) => api.get(`/sponsors/my/${id}/tracking`),
+  getMilestones: (eventId) => api.get(`/events/${eventId}/sponsor-milestones`),
+  createMilestone: (eventId, data) => api.post(`/events/${eventId}/sponsor-milestones`, data),
+  updateMilestone: (eventId, milestoneId, data) => api.put(`/events/${eventId}/sponsor-milestones/${milestoneId}`, data),
+  deleteMilestone: (eventId, milestoneId) => api.delete(`/events/${eventId}/sponsor-milestones/${milestoneId}`),
 };
 
 export const dashboardApi = {
