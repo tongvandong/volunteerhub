@@ -29,6 +29,7 @@ const AdminUsers = lazy(() => import('./pages/admin/AdminUsers'));
 const AdminCategories = lazy(() => import('./pages/admin/AdminCategories'));
 const AdminSkills = lazy(() => import('./pages/admin/AdminSkills'));
 const AdminExport = lazy(() => import('./pages/admin/AdminExport'));
+const AdminMonitoring = lazy(() => import('./pages/admin/AdminMonitoring'));
 
 const PageLoader = () => (
   <div className="flex items-center justify-center h-64">
@@ -87,6 +88,7 @@ function AppRoutes() {
         <Route path="/admin/users" element={<AppPage roles={['Admin']}><AdminUsers /></AppPage>} />
         <Route path="/admin/categories" element={<AppPage roles={['Admin']}><AdminCategories /></AppPage>} />
         <Route path="/admin/skills" element={<AppPage roles={['Admin']}><AdminSkills /></AppPage>} />
+        <Route path="/admin/monitoring" element={<AppPage roles={['Admin']}><AdminMonitoring /></AppPage>} />
         <Route path="/admin/export" element={<AppPage roles={['Admin']}><AdminExport /></AppPage>} />
 
         <Route path="*" element={<Navigate to="/" replace />} />

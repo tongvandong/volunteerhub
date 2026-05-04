@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.RateLimiting;
 using BaseCore.Entities;
 using BaseCore.Repository.EFCore;
 using BaseCore.Services.VolunteerHub;
+using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 
 namespace BaseCore.APIService.Controllers
@@ -36,6 +37,10 @@ namespace BaseCore.APIService.Controllers
         {
             if (string.IsNullOrWhiteSpace(dto.Name))
                 return BadRequest(new { message = "Category name is required" });
+            if (dto.Name.Trim().Length > 100)
+                return BadRequest(new { message = "Category name must be 100 characters or less" });
+            if ((dto.Description?.Length ?? 0) > 500)
+                return BadRequest(new { message = "Category description must be 500 characters or less" });
 
             var cat = new EventCategory
             {
@@ -56,6 +61,10 @@ namespace BaseCore.APIService.Controllers
             if (cat == null) return NotFound();
             if (dto.Name != null && string.IsNullOrWhiteSpace(dto.Name))
                 return BadRequest(new { message = "Category name cannot be empty" });
+            if ((dto.Name?.Trim().Length ?? 0) > 100)
+                return BadRequest(new { message = "Category name must be 100 characters or less" });
+            if ((dto.Description?.Length ?? 0) > 500)
+                return BadRequest(new { message = "Category description must be 500 characters or less" });
 
             cat.Name = dto.Name?.Trim() ?? cat.Name;
             cat.Description = dto.Description ?? cat.Description;
@@ -71,7 +80,14 @@ namespace BaseCore.APIService.Controllers
         {
             var cat = await _repo.GetByIdAsync(id);
             if (cat == null) return NotFound();
-            await _repo.DeleteAsync(cat);
+            try
+            {
+                await _repo.DeleteAsync(cat);
+            }
+            catch (DbUpdateException)
+            {
+                return BadRequest(new { message = "Cannot delete a category that is used by events" });
+            }
             await RecordAuditAsync("EventCategory.Delete", "EventCategory", id);
             return Ok(new { message = "Deleted" });
         }

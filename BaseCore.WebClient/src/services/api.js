@@ -246,6 +246,9 @@ export const adminApi = {
     return api.get('/admin/users', { params: { ...rest, keyword: search } });
   },
   toggleUserStatus: (id) => api.put(`/admin/users/${id}/toggle-status`),
+  getMonitoringHealth: () => api.get('/monitoring/health'),
+  getMonitoringSummary: () => api.get('/admin/monitoring/summary'),
+  getAuditLogs: (params = {}) => api.get('/admin/audit-logs', { params }),
   exportEvents: (format) =>
     api.get('/admin/export/events', {
       params: { format },

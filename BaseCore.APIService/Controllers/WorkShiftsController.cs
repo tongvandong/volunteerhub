@@ -48,11 +48,13 @@ namespace BaseCore.APIService.Controllers
             var ev = await _eventRepo.GetByIdAsync(eventId);
             if (ev == null) return NotFound(new { message = "Event not found" });
             if (ev.OrganizerId != userId) return Forbid();
+            var validation = ValidateShift(dto.Name, dto.StartTime, dto.EndTime, dto.MaxVolunteers);
+            if (validation != null) return BadRequest(new { message = validation });
 
             var shift = new WorkShift
             {
                 EventId = eventId,
-                Name = dto.Name,
+                Name = dto.Name.Trim(),
                 StartTime = dto.StartTime,
                 EndTime = dto.EndTime,
                 MaxVolunteers = dto.MaxVolunteers,
@@ -77,10 +79,17 @@ namespace BaseCore.APIService.Controllers
             var shift = await _repo.GetByIdAsync(id);
             if (shift == null || shift.EventId != eventId) return NotFound();
 
-            shift.Name = dto.Name ?? shift.Name;
-            shift.StartTime = dto.StartTime != default ? dto.StartTime : shift.StartTime;
-            shift.EndTime = dto.EndTime != default ? dto.EndTime : shift.EndTime;
-            shift.MaxVolunteers = dto.MaxVolunteers > 0 ? dto.MaxVolunteers : shift.MaxVolunteers;
+            var nextName = dto.Name ?? shift.Name;
+            var nextStart = dto.StartTime != default ? dto.StartTime : shift.StartTime;
+            var nextEnd = dto.EndTime != default ? dto.EndTime : shift.EndTime;
+            var nextMax = dto.MaxVolunteers > 0 ? dto.MaxVolunteers : shift.MaxVolunteers;
+            var validation = ValidateShift(nextName, nextStart, nextEnd, nextMax);
+            if (validation != null) return BadRequest(new { message = validation });
+
+            shift.Name = nextName.Trim();
+            shift.StartTime = nextStart;
+            shift.EndTime = nextEnd;
+            shift.MaxVolunteers = nextMax;
             shift.RequiredSkillId = dto.RequiredSkillId ?? shift.RequiredSkillId;
 
             await _repo.UpdateAsync(shift);
@@ -116,6 +125,22 @@ namespace BaseCore.APIService.Controllers
                 entityId,
                 metadata,
                 HttpContext.Connection.RemoteIpAddress?.ToString());
+        }
+
+        private static string? ValidateShift(string? name, DateTime startTime, DateTime endTime, int maxVolunteers)
+        {
+            if (string.IsNullOrWhiteSpace(name))
+                return "Shift name is required";
+            if (name.Trim().Length > 100)
+                return "Shift name must be 100 characters or less";
+            if (startTime == default || endTime == default)
+                return "Shift start and end time are required";
+            if (endTime <= startTime)
+                return "Shift end time must be after start time";
+            if (maxVolunteers < 1 || maxVolunteers > 1000)
+                return "Shift max volunteers must be between 1 and 1000";
+
+            return null;
         }
     }
 

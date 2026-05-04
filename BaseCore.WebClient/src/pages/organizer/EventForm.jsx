@@ -175,28 +175,28 @@ export default function EventForm() {
           <h2 className="font-semibold text-gray-900 text-sm">Thông tin cơ bản</h2>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Tên sự kiện *</label>
-            <input type="text" value={form.title} onChange={(e) => set('title', e.target.value)} required className="input-field" placeholder="VD: Ngày hội trồng cây xanh 2025" />
+            <input type="text" value={form.title} onInput={(e) => set('title', e.target.value)} onChange={(e) => set('title', e.target.value)} required className="input-field" placeholder="VD: Ngày hội trồng cây xanh 2025" />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Mô tả</label>
-            <textarea rows={4} value={form.description} onChange={(e) => set('description', e.target.value)} className="input-field resize-none" placeholder="Mô tả chi tiết về sự kiện..." />
+            <textarea rows={4} value={form.description} onInput={(e) => set('description', e.target.value)} onChange={(e) => set('description', e.target.value)} className="input-field resize-none" placeholder="Mô tả chi tiết về sự kiện..." />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Danh mục *</label>
-              <select value={form.categoryId} onChange={(e) => set('categoryId', e.target.value)} required className="input-field">
+              <select value={form.categoryId} onInput={(e) => set('categoryId', e.target.value)} onChange={(e) => set('categoryId', e.target.value)} required className="input-field">
                 <option value="">-- Chọn danh mục --</option>
                 {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Số lượng tối đa *</label>
-              <input type="number" min={1} value={form.maxParticipants} onChange={(e) => set('maxParticipants', e.target.value)} required className="input-field" />
+              <input type="number" min={1} value={form.maxParticipants} onInput={(e) => set('maxParticipants', e.target.value)} onChange={(e) => set('maxParticipants', e.target.value)} required className="input-field" />
             </div>
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">URL ảnh bìa</label>
-            <input type="url" value={form.imageUrl} onChange={(e) => set('imageUrl', e.target.value)} className="input-field" placeholder="https://..." />
+            <input type="url" value={form.imageUrl} onInput={(e) => set('imageUrl', e.target.value)} onChange={(e) => set('imageUrl', e.target.value)} className="input-field" placeholder="https://..." />
           </div>
         </div>
 
@@ -205,16 +205,16 @@ export default function EventForm() {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Bắt đầu *</label>
-              <input type="datetime-local" value={form.startDate} onChange={(e) => set('startDate', e.target.value)} required className="input-field" />
+              <input type="datetime-local" value={form.startDate} onInput={(e) => set('startDate', e.target.value)} onChange={(e) => set('startDate', e.target.value)} required className="input-field" />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Kết thúc *</label>
-              <input type="datetime-local" value={form.endDate} onChange={(e) => set('endDate', e.target.value)} required className="input-field" />
+              <input type="datetime-local" value={form.endDate} onInput={(e) => set('endDate', e.target.value)} onChange={(e) => set('endDate', e.target.value)} required className="input-field" />
             </div>
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Địa điểm *</label>
-            <input type="text" value={form.location} onChange={(e) => set('location', e.target.value)} required className="input-field" placeholder="Số nhà, đường, quận, thành phố..." />
+            <input type="text" value={form.location} onInput={(e) => set('location', e.target.value)} onChange={(e) => set('location', e.target.value)} required className="input-field" placeholder="Số nhà, đường, quận, thành phố..." />
           </div>
           <div className="space-y-2">
             <div className="flex flex-wrap items-center justify-between gap-2">
@@ -247,11 +247,11 @@ export default function EventForm() {
                 Vĩ độ (Latitude)
                 <span className="ml-1 text-xs font-normal text-gray-400">- dùng cho bản đồ</span>
               </label>
-              <input type="number" step="any" value={form.latitude} onChange={(e) => set('latitude', e.target.value)} required className="input-field" placeholder="10.7769" />
+              <input type="number" step="any" value={form.latitude} onInput={(e) => set('latitude', e.target.value)} onChange={(e) => set('latitude', e.target.value)} required className="input-field" placeholder="10.7769" />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Kinh độ (Longitude)</label>
-              <input type="number" step="any" value={form.longitude} onChange={(e) => set('longitude', e.target.value)} required className="input-field" placeholder="106.7009" />
+              <input type="number" step="any" value={form.longitude} onInput={(e) => set('longitude', e.target.value)} onChange={(e) => set('longitude', e.target.value)} required className="input-field" placeholder="106.7009" />
             </div>
           </div>
           <p className="text-xs text-gray-400">

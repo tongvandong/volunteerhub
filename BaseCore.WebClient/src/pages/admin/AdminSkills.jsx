@@ -46,14 +46,29 @@ export default function AdminSkills() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    const payload = {
+      name: form.name.trim(),
+      category: form.category.trim(),
+    };
+
+    if (!payload.name) {
+      alert('Vui lòng nhập tên kỹ năng.');
+      return;
+    }
+
+    if (payload.name.length > 100 || payload.category.length > 100) {
+      alert('Tên kỹ năng và danh mục tối đa 100 ký tự.');
+      return;
+    }
+
     setSaving(true);
 
     try {
       if (editing) {
-        const r = await skillApi.update(editing.id, form);
+        const r = await skillApi.update(editing.id, payload);
         setSkills((prev) => prev.map((s) => (s.id === editing.id ? r.data : s)));
       } else {
-        const r = await skillApi.create(form);
+        const r = await skillApi.create(payload);
         setSkills((prev) => [...prev, r.data]);
       }
       closeModal();
@@ -155,8 +170,10 @@ export default function AdminSkills() {
             <input
               type="text"
               value={form.name}
+              onInput={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
               onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
               required
+              maxLength={100}
               className="input-field"
               placeholder="VD: Sơ cứu y tế"
             />
@@ -166,7 +183,9 @@ export default function AdminSkills() {
             <input
               type="text"
               value={form.category}
+              onInput={(e) => setForm((f) => ({ ...f, category: e.target.value }))}
               onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}
+              maxLength={100}
               className="input-field"
               placeholder="VD: Y tế, Môi trường..."
             />

@@ -164,15 +164,37 @@ export default function ManageEvent() {
 
   const handleCreateShift = async (e) => {
     e.preventDefault();
+    const startTime = new Date(shiftForm.startTime);
+    const endTime = new Date(shiftForm.endTime);
+    const maxVolunteers = Number(shiftForm.maxVolunteers);
+
+    if (!shiftForm.name.trim()) {
+      alert('Vui lòng nhập tên ca.');
+      return;
+    }
+    if (!Number.isFinite(startTime.getTime()) || !Number.isFinite(endTime.getTime())) {
+      alert('Vui lòng nhập thời gian bắt đầu và kết thúc.');
+      return;
+    }
+    if (endTime <= startTime) {
+      alert('Thời gian kết thúc phải sau thời gian bắt đầu.');
+      return;
+    }
+    if (!Number.isInteger(maxVolunteers) || maxVolunteers < 1 || maxVolunteers > 1000) {
+      alert('Số lượng tối đa phải từ 1 đến 1000.');
+      return;
+    }
+
     setShiftSaving(true);
 
     try {
       await eventApi.createShift(id, {
         ...shiftForm,
+        name: shiftForm.name.trim(),
         eventId: parseInt(id),
-        maxVolunteers: parseInt(shiftForm.maxVolunteers),
-        startTime: new Date(shiftForm.startTime).toISOString(),
-        endTime: new Date(shiftForm.endTime).toISOString(),
+        maxVolunteers,
+        startTime: startTime.toISOString(),
+        endTime: endTime.toISOString(),
       });
       const r = await eventApi.getShifts(id);
       setShifts(r.data || []);
@@ -222,13 +244,35 @@ export default function ManageEvent() {
 
   const submitMilestone = async (e) => {
     e.preventDefault();
+    const progressPercent = Number(milestoneForm.progressPercent);
+    const sortOrder = Number(milestoneForm.sortOrder);
+
+    if (!milestoneForm.title.trim()) {
+      alert('Vui lòng nhập tiêu đề mốc tiến độ.');
+      return;
+    }
+    if (milestoneForm.title.trim().length > 200 || milestoneForm.description.length > 1000) {
+      alert('Tiêu đề tối đa 200 ký tự, mô tả tối đa 1000 ký tự.');
+      return;
+    }
+    if (!Number.isInteger(progressPercent) || progressPercent < 0 || progressPercent > 100) {
+      alert('Tiến độ phải từ 0 đến 100.');
+      return;
+    }
+    if (!Number.isInteger(sortOrder) || sortOrder < 0) {
+      alert('Thứ tự phải là số nguyên không âm.');
+      return;
+    }
+
     setMilestoneSaving(true);
 
     const payload = {
       ...milestoneForm,
+      title: milestoneForm.title.trim(),
+      description: milestoneForm.description.trim(),
       dueDate: milestoneForm.dueDate ? new Date(milestoneForm.dueDate).toISOString() : null,
-      progressPercent: Number(milestoneForm.progressPercent) || 0,
-      sortOrder: Number(milestoneForm.sortOrder) || 0,
+      progressPercent,
+      sortOrder,
     };
 
     try {
@@ -465,21 +509,21 @@ export default function ManageEvent() {
             <form onSubmit={handleCreateShift} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Tên ca *</label>
-                <input type="text" value={shiftForm.name} onChange={(e) => setShiftForm((f) => ({ ...f, name: e.target.value }))} required className="input-field" placeholder="VD: Ca sáng" />
+                <input type="text" value={shiftForm.name} onInput={(e) => setShiftForm((f) => ({ ...f, name: e.target.value }))} onChange={(e) => setShiftForm((f) => ({ ...f, name: e.target.value }))} required className="input-field" placeholder="VD: Ca sáng" />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Bắt đầu *</label>
-                  <input type="datetime-local" value={shiftForm.startTime} onChange={(e) => setShiftForm((f) => ({ ...f, startTime: e.target.value }))} required className="input-field" />
+                  <input type="datetime-local" value={shiftForm.startTime} onInput={(e) => setShiftForm((f) => ({ ...f, startTime: e.target.value }))} onChange={(e) => setShiftForm((f) => ({ ...f, startTime: e.target.value }))} required className="input-field" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Kết thúc *</label>
-                  <input type="datetime-local" value={shiftForm.endTime} onChange={(e) => setShiftForm((f) => ({ ...f, endTime: e.target.value }))} required className="input-field" />
+                  <input type="datetime-local" value={shiftForm.endTime} onInput={(e) => setShiftForm((f) => ({ ...f, endTime: e.target.value }))} onChange={(e) => setShiftForm((f) => ({ ...f, endTime: e.target.value }))} required className="input-field" />
                 </div>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Số lượng tối đa *</label>
-                <input type="number" min={1} value={shiftForm.maxVolunteers} onChange={(e) => setShiftForm((f) => ({ ...f, maxVolunteers: e.target.value }))} required className="input-field" />
+                <input type="number" min={1} value={shiftForm.maxVolunteers} onInput={(e) => setShiftForm((f) => ({ ...f, maxVolunteers: e.target.value }))} onChange={(e) => setShiftForm((f) => ({ ...f, maxVolunteers: e.target.value }))} required className="input-field" />
               </div>
               <div className="flex gap-3 justify-end pt-2">
                 <button type="button" onClick={() => setShiftModal(false)} className="btn-secondary">Hủy</button>
@@ -664,11 +708,11 @@ export default function ManageEvent() {
             <form onSubmit={submitMilestone} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Tiêu đề *</label>
-                <input value={milestoneForm.title} onChange={(e) => setMilestoneForm((f) => ({ ...f, title: e.target.value }))} required className="input-field" placeholder="VD: Hoàn tất mua vật tư" />
+                <input value={milestoneForm.title} onInput={(e) => setMilestoneForm((f) => ({ ...f, title: e.target.value }))} onChange={(e) => setMilestoneForm((f) => ({ ...f, title: e.target.value }))} required className="input-field" placeholder="VD: Hoàn tất mua vật tư" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Mô tả</label>
-                <textarea rows={3} value={milestoneForm.description} onChange={(e) => setMilestoneForm((f) => ({ ...f, description: e.target.value }))} className="input-field resize-none" />
+                <textarea rows={3} value={milestoneForm.description} onInput={(e) => setMilestoneForm((f) => ({ ...f, description: e.target.value }))} onChange={(e) => setMilestoneForm((f) => ({ ...f, description: e.target.value }))} className="input-field resize-none" />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
@@ -677,13 +721,13 @@ export default function ManageEvent() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Thứ tự</label>
-                  <input type="number" value={milestoneForm.sortOrder} onChange={(e) => setMilestoneForm((f) => ({ ...f, sortOrder: e.target.value }))} className="input-field" />
+                  <input type="number" value={milestoneForm.sortOrder} onInput={(e) => setMilestoneForm((f) => ({ ...f, sortOrder: e.target.value }))} onChange={(e) => setMilestoneForm((f) => ({ ...f, sortOrder: e.target.value }))} className="input-field" />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Trạng thái</label>
-                  <select value={milestoneForm.status} onChange={(e) => setMilestoneForm((f) => ({ ...f, status: e.target.value }))} className="input-field">
+                  <select value={milestoneForm.status} onInput={(e) => setMilestoneForm((f) => ({ ...f, status: e.target.value }))} onChange={(e) => setMilestoneForm((f) => ({ ...f, status: e.target.value }))} className="input-field">
                     <option value="Planned">Planned</option>
                     <option value="InProgress">InProgress</option>
                     <option value="Completed">Completed</option>
@@ -692,7 +736,7 @@ export default function ManageEvent() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Tiến độ (%)</label>
-                  <input type="number" min={0} max={100} value={milestoneForm.progressPercent} onChange={(e) => setMilestoneForm((f) => ({ ...f, progressPercent: e.target.value }))} className="input-field" />
+                  <input type="number" min={0} max={100} value={milestoneForm.progressPercent} onInput={(e) => setMilestoneForm((f) => ({ ...f, progressPercent: e.target.value }))} onChange={(e) => setMilestoneForm((f) => ({ ...f, progressPercent: e.target.value }))} className="input-field" />
                 </div>
               </div>
               <div className="flex gap-3 justify-end pt-2">

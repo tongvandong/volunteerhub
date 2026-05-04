@@ -32,6 +32,7 @@ const NAV = {
     { to: '/admin/users', icon: 'fa-users', label: 'Quản lý người dùng' },
     { to: '/admin/categories', icon: 'fa-tags', label: 'Danh mục' },
     { to: '/admin/skills', icon: 'fa-star', label: 'Kỹ năng' },
+    { to: '/admin/monitoring', icon: 'fa-shield-halved', label: 'Giám sát' },
     { to: '/admin/export', icon: 'fa-file-export', label: 'Xuất dữ liệu' },
     { to: '/notifications', icon: 'fa-bell', label: 'Thông báo' },
   ],

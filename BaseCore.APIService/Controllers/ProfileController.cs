@@ -113,7 +113,10 @@ namespace BaseCore.APIService.Controllers
         [EnableRateLimiting("write-sensitive")]
         public async Task<IActionResult> CreateSkill([FromBody] SkillDto dto)
         {
-            var skill = new Skill { Name = dto.Name, Category = dto.Category ?? "" };
+            var validation = ValidateSkill(dto);
+            if (validation != null) return BadRequest(new { message = validation });
+
+            var skill = new Skill { Name = dto.Name.Trim(), Category = dto.Category?.Trim() ?? "" };
             await _skillRepo.AddAsync(skill);
             await RecordAuditAsync(CurrentUserId(), "Skill.Create", "Skill", skill.Id, $"Name={skill.Name}");
             return Ok(skill);
@@ -125,8 +128,11 @@ namespace BaseCore.APIService.Controllers
         {
             var skill = await _skillRepo.GetByIdAsync(id);
             if (skill == null) return NotFound();
-            skill.Name = dto.Name;
-            skill.Category = dto.Category ?? skill.Category;
+            var validation = ValidateSkill(dto);
+            if (validation != null) return BadRequest(new { message = validation });
+
+            skill.Name = dto.Name.Trim();
+            skill.Category = dto.Category?.Trim() ?? skill.Category;
             await _skillRepo.UpdateAsync(skill);
             await RecordAuditAsync(CurrentUserId(), "Skill.Update", "Skill", skill.Id, $"Name={skill.Name}");
             return Ok(skill);
@@ -186,6 +192,18 @@ namespace BaseCore.APIService.Controllers
                 entityId,
                 metadata,
                 HttpContext.Connection.RemoteIpAddress?.ToString());
+        }
+
+        private static string? ValidateSkill(SkillDto dto)
+        {
+            if (string.IsNullOrWhiteSpace(dto.Name))
+                return "Skill name is required";
+            if (dto.Name.Trim().Length > 100)
+                return "Skill name must be 100 characters or less";
+            if ((dto.Category?.Length ?? 0) > 100)
+                return "Skill category must be 100 characters or less";
+
+            return null;
         }
     }
 

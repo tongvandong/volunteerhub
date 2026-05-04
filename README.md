@@ -161,6 +161,19 @@ sqlcmd -S "localhost" -d "VolunteerHub" -U "sa" -P "YOUR_PASSWORD" -i ".\seed_da
 
 Lưu ý: `seed_data.sql` dùng ID cố định. Nếu database đã có dữ liệu test nhiều lần, nên dùng database sạch hoặc kiểm tra trùng ID trước khi chạy.
 
+Reset database local về trạng thái demo:
+
+```powershell
+cd D:\FW\FW\BaseCore
+.\scripts\reset-demo-data.ps1 -ConfirmReset
+```
+
+Mặc định script dùng LocalDB `(localdb)\MSSQLLocalDB` và database `VolunteerHub`. Có thể chỉ định SQL Server khác:
+
+```powershell
+.\scripts\reset-demo-data.ps1 -Server "localhost" -Database "VolunteerHub" -ConfirmReset
+```
+
 ## Kiểm Tra Build
 
 Backend:

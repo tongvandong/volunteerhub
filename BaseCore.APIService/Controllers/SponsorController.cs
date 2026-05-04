@@ -276,12 +276,14 @@ namespace BaseCore.APIService.Controllers
         {
             if (string.IsNullOrWhiteSpace(dto.Title))
                 return "Milestone title is required";
-            if (dto.Title.Length > 200)
+            if (dto.Title.Trim().Length > 200)
                 return "Milestone title is too long";
             if ((dto.Description?.Length ?? 0) > 1000)
                 return "Milestone description is too long";
             if (dto.ProgressPercent < 0 || dto.ProgressPercent > 100)
                 return "Progress percent must be between 0 and 100";
+            if (dto.SortOrder < 0)
+                return "Milestone sort order must be zero or greater";
 
             return null;
         }

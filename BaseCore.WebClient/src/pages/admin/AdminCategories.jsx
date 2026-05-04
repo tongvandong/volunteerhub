@@ -33,14 +33,29 @@ export default function AdminCategories() {
 
   const handleSave = async (e) => {
     e.preventDefault();
+    const payload = {
+      name: form.name.trim(),
+      description: form.description.trim(),
+    };
+
+    if (!payload.name) {
+      alert('Vui lòng nhập tên danh mục.');
+      return;
+    }
+
+    if (payload.name.length > 100 || payload.description.length > 500) {
+      alert('Tên danh mục tối đa 100 ký tự, mô tả tối đa 500 ký tự.');
+      return;
+    }
+
     setSaving(true);
 
     try {
       if (editItem) {
-        await eventCategoryApi.update(editItem.id, form);
-        setCategories((prev) => prev.map((c) => (c.id === editItem.id ? { ...c, ...form } : c)));
+        await eventCategoryApi.update(editItem.id, payload);
+        setCategories((prev) => prev.map((c) => (c.id === editItem.id ? { ...c, ...payload } : c)));
       } else {
-        const r = await eventCategoryApi.create(form);
+        const r = await eventCategoryApi.create(payload);
         setCategories((prev) => [...prev, r.data]);
       }
       setModal(false);
@@ -122,8 +137,10 @@ export default function AdminCategories() {
             <input
               type="text"
               value={form.name}
+              onInput={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
               onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
               required
+              maxLength={100}
               className="input-field"
               placeholder="VD: Môi trường"
             />
@@ -133,7 +150,9 @@ export default function AdminCategories() {
             <textarea
               rows={3}
               value={form.description}
+              onInput={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
               onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+              maxLength={500}
               className="input-field resize-none"
               placeholder="Mô tả ngắn..."
             />
