@@ -80,14 +80,15 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = async () => {
-    try {
-      await authApi.logout(authStorage.getRefreshToken());
-    } catch {
-      // Ignore remote logout failures and clear local state anyway.
-    }
-
+    const refreshToken = authStorage.getRefreshToken();
     authStorage.clear();
     setUser(null);
+
+    try {
+      await authApi.logout(refreshToken);
+    } catch {
+      // Ignore remote logout failures after local session cleanup.
+    }
   };
 
   const isVolunteer = () => user?.role === 'Volunteer';

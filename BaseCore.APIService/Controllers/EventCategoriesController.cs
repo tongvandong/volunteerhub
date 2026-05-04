@@ -1,7 +1,10 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using BaseCore.Entities;
 using BaseCore.Repository.EFCore;
+using BaseCore.Services.VolunteerHub;
+using System.Security.Claims;
 
 namespace BaseCore.APIService.Controllers
 {
@@ -10,7 +13,12 @@ namespace BaseCore.APIService.Controllers
     public class EventCategoriesController : ControllerBase
     {
         private readonly IEventCategoryRepositoryEF _repo;
-        public EventCategoriesController(IEventCategoryRepositoryEF repo) => _repo = repo;
+        private readonly IAuditLogService _auditLogService;
+        public EventCategoriesController(IEventCategoryRepositoryEF repo, IAuditLogService auditLogService)
+        {
+            _repo = repo;
+            _auditLogService = auditLogService;
+        }
 
         [HttpGet]
         public async Task<IActionResult> GetAll() => Ok(await _repo.GetAllAsync());
@@ -23,6 +31,7 @@ namespace BaseCore.APIService.Controllers
         }
 
         [HttpPost, Authorize(Roles = "Admin")]
+        [EnableRateLimiting("write-sensitive")]
         public async Task<IActionResult> Create([FromBody] EventCategoryDto dto)
         {
             if (string.IsNullOrWhiteSpace(dto.Name))
@@ -35,10 +44,12 @@ namespace BaseCore.APIService.Controllers
                 Icon = dto.Icon ?? ""
             };
             await _repo.AddAsync(cat);
+            await RecordAuditAsync("EventCategory.Create", "EventCategory", cat.Id, $"Name={cat.Name}");
             return CreatedAtAction(nameof(GetById), new { id = cat.Id }, cat);
         }
 
         [HttpPut("{id}"), Authorize(Roles = "Admin")]
+        [EnableRateLimiting("write-sensitive")]
         public async Task<IActionResult> Update(int id, [FromBody] EventCategoryDto dto)
         {
             var cat = await _repo.GetByIdAsync(id);
@@ -50,16 +61,34 @@ namespace BaseCore.APIService.Controllers
             cat.Description = dto.Description ?? cat.Description;
             cat.Icon = dto.Icon ?? cat.Icon;
             await _repo.UpdateAsync(cat);
+            await RecordAuditAsync("EventCategory.Update", "EventCategory", cat.Id, $"Name={cat.Name}");
             return Ok(cat);
         }
 
         [HttpDelete("{id}"), Authorize(Roles = "Admin")]
+        [EnableRateLimiting("write-sensitive")]
         public async Task<IActionResult> Delete(int id)
         {
             var cat = await _repo.GetByIdAsync(id);
             if (cat == null) return NotFound();
             await _repo.DeleteAsync(cat);
+            await RecordAuditAsync("EventCategory.Delete", "EventCategory", id);
             return Ok(new { message = "Deleted" });
+        }
+
+        private Task RecordAuditAsync(string action, string entityType, int? entityId = null, string? metadata = null)
+        {
+            var userId = int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var parsedUserId)
+                ? parsedUserId
+                : (int?)null;
+
+            return _auditLogService.RecordAsync(
+                userId,
+                action,
+                entityType,
+                entityId,
+                metadata,
+                HttpContext.Connection.RemoteIpAddress?.ToString());
         }
     }
 

@@ -11,6 +11,7 @@ using BaseCore.Repository.Infrastructure;
 using BaseCore.Repository.Authen;
 using BaseCore.Common.Infrastructure;
 using BaseCore.Services.Authen;
+using BaseCore.Services.VolunteerHub;
 using System.Text;
 using System.Threading.RateLimiting;
 
@@ -27,6 +28,21 @@ builder.Services.AddHealthChecks();
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(context =>
+    {
+        var partitionKey = context.User.Identity?.IsAuthenticated == true
+            ? context.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "authenticated"
+            : context.Connection.RemoteIpAddress?.ToString() ?? "anonymous";
+
+        return RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey,
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 240,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0
+            });
+    });
     options.AddPolicy("auth-sensitive", context =>
     {
         var partitionKey = context.Connection.RemoteIpAddress?.ToString() ?? "anonymous";
@@ -35,7 +51,7 @@ builder.Services.AddRateLimiter(options =>
             partitionKey,
             _ => new FixedWindowRateLimiterOptions
             {
-                PermitLimit = 10,
+                PermitLimit = 8,
                 Window = TimeSpan.FromMinutes(1),
                 QueueLimit = 0
             });
@@ -93,6 +109,7 @@ builder.Services.AddDbContext<MySqlDbContext>(options =>
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IRefreshTokenService, RefreshTokenService>();
+builder.Services.AddScoped<IAuditLogService, AuditLogService>();
 
 var key = Encoding.ASCII.GetBytes(
     builder.Configuration["Jwt:SecretKey"] ?? "YourSecretKeyForAuthenticationShouldBeLongEnough");

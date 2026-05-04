@@ -81,12 +81,31 @@ export default function EventForm() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+
+    const latitude = form.latitude ? parseFloat(form.latitude) : null;
+    const longitude = form.longitude ? parseFloat(form.longitude) : null;
+
+    if (!form.location.trim()) {
+      setError('Vui lòng nhập địa điểm sự kiện.');
+      return;
+    }
+
+    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+      setError('Vui lòng chọn vị trí trên bản đồ hoặc nhập đầy đủ latitude/longitude.');
+      return;
+    }
+
+    if (latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) {
+      setError('Tọa độ không hợp lệ. Latitude phải từ -90 đến 90, longitude phải từ -180 đến 180.');
+      return;
+    }
+
     setSaving(true);
 
     const payload = {
       ...form,
-      latitude: form.latitude ? parseFloat(form.latitude) : null,
-      longitude: form.longitude ? parseFloat(form.longitude) : null,
+      latitude,
+      longitude,
       maxParticipants: parseInt(form.maxParticipants),
       categoryId: parseInt(form.categoryId),
       startDate: new Date(form.startDate).toISOString(),
@@ -194,12 +213,12 @@ export default function EventForm() {
             </div>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Địa điểm</label>
-            <input type="text" value={form.location} onChange={(e) => set('location', e.target.value)} className="input-field" placeholder="Số nhà, đường, quận, thành phố..." />
+            <label className="block text-sm font-medium text-gray-700 mb-1">Địa điểm *</label>
+            <input type="text" value={form.location} onChange={(e) => set('location', e.target.value)} required className="input-field" placeholder="Số nhà, đường, quận, thành phố..." />
           </div>
           <div className="space-y-2">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <label className="block text-sm font-medium text-gray-700">Chọn vị trí trên bản đồ</label>
+              <label className="block text-sm font-medium text-gray-700">Chọn vị trí trên bản đồ *</label>
               <button
                 type="button"
                 onClick={handleUseCurrentLocation}
@@ -219,7 +238,7 @@ export default function EventForm() {
               />
             </Suspense>
             <p className="text-xs text-gray-400">
-              Click trên bản đồ hoặc kéo marker để cập nhật tọa độ. Có tọa độ thì sự kiện sẽ xuất hiện trong bản đồ công khai và bộ lọc gần tôi.
+              Click trên bản đồ hoặc kéo marker để cập nhật tọa độ. Tọa độ là bắt buộc để sự kiện xuất hiện trên bản đồ công khai và bộ lọc gần tôi.
             </p>
           </div>
           <div className="grid grid-cols-2 gap-3">
@@ -228,11 +247,11 @@ export default function EventForm() {
                 Vĩ độ (Latitude)
                 <span className="ml-1 text-xs font-normal text-gray-400">- dùng cho bản đồ</span>
               </label>
-              <input type="number" step="any" value={form.latitude} onChange={(e) => set('latitude', e.target.value)} className="input-field" placeholder="10.7769" />
+              <input type="number" step="any" value={form.latitude} onChange={(e) => set('latitude', e.target.value)} required className="input-field" placeholder="10.7769" />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Kinh độ (Longitude)</label>
-              <input type="number" step="any" value={form.longitude} onChange={(e) => set('longitude', e.target.value)} className="input-field" placeholder="106.7009" />
+              <input type="number" step="any" value={form.longitude} onChange={(e) => set('longitude', e.target.value)} required className="input-field" placeholder="106.7009" />
             </div>
           </div>
           <p className="text-xs text-gray-400">
@@ -241,9 +260,9 @@ export default function EventForm() {
             <a href="https://maps.google.com" target="_blank" rel="noreferrer" style={{ color: '#1b61c9' }}>Google Maps</a>.
           </p>
           {!form.latitude || !form.longitude ? (
-            <div className="rounded-lg border border-yellow-200 bg-yellow-50 px-3 py-2 text-xs text-yellow-800">
+            <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
               <i className="fa-solid fa-triangle-exclamation mr-1" />
-              Sự kiện chưa có tọa độ nên sẽ không xuất hiện trên bản đồ và không được tính trong lọc bán kính.
+              Vui lòng chọn tọa độ trước khi lưu sự kiện.
             </div>
           ) : null}
           {locationNote && (

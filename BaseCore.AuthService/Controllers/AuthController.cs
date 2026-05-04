@@ -1,6 +1,7 @@
 using BaseCore.Common;
 using BaseCore.Entities;
 using BaseCore.Services.Authen;
+using BaseCore.Services.VolunteerHub;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
@@ -14,16 +15,19 @@ namespace BaseCore.AuthService.Controllers
     {
         private readonly IUserService _userService;
         private readonly IRefreshTokenService _refreshTokenService;
+        private readonly IAuditLogService _auditLogService;
         private readonly IConfiguration _configuration;
         private const int TokenExpirationMinutes = 480;
 
         public AuthController(
             IUserService userService,
             IRefreshTokenService refreshTokenService,
+            IAuditLogService auditLogService,
             IConfiguration configuration)
         {
             _userService = userService;
             _refreshTokenService = refreshTokenService;
+            _auditLogService = auditLogService;
             _configuration = configuration;
         }
 
@@ -45,10 +49,13 @@ namespace BaseCore.AuthService.Controllers
             var user = await _userService.AuthenticateByUsernameOrEmail(identifier, request.Password);
             if (user == null)
             {
+                await RecordAuditAsync(null, "Auth.LoginFailed", "User", null, $"Identifier={MaskIdentifier(identifier)}");
                 return Unauthorized(new { message = "Invalid username/email or password" });
             }
 
-            return Ok(await CreateAuthResponseAsync(user));
+            var response = await CreateAuthResponseAsync(user);
+            await RecordAuditAsync(user.Id, "Auth.Login", "User", user.Id);
+            return Ok(response);
         }
 
         [HttpPost("register")]
@@ -86,6 +93,7 @@ namespace BaseCore.AuthService.Controllers
                 };
 
                 var createdUser = await _userService.Create(user, request.Password);
+                await RecordAuditAsync(createdUser.Id, "Auth.Register", "User", createdUser.Id, $"Role={MapRole(createdUser.UserType)}");
 
                 return Ok(new
                 {
@@ -182,6 +190,7 @@ namespace BaseCore.AuthService.Controllers
             }
 
             await _userService.Update(user, request.NewPassword);
+            await RecordAuditAsync(user.Id, "Auth.ChangePassword", "User", user.Id);
             return Ok(new { message = "Password changed successfully" });
         }
 
@@ -194,7 +203,34 @@ namespace BaseCore.AuthService.Controllers
                 await _refreshTokenService.RevokeAsync(request.RefreshToken);
             }
 
+            var userIdValue = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var userId = int.TryParse(userIdValue, out var parsedUserId) ? parsedUserId : (int?)null;
+            await RecordAuditAsync(userId, "Auth.Logout", "User", userId);
             return Ok(new { message = "Logout successful" });
+        }
+
+        private Task RecordAuditAsync(int? userId, string action, string entityType, int? entityId = null, string? metadata = null)
+        {
+            return _auditLogService.RecordAsync(
+                userId,
+                action,
+                entityType,
+                entityId,
+                metadata,
+                HttpContext.Connection.RemoteIpAddress?.ToString());
+        }
+
+        private static string MaskIdentifier(string identifier)
+        {
+            var trimmed = identifier.Trim();
+            if (trimmed.Length <= 3) return "***";
+            if (trimmed.Contains('@'))
+            {
+                var parts = trimmed.Split('@', 2);
+                return $"{parts[0][0]}***@{parts[1]}";
+            }
+
+            return $"{trimmed[..2]}***{trimmed[^1]}";
         }
 
         private async Task<object> CreateAuthResponseAsync(User user, AuthRefreshToken? currentRefreshToken = null)

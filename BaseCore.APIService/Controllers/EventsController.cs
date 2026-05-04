@@ -110,6 +110,11 @@ namespace BaseCore.APIService.Controllers
                 return Unauthorized();
             if (string.IsNullOrWhiteSpace(dto.Title))
                 return BadRequest(new { message = "Event title is required" });
+            if (string.IsNullOrWhiteSpace(dto.Location))
+                return BadRequest(new { message = "Event location is required" });
+            var coordinateError = ValidateCoordinates(dto.Latitude, dto.Longitude);
+            if (coordinateError != null)
+                return BadRequest(new { message = coordinateError });
 
             var ev = new Entities.Event
             {
@@ -137,12 +142,17 @@ namespace BaseCore.APIService.Controllers
             if (ev.OrganizerId != userId) return Forbid();
             if (dto.Title != null && string.IsNullOrWhiteSpace(dto.Title))
                 return BadRequest(new { message = "Event title cannot be empty" });
+            var nextLatitude = dto.Latitude ?? ev.Latitude;
+            var nextLongitude = dto.Longitude ?? ev.Longitude;
+            var coordinateError = ValidateCoordinates(nextLatitude, nextLongitude);
+            if (coordinateError != null)
+                return BadRequest(new { message = coordinateError });
 
             ev.Title = dto.Title?.Trim() ?? ev.Title;
             ev.Description = dto.Description ?? ev.Description;
             ev.Location = dto.Location ?? ev.Location;
-            ev.Latitude = dto.Latitude ?? ev.Latitude;
-            ev.Longitude = dto.Longitude ?? ev.Longitude;
+            ev.Latitude = nextLatitude;
+            ev.Longitude = nextLongitude;
             ev.StartDate = dto.StartDate ?? ev.StartDate;
             ev.EndDate = dto.EndDate ?? ev.EndDate;
             ev.MaxParticipants = dto.MaxParticipants ?? ev.MaxParticipants;
@@ -242,6 +252,18 @@ namespace BaseCore.APIService.Controllers
                 entityId,
                 metadata,
                 HttpContext.Connection.RemoteIpAddress?.ToString());
+        }
+
+        private static string? ValidateCoordinates(decimal? latitude, decimal? longitude)
+        {
+            if (!latitude.HasValue || !longitude.HasValue)
+                return "Event coordinates are required. Please choose a location on the map.";
+            if (latitude.Value < -90 || latitude.Value > 90)
+                return "Latitude must be between -90 and 90.";
+            if (longitude.Value < -180 || longitude.Value > 180)
+                return "Longitude must be between -180 and 180.";
+
+            return null;
         }
     }
 

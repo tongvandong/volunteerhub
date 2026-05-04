@@ -673,7 +673,7 @@ export default function ManageEvent() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Hạn dự kiến</label>
-                  <input type="datetime-local" value={milestoneForm.dueDate} onChange={(e) => setMilestoneForm((f) => ({ ...f, dueDate: e.target.value }))} className="input-field" />
+                  <input type="datetime-local" value={milestoneForm.dueDate} onInput={(e) => setMilestoneForm((f) => ({ ...f, dueDate: e.target.value }))} onChange={(e) => setMilestoneForm((f) => ({ ...f, dueDate: e.target.value }))} className="input-field" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Thứ tự</label>

@@ -1,7 +1,10 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using BaseCore.Repository;
+using BaseCore.Services.VolunteerHub;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 using System.Text;
 
 namespace BaseCore.APIService.Controllers
@@ -12,10 +15,12 @@ namespace BaseCore.APIService.Controllers
     public class AdminController : ControllerBase
     {
         private readonly MySqlDbContext _context;
+        private readonly IAuditLogService _auditLogService;
 
-        public AdminController(MySqlDbContext context)
+        public AdminController(MySqlDbContext context, IAuditLogService auditLogService)
         {
             _context = context;
+            _auditLogService = auditLogService;
         }
 
         [HttpGet("users")]
@@ -36,16 +41,19 @@ namespace BaseCore.APIService.Controllers
         }
 
         [HttpPut("users/{id}/toggle-status")]
+        [EnableRateLimiting("write-sensitive")]
         public async Task<IActionResult> ToggleUserStatus(int id)
         {
             var user = await _context.Users.FindAsync(id);
             if (user == null) return NotFound();
             user.IsActive = !user.IsActive;
             await _context.SaveChangesAsync();
+            await RecordAuditAsync("Admin.User.ToggleStatus", "User", user.Id, $"IsActive={user.IsActive}");
             return Ok(new { id = user.Id, isActive = user.IsActive });
         }
 
         [HttpGet("export/events")]
+        [EnableRateLimiting("read-sensitive")]
         public async Task<IActionResult> ExportEvents([FromQuery] string format = "json")
         {
             var events = await _context.Events
@@ -63,6 +71,7 @@ namespace BaseCore.APIService.Controllers
 
             if (format.ToLower() == "csv")
             {
+                await RecordAuditAsync("Admin.Export.Events", "Event", null, "Format=csv");
                 var csv = new StringBuilder();
                 csv.AppendLine("Id,Title,Status,Location,StartDate,EndDate,MaxParticipants,CurrentParticipants,Category,Organizer,CreatedAt");
                 foreach (var e in events)
@@ -70,10 +79,12 @@ namespace BaseCore.APIService.Controllers
                 return File(Encoding.UTF8.GetBytes(csv.ToString()), "text/csv", "events.csv");
             }
 
+            await RecordAuditAsync("Admin.Export.Events", "Event", null, "Format=json");
             return Ok(events);
         }
 
         [HttpGet("export/users")]
+        [EnableRateLimiting("read-sensitive")]
         public async Task<IActionResult> ExportUsers([FromQuery] string format = "json")
         {
             var users = await _context.Users
@@ -82,6 +93,7 @@ namespace BaseCore.APIService.Controllers
 
             if (format.ToLower() == "csv")
             {
+                await RecordAuditAsync("Admin.Export.Users", "User", null, "Format=csv");
                 var csv = new StringBuilder();
                 csv.AppendLine("Id,Username,Name,Email,UserType,IsActive");
                 foreach (var u in users)
@@ -89,7 +101,23 @@ namespace BaseCore.APIService.Controllers
                 return File(Encoding.UTF8.GetBytes(csv.ToString()), "text/csv", "users.csv");
             }
 
+            await RecordAuditAsync("Admin.Export.Users", "User", null, "Format=json");
             return Ok(users);
+        }
+
+        private Task RecordAuditAsync(string action, string entityType, int? entityId = null, string? metadata = null)
+        {
+            var userId = int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var parsedUserId)
+                ? parsedUserId
+                : (int?)null;
+
+            return _auditLogService.RecordAsync(
+                userId,
+                action,
+                entityType,
+                entityId,
+                metadata,
+                HttpContext.Connection.RemoteIpAddress?.ToString());
         }
 
         private static string EscapeCsv(string? value)
