@@ -322,7 +322,7 @@ export default function ManageEvent() {
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3">
         <button onClick={() => navigate('/my-events')} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500">
           <i className="fa-solid fa-arrow-left" />
         </button>
@@ -331,12 +331,12 @@ export default function ManageEvent() {
           <p className="text-sm text-gray-500">{fmt(event?.startDate)} · {event?.location}</p>
         </div>
         {event?.channel?.id && (
-          <Link to={`/channels/${event.channel.id}`} className="btn-secondary btn-sm flex items-center gap-1">
+          <Link to={`/channels/${event.channel.id}`} className="btn-secondary btn-sm flex items-center justify-center gap-1 shrink-0 basis-full sm:basis-auto">
             <i className="fa-solid fa-comments" /> Kênh trao đổi
           </Link>
         )}
         {event?.status === 'Approved' && (
-          <button onClick={handleComplete} disabled={completing} className="btn-primary btn-sm flex items-center gap-1">
+          <button onClick={handleComplete} disabled={completing} className="btn-primary btn-sm flex items-center justify-center gap-1 shrink-0 basis-full sm:basis-auto">
             {completing ? <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <i className="fa-solid fa-flag-checkered" />}
             Hoàn thành
           </button>
@@ -368,7 +368,7 @@ export default function ManageEvent() {
           <button
             key={t.key}
             onClick={() => setTab(t.key)}
-            className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+            className={`flex items-center gap-1.5 px-3 sm:px-4 py-2.5 text-xs sm:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
               tab === t.key ? 'border-primary-600 text-primary-600' : 'border-transparent text-gray-500 hover:text-gray-700'
             }`}
           >
@@ -511,7 +511,7 @@ export default function ManageEvent() {
                 <label className="block text-sm font-medium text-gray-700 mb-1">Tên ca *</label>
                 <input type="text" value={shiftForm.name} onInput={(e) => setShiftForm((f) => ({ ...f, name: e.target.value }))} onChange={(e) => setShiftForm((f) => ({ ...f, name: e.target.value }))} required className="input-field" placeholder="VD: Ca sáng" />
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Bắt đầu *</label>
                   <input type="datetime-local" value={shiftForm.startTime} onInput={(e) => setShiftForm((f) => ({ ...f, startTime: e.target.value }))} onChange={(e) => setShiftForm((f) => ({ ...f, startTime: e.target.value }))} required className="input-field" />
@@ -714,7 +714,7 @@ export default function ManageEvent() {
                 <label className="block text-sm font-medium text-gray-700 mb-1">Mô tả</label>
                 <textarea rows={3} value={milestoneForm.description} onInput={(e) => setMilestoneForm((f) => ({ ...f, description: e.target.value }))} onChange={(e) => setMilestoneForm((f) => ({ ...f, description: e.target.value }))} className="input-field resize-none" />
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Hạn dự kiến</label>
                   <input type="datetime-local" value={milestoneForm.dueDate} onInput={(e) => setMilestoneForm((f) => ({ ...f, dueDate: e.target.value }))} onChange={(e) => setMilestoneForm((f) => ({ ...f, dueDate: e.target.value }))} className="input-field" />
@@ -724,7 +724,7 @@ export default function ManageEvent() {
                   <input type="number" value={milestoneForm.sortOrder} onInput={(e) => setMilestoneForm((f) => ({ ...f, sortOrder: e.target.value }))} onChange={(e) => setMilestoneForm((f) => ({ ...f, sortOrder: e.target.value }))} className="input-field" />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Trạng thái</label>
                   <select value={milestoneForm.status} onInput={(e) => setMilestoneForm((f) => ({ ...f, status: e.target.value }))} onChange={(e) => setMilestoneForm((f) => ({ ...f, status: e.target.value }))} className="input-field">
@@ -753,7 +753,7 @@ export default function ManageEvent() {
 
       {tab === 'report' && (
         <div className="space-y-4">
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             {[
               { label: 'Tổng đăng ký', value: registrations.length, icon: 'fa-clipboard-list' },
               { label: 'Tỷ lệ lấp đầy', value: `${fillRate}%`, icon: 'fa-chart-pie' },

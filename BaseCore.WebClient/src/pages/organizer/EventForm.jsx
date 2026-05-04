@@ -181,7 +181,7 @@ export default function EventForm() {
             <label className="block text-sm font-medium text-gray-700 mb-1">Mô tả</label>
             <textarea rows={4} value={form.description} onInput={(e) => set('description', e.target.value)} onChange={(e) => set('description', e.target.value)} className="input-field resize-none" placeholder="Mô tả chi tiết về sự kiện..." />
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Danh mục *</label>
               <select value={form.categoryId} onInput={(e) => set('categoryId', e.target.value)} onChange={(e) => set('categoryId', e.target.value)} required className="input-field">
@@ -202,7 +202,7 @@ export default function EventForm() {
 
         <div className="card p-5 space-y-4">
           <h2 className="font-semibold text-gray-900 text-sm">Thời gian & địa điểm</h2>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Bắt đầu *</label>
               <input type="datetime-local" value={form.startDate} onInput={(e) => set('startDate', e.target.value)} onChange={(e) => set('startDate', e.target.value)} required className="input-field" />
@@ -241,7 +241,7 @@ export default function EventForm() {
               Click trên bản đồ hoặc kéo marker để cập nhật tọa độ. Tọa độ là bắt buộc để sự kiện xuất hiện trên bản đồ công khai và bộ lọc gần tôi.
             </p>
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Vĩ độ (Latitude)
