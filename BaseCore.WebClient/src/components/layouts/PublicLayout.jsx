@@ -149,7 +149,7 @@ export default function PublicLayout({ children }) {
                 ))}
               </div>
               <p className="text-xs" style={{ color: 'rgba(255,255,255,0.28)' }}>
-                © 2025 VolunteerHub · INT3306 · UET
+                © 2026 VolunteerHub · CNTT59 - MTA
               </p>
             </div>
           </div>
