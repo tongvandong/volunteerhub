@@ -26,6 +26,9 @@ BEGIN TRY
 
     DELETE FROM dbo.Notifications;
     DELETE FROM dbo.Registrations;
+    DELETE FROM dbo.IndividualDonations;
+    DELETE FROM dbo.SupportCampaigns;
+    DELETE FROM dbo.SponsorshipProposals;
     DELETE FROM dbo.EventSponsors;
     DELETE FROM dbo.SponsorProjectMilestones;
     DELETE FROM dbo.WorkShifts;
@@ -107,6 +110,9 @@ BEGIN TRY
     DBCC CHECKIDENT ('dbo.Channels', RESEED, 2) WITH NO_INFOMSGS;
     DBCC CHECKIDENT ('dbo.Posts', RESEED, 0) WITH NO_INFOMSGS;
     DBCC CHECKIDENT ('dbo.Registrations', RESEED, 2) WITH NO_INFOMSGS;
+    DBCC CHECKIDENT ('dbo.IndividualDonations', RESEED, 0) WITH NO_INFOMSGS;
+    DBCC CHECKIDENT ('dbo.SupportCampaigns', RESEED, 0) WITH NO_INFOMSGS;
+    DBCC CHECKIDENT ('dbo.SponsorshipProposals', RESEED, 0) WITH NO_INFOMSGS;
     DBCC CHECKIDENT ('dbo.EventSponsors', RESEED, 0) WITH NO_INFOMSGS;
     DBCC CHECKIDENT ('dbo.SponsorProjectMilestones', RESEED, 0) WITH NO_INFOMSGS;
     DBCC CHECKIDENT ('dbo.Notifications', RESEED, 0) WITH NO_INFOMSGS;

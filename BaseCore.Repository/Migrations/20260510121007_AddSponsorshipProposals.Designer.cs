@@ -4,6 +4,7 @@ using BaseCore.Repository;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace BaseCore.Repository.Migrations
 {
     [DbContext(typeof(MySqlDbContext))]
-    partial class MySqlDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260510121007_AddSponsorshipProposals")]
+    partial class AddSponsorshipProposals
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1209,10 +1212,6 @@ namespace BaseCore.Repository.Migrations
                     b.Property<int>("EventId")
                         .HasColumnType("int");
 
-                    b.Property<string>("ExpenseDetails")
-                        .HasMaxLength(4000)
-                        .HasColumnType("nvarchar(4000)");
-
                     b.Property<int?>("LegacyEventSponsorId")
                         .HasColumnType("int");
 
@@ -1250,14 +1249,6 @@ namespace BaseCore.Repository.Migrations
                     b.Property<int?>("ReceivedBy")
                         .HasColumnType("int");
 
-                    b.Property<string>("ReportAttachmentUrl")
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
-
-                    b.Property<string>("ReportSummary")
-                        .HasMaxLength(2000)
-                        .HasColumnType("nvarchar(2000)");
-
                     b.Property<DateTime?>("ReportedAt")
                         .HasColumnType("datetime2");
 
@@ -1293,10 +1284,6 @@ namespace BaseCore.Repository.Migrations
                         .IsRequired()
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
-
-                    b.Property<decimal?>("UsedAmount")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("decimal(18,2)");
 
                     b.HasKey("Id");
 
@@ -1340,10 +1327,6 @@ namespace BaseCore.Repository.Migrations
                     b.Property<int>("EventId")
                         .HasColumnType("int");
 
-                    b.Property<string>("ExpenseDetails")
-                        .HasMaxLength(4000)
-                        .HasColumnType("nvarchar(4000)");
-
                     b.Property<decimal?>("MinimumAmount")
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
@@ -1351,20 +1334,6 @@ namespace BaseCore.Repository.Migrations
                     b.Property<string>("ReceiveInfo")
                         .HasMaxLength(1000)
                         .HasColumnType("nvarchar(1000)");
-
-                    b.Property<string>("ReportAttachmentUrl")
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
-
-                    b.Property<string>("ReportSummary")
-                        .HasMaxLength(2000)
-                        .HasColumnType("nvarchar(2000)");
-
-                    b.Property<DateTime?>("ReportedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int?>("ReportedBy")
-                        .HasColumnType("int");
 
                     b.Property<DateTime>("StartDate")
                         .HasColumnType("datetime2");
@@ -1390,15 +1359,9 @@ namespace BaseCore.Repository.Migrations
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("datetime2");
 
-                    b.Property<decimal?>("UsedAmount")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("decimal(18,2)");
-
                     b.HasKey("Id");
 
                     b.HasIndex("CreatedBy");
-
-                    b.HasIndex("ReportedBy");
 
                     b.HasIndex("EventId", "Status");
 
@@ -2032,16 +1995,9 @@ namespace BaseCore.Repository.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("BaseCore.Entities.User", "Reporter")
-                        .WithMany()
-                        .HasForeignKey("ReportedBy")
-                        .OnDelete(DeleteBehavior.Restrict);
-
                     b.Navigation("Creator");
 
                     b.Navigation("Event");
-
-                    b.Navigation("Reporter");
                 });
 
             modelBuilder.Entity("BaseCore.Entities.UserBadge", b =>

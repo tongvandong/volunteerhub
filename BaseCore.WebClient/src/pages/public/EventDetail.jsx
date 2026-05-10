@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { eventApi, registrationApi, sponsorApi, skillApi, profileApi } from '../../services/api';
+import { eventApi, registrationApi, sponsorApi, skillApi, profileApi, supportCampaignApi } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
 import StatusBadge from '../../components/ui/StatusBadge';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
+import Modal from '../../components/ui/Modal';
 
 function fmt(dt) {
   if (!dt) return '';
@@ -14,6 +15,10 @@ function fmt(dt) {
     hour: '2-digit',
     minute: '2-digit',
   });
+}
+
+function money(value) {
+  return new Intl.NumberFormat('vi-VN').format(Number(value) || 0) + 'đ';
 }
 
 export default function EventDetail() {
@@ -35,6 +40,19 @@ export default function EventDetail() {
   const [mySkillIds, setMySkillIds] = useState([]);
   const [impact, setImpact] = useState(null);
   const [shareMsg, setShareMsg] = useState('');
+  const [campaigns, setCampaigns] = useState([]);
+  const [donationModal, setDonationModal] = useState(false);
+  const [selectedCampaign, setSelectedCampaign] = useState(null);
+  const [donating, setDonating] = useState(false);
+  const [donationForm, setDonationForm] = useState({
+    amount: '',
+    displayName: '',
+    phone: '',
+    email: '',
+    note: '',
+    isAnonymous: false,
+    proofImageUrl: '',
+  });
 
   useEffect(() => {
     skillApi.getAll().then((r) => setAllSkills(r.data || [])).catch(() => {});
@@ -62,17 +80,19 @@ export default function EventDetail() {
         eventApi.getShifts(id).catch(() => ({ data: [] })),
         sponsorApi.getByEvent(id).catch(() => ({ data: [] })),
         eventApi.getImpact(id).catch(() => ({ data: null })),
+        supportCampaignApi.getByEvent(id).catch(() => ({ data: [] })),
       ];
 
       if (isAuthenticated && isVolunteer()) {
         requests.push(registrationApi.getMyRegistration(id).catch(() => ({ data: null })));
       }
 
-      const [evRes, shRes, spRes, impactRes, myRegRes] = await Promise.all(requests);
+      const [evRes, shRes, spRes, impactRes, campaignRes, myRegRes] = await Promise.all(requests);
       setEvent(evRes.data);
       setShifts(shRes.data || []);
       setSponsors(spRes.data || []);
       setImpact(impactRes?.data || null);
+      setCampaigns(campaignRes.data || []);
       setMyRegistration(myRegRes?.data || null);
     } catch {
       setNotFound(true);
@@ -139,6 +159,54 @@ export default function EventDetail() {
       }
     } catch {
       setShareMsg('');
+    }
+  };
+
+  const openDonation = (campaign) => {
+    if (!isAuthenticated) {
+      navigate('/login');
+      return;
+    }
+    setSelectedCampaign(campaign);
+    setDonationForm({
+      amount: campaign.minimumAmount ? String(campaign.minimumAmount) : '',
+      displayName: '',
+      phone: '',
+      email: '',
+      note: '',
+      isAnonymous: false,
+      proofImageUrl: '',
+    });
+    setDonationModal(true);
+  };
+
+  const submitDonation = async (e) => {
+    e.preventDefault();
+    if (!selectedCampaign) return;
+
+    const amount = Number(donationForm.amount);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      setMsg({ type: 'error', text: 'Số tiền ủng hộ phải lớn hơn 0.' });
+      return;
+    }
+    if (!donationForm.isAnonymous && !donationForm.displayName.trim()) {
+      setMsg({ type: 'error', text: 'Vui lòng nhập tên hiển thị hoặc chọn ẩn danh.' });
+      return;
+    }
+
+    setDonating(true);
+    try {
+      await supportCampaignApi.donate(selectedCampaign.id, {
+        ...donationForm,
+        amount,
+      });
+      await loadEventData();
+      setDonationModal(false);
+      setMsg({ type: 'success', text: 'Đã gửi thông tin ủng hộ. Khoản này sẽ được tính sau khi ban tổ chức xác nhận.' });
+    } catch (err) {
+      setMsg({ type: 'error', text: err.response?.data?.message || 'Gửi ủng hộ thất bại' });
+    } finally {
+      setDonating(false);
     }
   };
 
@@ -226,6 +294,38 @@ export default function EventDetail() {
                   </div>
                 ))}
               </div>
+              {(impact.financialConfirmedAmount || 0) > 0 ? (
+                <div className="mt-4 rounded-lg border border-green-100 bg-green-50 p-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div>
+                      <p className="text-xs text-green-700">Ủng hộ cá nhân đã xác nhận</p>
+                      <p className="font-bold text-green-900">{money(impact.donationConfirmedAmount)}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-green-700">Tài trợ doanh nghiệp đã nhận</p>
+                      <p className="font-bold text-green-900">{money(impact.sponsorshipReceivedAmount)}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-green-700">Tổng tài chính ghi nhận</p>
+                      <p className="font-bold text-green-900">{money(impact.financialConfirmedAmount)}</p>
+                    </div>
+                  </div>
+                  {[...(impact.supportCampaigns || []), ...(impact.receivedSponsorships || [])].some((x) => x.reportSummary) && (
+                    <div className="mt-3 space-y-2">
+                      {[...(impact.supportCampaigns || []), ...(impact.receivedSponsorships || [])]
+                        .filter((x) => x.reportSummary)
+                        .map((x) => (
+                          <div key={`${x.id}-${x.title}`} className="rounded-lg bg-white/70 px-3 py-2 text-sm">
+                            <p className="font-medium text-gray-900">{x.title}</p>
+                            <p className="text-gray-600">{x.reportSummary}</p>
+                          </div>
+                        ))}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <p className="mt-4 text-sm text-gray-500">Sự kiện chưa ghi nhận khoản ủng hộ hoặc tài trợ nào.</p>
+              )}
             </div>
           )}
 
@@ -330,13 +430,63 @@ export default function EventDetail() {
             </div>
           )}
 
+          {campaigns.length > 0 && (
+            <div className="card p-5">
+              <h3 className="font-semibold text-gray-900 mb-3">Kêu gọi ủng hộ</h3>
+              <div className="space-y-3">
+                {campaigns.map((campaign) => {
+                  const confirmed = Number(campaign.confirmedAmount) || 0;
+                  const target = Number(campaign.targetAmount) || 0;
+                  const pctDone = target > 0 ? Math.min(100, Math.round((confirmed / target) * 100)) : 0;
+                  return (
+                    <div key={campaign.id} className="rounded-lg border border-gray-100 bg-gray-50 p-4">
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className="font-medium text-gray-900">{campaign.title}</p>
+                            <span className="rounded-full border border-gray-200 bg-white px-2 py-0.5 text-xs text-gray-600">{campaign.status}</span>
+                          </div>
+                          <p className="mt-1 text-sm text-gray-600">{campaign.description}</p>
+                          {campaign.transparencyNote && <p className="mt-2 text-xs text-gray-500">{campaign.transparencyNote}</p>}
+                        </div>
+                        {campaign.status === 'Open' && (
+                          <button onClick={() => openDonation(campaign)} className="btn-primary btn-sm shrink-0">
+                            <i className="fa-solid fa-hand-holding-heart mr-1" /> Ủng hộ
+                          </button>
+                        )}
+                      </div>
+                      <div className="mt-3">
+                        <div className="flex justify-between text-xs text-gray-500 mb-1">
+                          <span>Đã xác nhận {money(confirmed)}</span>
+                          <span>Mục tiêu {money(target)}</span>
+                        </div>
+                        <div className="h-2 rounded-full bg-white overflow-hidden">
+                          <div className="h-full bg-green-500" style={{ width: `${pctDone}%` }} />
+                        </div>
+                      </div>
+                      {campaign.publicDonors?.length > 0 && (
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          {campaign.publicDonors.map((d) => (
+                            <span key={d.id} className="rounded-full border border-green-100 bg-green-50 px-2 py-0.5 text-xs text-green-700">
+                              {d.displayName} · {money(d.amount)}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {sponsors.length > 0 && (
             <div className="card p-5">
               <h3 className="font-semibold text-gray-900 mb-3">Nhà tài trợ</h3>
               <div className="flex flex-wrap gap-2">
                 {sponsors.map((s) => (
                   <span key={s.id} className="bg-purple-50 text-purple-700 border border-purple-100 px-3 py-1 rounded-full text-sm font-medium">
-                    {s.sponsor?.name || 'Nhà tài trợ'} · {s.contributionType}
+                    {s.note || s.sponsor?.name || 'Nhà tài trợ'} · {s.contributionType}
                   </span>
                 ))}
               </div>
@@ -477,6 +627,56 @@ export default function EventDetail() {
           )}
         </div>
       </div>
+
+      <Modal isOpen={donationModal} onClose={() => setDonationModal(false)} title="Ủng hộ sự kiện" size="md">
+        <form onSubmit={submitDonation} className="space-y-4">
+          {selectedCampaign && (
+            <div className="rounded-lg border border-green-100 bg-green-50 p-3">
+              <p className="text-sm font-medium text-green-900">{selectedCampaign.title}</p>
+              {selectedCampaign.receiveInfo && <p className="mt-1 whitespace-pre-line text-xs text-green-800">{selectedCampaign.receiveInfo}</p>}
+            </div>
+          )}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Số tiền *</label>
+            <input type="number" min="1" value={donationForm.amount} onChange={(e) => setDonationForm((f) => ({ ...f, amount: e.target.value }))} required className="input-field" />
+          </div>
+          <label className="flex items-center gap-2 text-sm text-gray-700">
+            <input type="checkbox" checked={donationForm.isAnonymous} onChange={(e) => setDonationForm((f) => ({ ...f, isAnonymous: e.target.checked }))} />
+            Ủng hộ ẩn danh
+          </label>
+          {!donationForm.isAnonymous && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Tên hiển thị *</label>
+              <input value={donationForm.displayName} onChange={(e) => setDonationForm((f) => ({ ...f, displayName: e.target.value }))} className="input-field" placeholder="Tên sẽ hiển thị công khai khi được xác nhận" />
+            </div>
+          )}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Số điện thoại</label>
+              <input value={donationForm.phone} onChange={(e) => setDonationForm((f) => ({ ...f, phone: e.target.value }))} className="input-field" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+              <input type="email" value={donationForm.email} onChange={(e) => setDonationForm((f) => ({ ...f, email: e.target.value }))} className="input-field" />
+            </div>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Minh chứng chuyển khoản URL</label>
+            <input value={donationForm.proofImageUrl} onChange={(e) => setDonationForm((f) => ({ ...f, proofImageUrl: e.target.value }))} className="input-field" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Ghi chú</label>
+            <textarea rows={3} value={donationForm.note} onChange={(e) => setDonationForm((f) => ({ ...f, note: e.target.value }))} className="input-field resize-none" />
+          </div>
+          <div className="flex justify-end gap-3 pt-2">
+            <button type="button" onClick={() => setDonationModal(false)} className="btn-secondary">Hủy</button>
+            <button type="submit" disabled={donating} className="btn-primary flex items-center gap-2">
+              {donating && <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />}
+              Gửi ủng hộ
+            </button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 }

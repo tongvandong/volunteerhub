@@ -4,6 +4,7 @@ using BaseCore.Repository;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace BaseCore.Repository.Migrations
 {
     [DbContext(typeof(MySqlDbContext))]
-    partial class MySqlDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260510102957_AddSupportCampaignsAndDonations")]
+    partial class AddSupportCampaignsAndDonations
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1185,136 +1188,6 @@ namespace BaseCore.Repository.Migrations
                     b.ToTable("SponsorProjectMilestones");
                 });
 
-            modelBuilder.Entity("BaseCore.Entities.SponsorshipProposal", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("AttachmentUrl")
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
-
-                    b.Property<DateTime?>("CancelledAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int>("CreatedBy")
-                        .HasColumnType("int");
-
-                    b.Property<int>("EventId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("ExpenseDetails")
-                        .HasMaxLength(4000)
-                        .HasColumnType("nvarchar(4000)");
-
-                    b.Property<int?>("LegacyEventSponsorId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("LogoUrl")
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
-
-                    b.Property<string>("Message")
-                        .IsRequired()
-                        .HasMaxLength(2000)
-                        .HasColumnType("nvarchar(2000)");
-
-                    b.Property<decimal?>("OfferedAmount")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<int>("OrganizerId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("PublicMessage")
-                        .HasMaxLength(1000)
-                        .HasColumnType("nvarchar(1000)");
-
-                    b.Property<string>("PublicSponsorName")
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
-                    b.Property<string>("Purpose")
-                        .HasMaxLength(1000)
-                        .HasColumnType("nvarchar(1000)");
-
-                    b.Property<DateTime?>("ReceivedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int?>("ReceivedBy")
-                        .HasColumnType("int");
-
-                    b.Property<string>("ReportAttachmentUrl")
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
-
-                    b.Property<string>("ReportSummary")
-                        .HasMaxLength(2000)
-                        .HasColumnType("nvarchar(2000)");
-
-                    b.Property<DateTime?>("ReportedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<decimal?>("RequestedAmount")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<DateTime?>("RespondedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("ResponseMessage")
-                        .HasMaxLength(1000)
-                        .HasColumnType("nvarchar(1000)");
-
-                    b.Property<string>("SponsorBenefits")
-                        .HasMaxLength(1000)
-                        .HasColumnType("nvarchar(1000)");
-
-                    b.Property<int>("SponsorId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<string>("Title")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
-                    b.Property<string>("Type")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<decimal?>("UsedAmount")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("decimal(18,2)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CreatedBy");
-
-                    b.HasIndex("LegacyEventSponsorId");
-
-                    b.HasIndex("ReceivedBy");
-
-                    b.HasIndex("EventId", "Status");
-
-                    b.HasIndex("OrganizerId", "Status");
-
-                    b.HasIndex("SponsorId", "Status");
-
-                    b.ToTable("SponsorshipProposals");
-                });
-
             modelBuilder.Entity("BaseCore.Entities.SupportCampaign", b =>
                 {
                     b.Property<int>("Id")
@@ -1340,10 +1213,6 @@ namespace BaseCore.Repository.Migrations
                     b.Property<int>("EventId")
                         .HasColumnType("int");
 
-                    b.Property<string>("ExpenseDetails")
-                        .HasMaxLength(4000)
-                        .HasColumnType("nvarchar(4000)");
-
                     b.Property<decimal?>("MinimumAmount")
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
@@ -1351,20 +1220,6 @@ namespace BaseCore.Repository.Migrations
                     b.Property<string>("ReceiveInfo")
                         .HasMaxLength(1000)
                         .HasColumnType("nvarchar(1000)");
-
-                    b.Property<string>("ReportAttachmentUrl")
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
-
-                    b.Property<string>("ReportSummary")
-                        .HasMaxLength(2000)
-                        .HasColumnType("nvarchar(2000)");
-
-                    b.Property<DateTime?>("ReportedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int?>("ReportedBy")
-                        .HasColumnType("int");
 
                     b.Property<DateTime>("StartDate")
                         .HasColumnType("datetime2");
@@ -1390,15 +1245,9 @@ namespace BaseCore.Repository.Migrations
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("datetime2");
 
-                    b.Property<decimal?>("UsedAmount")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("decimal(18,2)");
-
                     b.HasKey("Id");
 
                     b.HasIndex("CreatedBy");
-
-                    b.HasIndex("ReportedBy");
 
                     b.HasIndex("EventId", "Status");
 
@@ -1969,55 +1818,6 @@ namespace BaseCore.Repository.Migrations
                     b.Navigation("Event");
                 });
 
-            modelBuilder.Entity("BaseCore.Entities.SponsorshipProposal", b =>
-                {
-                    b.HasOne("BaseCore.Entities.User", "Creator")
-                        .WithMany()
-                        .HasForeignKey("CreatedBy")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("BaseCore.Entities.Event", "Event")
-                        .WithMany()
-                        .HasForeignKey("EventId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("BaseCore.Entities.EventSponsor", "LegacyEventSponsor")
-                        .WithMany()
-                        .HasForeignKey("LegacyEventSponsorId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("BaseCore.Entities.User", "Organizer")
-                        .WithMany()
-                        .HasForeignKey("OrganizerId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("BaseCore.Entities.User", "Receiver")
-                        .WithMany()
-                        .HasForeignKey("ReceivedBy")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("BaseCore.Entities.User", "Sponsor")
-                        .WithMany()
-                        .HasForeignKey("SponsorId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("Creator");
-
-                    b.Navigation("Event");
-
-                    b.Navigation("LegacyEventSponsor");
-
-                    b.Navigation("Organizer");
-
-                    b.Navigation("Receiver");
-
-                    b.Navigation("Sponsor");
-                });
-
             modelBuilder.Entity("BaseCore.Entities.SupportCampaign", b =>
                 {
                     b.HasOne("BaseCore.Entities.User", "Creator")
@@ -2032,16 +1832,9 @@ namespace BaseCore.Repository.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("BaseCore.Entities.User", "Reporter")
-                        .WithMany()
-                        .HasForeignKey("ReportedBy")
-                        .OnDelete(DeleteBehavior.Restrict);
-
                     b.Navigation("Creator");
 
                     b.Navigation("Event");
-
-                    b.Navigation("Reporter");
                 });
 
             modelBuilder.Entity("BaseCore.Entities.UserBadge", b =>

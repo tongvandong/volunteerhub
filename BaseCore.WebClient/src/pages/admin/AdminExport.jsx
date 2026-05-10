@@ -18,7 +18,7 @@ export default function AdminExport() {
     setLoading((prev) => ({ ...prev, [key]: true }));
 
     try {
-      const fn = type === 'events' ? adminApi.exportEvents : adminApi.exportUsers;
+      const fn = type === 'events' ? adminApi.exportEvents : type === 'users' ? adminApi.exportUsers : adminApi.exportFinance;
       const r = await fn(format);
       const ext = format === 'csv' ? 'csv' : 'json';
       const mimeType = format === 'csv' ? 'text/csv;charset=utf-8' : 'application/json;charset=utf-8';
@@ -48,6 +48,14 @@ export default function AdminExport() {
       type: 'users',
       color: 'text-blue-600',
       bg: 'bg-blue-50',
+    },
+    {
+      title: 'Tài chính',
+      description: 'Xuất campaign ủng hộ, đề nghị tài trợ, số tiền xác nhận/đã nhận và báo cáo sử dụng tiền.',
+      icon: 'fa-hand-holding-dollar',
+      type: 'finance',
+      color: 'text-emerald-600',
+      bg: 'bg-emerald-50',
     },
   ];
 

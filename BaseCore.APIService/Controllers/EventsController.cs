@@ -82,8 +82,40 @@ namespace BaseCore.APIService.Controllers
             var sponsors = await _context.EventSponsors
                 .Where(s => s.EventId == id)
                 .ToListAsync();
+            var campaigns = await _context.SupportCampaigns
+                .Where(c => c.EventId == id)
+                .Select(c => new
+                {
+                    c.Id,
+                    c.Title,
+                    c.Status,
+                    c.TargetAmount,
+                    c.UsedAmount,
+                    c.ReportSummary,
+                    c.ReportedAt,
+                    confirmedAmount = c.Donations.Where(d => d.Status == "Confirmed").Sum(d => (decimal?)d.Amount) ?? 0,
+                    confirmedCount = c.Donations.Count(d => d.Status == "Confirmed")
+                })
+                .ToListAsync();
+            var sponsorships = await _context.SponsorshipProposals
+                .Include(p => p.Sponsor)
+                .Where(p => p.EventId == id && (p.Status == "Received" || p.Status == "Reported"))
+                .Select(p => new
+                {
+                    p.Id,
+                    p.Title,
+                    p.Status,
+                    sponsorName = p.PublicSponsorName != "" ? p.PublicSponsorName : p.Sponsor.Name,
+                    amount = p.Type == "OrganizerRequest" ? p.RequestedAmount ?? 0 : p.OfferedAmount ?? 0,
+                    p.UsedAmount,
+                    p.ReportSummary,
+                    p.ReportedAt
+                })
+                .ToListAsync();
             var certificates = await _context.Certificates
                 .CountAsync(c => c.EventId == id);
+            var donationConfirmedAmount = campaigns.Sum(c => c.confirmedAmount);
+            var sponsorshipReceivedAmount = sponsorships.Sum(s => s.amount);
 
             return Ok(new
             {
@@ -98,7 +130,13 @@ namespace BaseCore.APIService.Controllers
                 totalVolunteerHours = registrations.Where(r => r.IsAttended).Sum(r => r.VolunteerHours),
                 certificatesIssued = certificates,
                 sponsorCount = sponsors.Count,
-                sponsorAmount = sponsors.Sum(s => s.Amount)
+                sponsorAmount = sponsors.Sum(s => s.Amount),
+                donationConfirmedAmount,
+                donationConfirmedCount = campaigns.Sum(c => c.confirmedCount),
+                sponsorshipReceivedAmount,
+                financialConfirmedAmount = donationConfirmedAmount + sponsorshipReceivedAmount,
+                supportCampaigns = campaigns,
+                receivedSponsorships = sponsorships
             });
         }
 

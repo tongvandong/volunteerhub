@@ -44,6 +44,9 @@ namespace BaseCore.Repository
         // --- VolunteerHub: Sponsor & Notification ---
         public DbSet<EventSponsor> EventSponsors { get; set; }
         public DbSet<SponsorProjectMilestone> SponsorProjectMilestones { get; set; }
+        public DbSet<SupportCampaign> SupportCampaigns { get; set; }
+        public DbSet<IndividualDonation> IndividualDonations { get; set; }
+        public DbSet<SponsorshipProposal> SponsorshipProposals { get; set; }
         public DbSet<Notification> Notifications { get; set; }
         public DbSet<AuthRefreshToken> AuthRefreshTokens { get; set; }
         public DbSet<AuditLog> AuditLogs { get; set; }
@@ -424,6 +427,115 @@ namespace BaseCore.Repository
                       .HasForeignKey(e => e.EventId)
                       .OnDelete(DeleteBehavior.Cascade);
                 entity.HasIndex(e => new { e.EventId, e.SortOrder });
+            });
+
+            modelBuilder.Entity<SupportCampaign>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Title).HasMaxLength(200).IsRequired();
+                entity.Property(e => e.Description).HasMaxLength(2000).IsRequired();
+                entity.Property(e => e.TargetAmount).HasPrecision(18, 2);
+                entity.Property(e => e.MinimumAmount).HasPrecision(18, 2);
+                entity.Property(e => e.ReceiveInfo).HasMaxLength(1000).IsRequired(false);
+                entity.Property(e => e.TransparencyNote).HasMaxLength(1000).IsRequired(false);
+                entity.Property(e => e.Status).HasMaxLength(50).IsRequired();
+                entity.Property(e => e.UsedAmount).HasPrecision(18, 2);
+                entity.Property(e => e.ReportSummary).HasMaxLength(2000).IsRequired(false);
+                entity.Property(e => e.ExpenseDetails).HasMaxLength(4000).IsRequired(false);
+                entity.Property(e => e.ReportAttachmentUrl).HasMaxLength(500).IsRequired(false);
+                entity.HasOne(e => e.Event)
+                      .WithMany()
+                      .HasForeignKey(e => e.EventId)
+                      .OnDelete(DeleteBehavior.Cascade);
+                entity.HasOne(e => e.Creator)
+                      .WithMany()
+                      .HasForeignKey(e => e.CreatedBy)
+                      .OnDelete(DeleteBehavior.Restrict);
+                entity.HasOne(e => e.Reporter)
+                      .WithMany()
+                      .HasForeignKey(e => e.ReportedBy)
+                      .OnDelete(DeleteBehavior.Restrict)
+                      .IsRequired(false);
+                entity.HasIndex(e => new { e.EventId, e.Status });
+            });
+
+            modelBuilder.Entity<IndividualDonation>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Amount).HasPrecision(18, 2);
+                entity.Property(e => e.DisplayName).HasMaxLength(120).IsRequired(false);
+                entity.Property(e => e.Phone).HasMaxLength(30).IsRequired(false);
+                entity.Property(e => e.Email).HasMaxLength(120).IsRequired(false);
+                entity.Property(e => e.Note).HasMaxLength(500).IsRequired(false);
+                entity.Property(e => e.ProofImageUrl).HasMaxLength(500).IsRequired(false);
+                entity.Property(e => e.RejectedReason).HasMaxLength(500).IsRequired(false);
+                entity.Property(e => e.Status).HasMaxLength(50).IsRequired();
+                entity.HasOne(e => e.Campaign)
+                      .WithMany(c => c.Donations)
+                      .HasForeignKey(e => e.CampaignId)
+                      .OnDelete(DeleteBehavior.Cascade);
+                entity.HasOne(e => e.User)
+                      .WithMany()
+                      .HasForeignKey(e => e.UserId)
+                      .OnDelete(DeleteBehavior.Restrict);
+                entity.HasOne(e => e.Confirmer)
+                      .WithMany()
+                      .HasForeignKey(e => e.ConfirmedBy)
+                      .OnDelete(DeleteBehavior.Restrict)
+                      .IsRequired(false);
+                entity.HasIndex(e => new { e.CampaignId, e.Status });
+                entity.HasIndex(e => e.UserId);
+            });
+
+            modelBuilder.Entity<SponsorshipProposal>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Type).HasMaxLength(50).IsRequired();
+                entity.Property(e => e.Title).HasMaxLength(200).IsRequired();
+                entity.Property(e => e.Message).HasMaxLength(2000).IsRequired();
+                entity.Property(e => e.RequestedAmount).HasPrecision(18, 2);
+                entity.Property(e => e.OfferedAmount).HasPrecision(18, 2);
+                entity.Property(e => e.Purpose).HasMaxLength(1000).IsRequired(false);
+                entity.Property(e => e.SponsorBenefits).HasMaxLength(1000).IsRequired(false);
+                entity.Property(e => e.PublicSponsorName).HasMaxLength(200).IsRequired(false);
+                entity.Property(e => e.PublicMessage).HasMaxLength(1000).IsRequired(false);
+                entity.Property(e => e.LogoUrl).HasMaxLength(500).IsRequired(false);
+                entity.Property(e => e.AttachmentUrl).HasMaxLength(500).IsRequired(false);
+                entity.Property(e => e.ResponseMessage).HasMaxLength(1000).IsRequired(false);
+                entity.Property(e => e.Status).HasMaxLength(50).IsRequired();
+                entity.Property(e => e.UsedAmount).HasPrecision(18, 2);
+                entity.Property(e => e.ReportSummary).HasMaxLength(2000).IsRequired(false);
+                entity.Property(e => e.ExpenseDetails).HasMaxLength(4000).IsRequired(false);
+                entity.Property(e => e.ReportAttachmentUrl).HasMaxLength(500).IsRequired(false);
+                entity.HasOne(e => e.Event)
+                      .WithMany()
+                      .HasForeignKey(e => e.EventId)
+                      .OnDelete(DeleteBehavior.Cascade);
+                entity.HasOne(e => e.Sponsor)
+                      .WithMany()
+                      .HasForeignKey(e => e.SponsorId)
+                      .OnDelete(DeleteBehavior.Restrict);
+                entity.HasOne(e => e.Organizer)
+                      .WithMany()
+                      .HasForeignKey(e => e.OrganizerId)
+                      .OnDelete(DeleteBehavior.Restrict);
+                entity.HasOne(e => e.Creator)
+                      .WithMany()
+                      .HasForeignKey(e => e.CreatedBy)
+                      .OnDelete(DeleteBehavior.Restrict);
+                entity.HasOne(e => e.Receiver)
+                      .WithMany()
+                      .HasForeignKey(e => e.ReceivedBy)
+                      .OnDelete(DeleteBehavior.Restrict)
+                      .IsRequired(false);
+                entity.HasOne(e => e.LegacyEventSponsor)
+                      .WithMany()
+                      .HasForeignKey(e => e.LegacyEventSponsorId)
+                      .OnDelete(DeleteBehavior.Restrict)
+                      .IsRequired(false);
+                entity.HasIndex(e => new { e.EventId, e.Status });
+                entity.HasIndex(e => new { e.SponsorId, e.Status });
+                entity.HasIndex(e => new { e.OrganizerId, e.Status });
             });
 
             modelBuilder.Entity<Notification>(entity =>

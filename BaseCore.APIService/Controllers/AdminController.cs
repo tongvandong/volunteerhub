@@ -105,6 +105,102 @@ namespace BaseCore.APIService.Controllers
             return Ok(users);
         }
 
+        [HttpGet("finance/overview")]
+        public async Task<IActionResult> GetFinanceOverview()
+        {
+            var donationConfirmedAmount = await _context.IndividualDonations
+                .Where(d => d.Status == "Confirmed")
+                .SumAsync(d => (decimal?)d.Amount) ?? 0;
+            var donationPendingAmount = await _context.IndividualDonations
+                .Where(d => d.Status == "PendingConfirmation")
+                .SumAsync(d => (decimal?)d.Amount) ?? 0;
+            var sponsorshipReceivedAmount = await _context.SponsorshipProposals
+                .Where(p => p.Status == "Received" || p.Status == "Reported")
+                .SumAsync(p => p.Type == "OrganizerRequest" ? p.RequestedAmount ?? 0 : p.OfferedAmount ?? 0);
+
+            return Ok(new
+            {
+                totals = new
+                {
+                    campaigns = await _context.SupportCampaigns.CountAsync(),
+                    donations = await _context.IndividualDonations.CountAsync(),
+                    proposals = await _context.SponsorshipProposals.CountAsync(),
+                    donationConfirmedAmount,
+                    donationPendingAmount,
+                    sponsorshipReceivedAmount,
+                    financialConfirmedAmount = donationConfirmedAmount + sponsorshipReceivedAmount
+                },
+                recentDonations = await _context.IndividualDonations
+                    .Include(d => d.Campaign).ThenInclude(c => c.Event)
+                    .OrderByDescending(d => d.CreatedAt)
+                    .Take(10)
+                    .Select(d => new { d.Id, d.Amount, d.Status, d.DisplayName, campaign = d.Campaign.Title, eventTitle = d.Campaign.Event.Title, d.CreatedAt })
+                    .ToListAsync(),
+                recentProposals = await _context.SponsorshipProposals
+                    .Include(p => p.Event)
+                    .Include(p => p.Sponsor)
+                    .OrderByDescending(p => p.CreatedAt)
+                    .Take(10)
+                    .Select(p => new { p.Id, p.Title, p.Type, p.Status, sponsor = p.Sponsor.Name, eventTitle = p.Event.Title, amount = p.Type == "OrganizerRequest" ? p.RequestedAmount ?? 0 : p.OfferedAmount ?? 0, p.CreatedAt })
+                    .ToListAsync()
+            });
+        }
+
+        [HttpGet("export/finance")]
+        [EnableRateLimiting("read-sensitive")]
+        public async Task<IActionResult> ExportFinance([FromQuery] string format = "json")
+        {
+            var campaigns = await _context.SupportCampaigns
+                .Include(c => c.Event)
+                .Select(c => new
+                {
+                    Type = "Campaign",
+                    c.Id,
+                    Event = c.Event.Title,
+                    c.Title,
+                    Counterparty = "",
+                    c.Status,
+                    Amount = c.Donations.Where(d => d.Status == "Confirmed").Sum(d => (decimal?)d.Amount) ?? 0,
+                    c.UsedAmount,
+                    c.ReportSummary,
+                    c.ReportedAt,
+                    c.CreatedAt
+                })
+                .ToListAsync();
+            var proposals = await _context.SponsorshipProposals
+                .Include(p => p.Event)
+                .Include(p => p.Sponsor)
+                .Select(p => new
+                {
+                    Type = "Sponsorship",
+                    p.Id,
+                    Event = p.Event.Title,
+                    p.Title,
+                    Counterparty = p.Sponsor.Name,
+                    p.Status,
+                    Amount = p.Type == "OrganizerRequest" ? p.RequestedAmount ?? 0 : p.OfferedAmount ?? 0,
+                    p.UsedAmount,
+                    p.ReportSummary,
+                    p.ReportedAt,
+                    p.CreatedAt
+                })
+                .ToListAsync();
+            var rows = campaigns.Concat(proposals).OrderByDescending(x => x.CreatedAt).ToList();
+
+            if (format.ToLower() == "csv")
+            {
+                await RecordAuditAsync("Admin.Export.Finance", "Finance", null, "Format=csv");
+                var csv = new StringBuilder();
+                csv.AppendLine("Type,Id,Event,Title,Counterparty,Status,Amount,UsedAmount,ReportSummary,ReportedAt,CreatedAt");
+                foreach (var row in rows)
+                    csv.AppendLine($"{row.Type},{row.Id},{EscapeCsv(row.Event)},{EscapeCsv(row.Title)},{EscapeCsv(row.Counterparty)},{row.Status},{row.Amount},{row.UsedAmount},{EscapeCsv(row.ReportSummary)},{row.ReportedAt:yyyy-MM-dd},{row.CreatedAt:yyyy-MM-dd}");
+                return File(Encoding.UTF8.GetBytes(csv.ToString()), "text/csv", "finance.csv");
+            }
+
+            await RecordAuditAsync("Admin.Export.Finance", "Finance", null, "Format=json");
+            return Ok(rows);
+        }
+
         private Task RecordAuditAsync(string action, string entityType, int? entityId = null, string? metadata = null)
         {
             var userId = int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var parsedUserId)

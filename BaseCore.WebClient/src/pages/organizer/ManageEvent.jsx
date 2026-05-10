@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
-import { eventApi, registrationApi, ratingApi, sponsorApi } from '../../services/api';
+import { eventApi, registrationApi, ratingApi, sponsorApi, supportCampaignApi, sponsorshipProposalApi } from '../../services/api';
 import StatusBadge from '../../components/ui/StatusBadge';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import Modal from '../../components/ui/Modal';
@@ -11,6 +11,10 @@ function fmt(dt) {
 
 function fmtTime(dt) {
   return dt ? new Date(dt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : '';
+}
+
+function money(value) {
+  return new Intl.NumberFormat('vi-VN').format(Number(value) || 0) + 'đ';
 }
 
 export default function ManageEvent() {
@@ -43,6 +47,47 @@ export default function ManageEvent() {
     progressPercent: 0,
     sortOrder: 0,
   });
+  const [campaigns, setCampaigns] = useState([]);
+  const [campaignModal, setCampaignModal] = useState(false);
+  const [campaignSaving, setCampaignSaving] = useState(false);
+  const [campaignForm, setCampaignForm] = useState({
+    title: '',
+    description: '',
+    targetAmount: '',
+    minimumAmount: '',
+    startDate: '',
+    endDate: '',
+    receiveInfo: '',
+    transparencyNote: '',
+    status: 'Draft',
+  });
+  const [donationModal, setDonationModal] = useState(false);
+  const [selectedCampaign, setSelectedCampaign] = useState(null);
+  const [donations, setDonations] = useState([]);
+  const [donationsLoading, setDonationsLoading] = useState(false);
+  const [proposals, setProposals] = useState([]);
+  const [sponsorUsers, setSponsorUsers] = useState([]);
+  const [proposalModal, setProposalModal] = useState(false);
+  const [proposalSaving, setProposalSaving] = useState(false);
+  const [proposalForm, setProposalForm] = useState({
+    sponsorId: '',
+    title: '',
+    message: '',
+    requestedAmount: '',
+    purpose: '',
+    sponsorBenefits: '',
+    attachmentUrl: '',
+  });
+  const [financialReportModal, setFinancialReportModal] = useState(false);
+  const [financialReportTarget, setFinancialReportTarget] = useState(null);
+  const [financialReportType, setFinancialReportType] = useState('');
+  const [financialReportSaving, setFinancialReportSaving] = useState(false);
+  const [financialReportForm, setFinancialReportForm] = useState({
+    usedAmount: '',
+    summary: '',
+    expenseDetails: '',
+    attachmentUrl: '',
+  });
 
   useEffect(() => {
     Promise.all([
@@ -50,12 +95,18 @@ export default function ManageEvent() {
       eventApi.getRegistrations(id),
       eventApi.getShifts(id),
       sponsorApi.getMilestones(id),
+      supportCampaignApi.getByEvent(id).catch(() => ({ data: [] })),
+      sponsorshipProposalApi.getByEvent(id).catch(() => ({ data: [] })),
+      sponsorshipProposalApi.getSponsorUsers().catch(() => ({ data: [] })),
     ])
-      .then(([evRes, regRes, shiftRes, milestoneRes]) => {
+      .then(([evRes, regRes, shiftRes, milestoneRes, campaignRes, proposalRes, sponsorUserRes]) => {
         setEvent(evRes.data);
         setRegistrations(regRes.data || []);
         setShifts(shiftRes.data || []);
         setMilestones(milestoneRes.data || []);
+        setCampaigns(campaignRes.data || []);
+        setProposals(proposalRes.data || []);
+        setSponsorUsers(sponsorUserRes.data || []);
       })
       .catch(() => navigate('/my-events'))
       .finally(() => setLoading(false));
@@ -302,6 +353,209 @@ export default function ManageEvent() {
     }
   };
 
+  const reloadCampaigns = async () => {
+    const r = await supportCampaignApi.getByEvent(id);
+    setCampaigns(r.data || []);
+  };
+
+  const openCreateCampaign = () => {
+    const start = event?.startDate ? new Date(event.startDate) : new Date();
+    const end = event?.endDate ? new Date(event.endDate) : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    setCampaignForm({
+      title: '',
+      description: '',
+      targetAmount: '',
+      minimumAmount: '',
+      startDate: start.toISOString().slice(0, 16),
+      endDate: end.toISOString().slice(0, 16),
+      receiveInfo: '',
+      transparencyNote: '',
+      status: 'Draft',
+    });
+    setCampaignModal(true);
+  };
+
+  const submitCampaign = async (e) => {
+    e.preventDefault();
+    const targetAmount = Number(campaignForm.targetAmount);
+    const minimumAmount = campaignForm.minimumAmount === '' ? null : Number(campaignForm.minimumAmount);
+
+    if (!campaignForm.title.trim() || !campaignForm.description.trim()) {
+      alert('Vui lòng nhập tiêu đề và mô tả đợt kêu gọi.');
+      return;
+    }
+    if (!Number.isFinite(targetAmount) || targetAmount <= 0) {
+      alert('Mục tiêu phải lớn hơn 0.');
+      return;
+    }
+    if (minimumAmount != null && (!Number.isFinite(minimumAmount) || minimumAmount < 0 || minimumAmount > targetAmount)) {
+      alert('Số tiền tối thiểu phải nằm trong khoảng 0 đến mục tiêu.');
+      return;
+    }
+
+    setCampaignSaving(true);
+    try {
+      await supportCampaignApi.create(id, {
+        ...campaignForm,
+        title: campaignForm.title.trim(),
+        description: campaignForm.description.trim(),
+        targetAmount,
+        minimumAmount,
+        startDate: new Date(campaignForm.startDate).toISOString(),
+        endDate: new Date(campaignForm.endDate).toISOString(),
+      });
+      await reloadCampaigns();
+      setCampaignModal(false);
+    } catch (err) {
+      alert(err.response?.data?.message || 'Tạo đợt kêu gọi thất bại');
+    } finally {
+      setCampaignSaving(false);
+    }
+  };
+
+  const changeCampaignStatus = async (campaign, action) => {
+    try {
+      if (action === 'open') await supportCampaignApi.open(campaign.id);
+      if (action === 'close') await supportCampaignApi.close(campaign.id);
+      if (action === 'cancel') await supportCampaignApi.cancel(campaign.id);
+      await reloadCampaigns();
+    } catch (err) {
+      alert(err.response?.data?.message || 'Cập nhật trạng thái thất bại');
+    }
+  };
+
+  const openDonations = async (campaign) => {
+    setSelectedCampaign(campaign);
+    setDonationModal(true);
+    setDonationsLoading(true);
+    try {
+      const r = await supportCampaignApi.getDonations(campaign.id);
+      setDonations(r.data || []);
+    } catch (err) {
+      alert(err.response?.data?.message || 'Không tải được danh sách ủng hộ');
+      setDonationModal(false);
+    } finally {
+      setDonationsLoading(false);
+    }
+  };
+
+  const updateDonationStatus = async (donation, action) => {
+    try {
+      if (action === 'confirm') await supportCampaignApi.confirmDonation(donation.id);
+      if (action === 'reject') await supportCampaignApi.rejectDonation(donation.id, { reason: 'Organizer rejected' });
+      const r = await supportCampaignApi.getDonations(selectedCampaign.id);
+      setDonations(r.data || []);
+      await reloadCampaigns();
+    } catch (err) {
+      alert(err.response?.data?.message || 'Cập nhật donation thất bại');
+    }
+  };
+
+  const reloadProposals = async () => {
+    const r = await sponsorshipProposalApi.getByEvent(id);
+    setProposals(r.data || []);
+  };
+
+  const openInviteSponsor = () => {
+    setProposalForm({
+      sponsorId: '',
+      title: '',
+      message: '',
+      requestedAmount: '',
+      purpose: '',
+      sponsorBenefits: '',
+      attachmentUrl: '',
+    });
+    setProposalModal(true);
+  };
+
+  const submitSponsorInvite = async (e) => {
+    e.preventDefault();
+    const requestedAmount = Number(proposalForm.requestedAmount);
+    if (!proposalForm.sponsorId || !proposalForm.title.trim() || !proposalForm.message.trim()) {
+      alert('Vui lòng nhập sponsor, tiêu đề và nội dung lời mời.');
+      return;
+    }
+    if (!Number.isFinite(requestedAmount) || requestedAmount <= 0) {
+      alert('Số tiền mong muốn phải lớn hơn 0.');
+      return;
+    }
+
+    setProposalSaving(true);
+    try {
+      await sponsorshipProposalApi.organizerRequest(id, {
+        ...proposalForm,
+        sponsorId: Number(proposalForm.sponsorId),
+        requestedAmount,
+      });
+      await reloadProposals();
+      setProposalModal(false);
+    } catch (err) {
+      alert(err.response?.data?.message || 'Gửi lời mời tài trợ thất bại');
+    } finally {
+      setProposalSaving(false);
+    }
+  };
+
+  const updateProposalStatus = async (proposal, action) => {
+    try {
+      if (action === 'accept') await sponsorshipProposalApi.accept(proposal.id, { responseMessage: 'Organizer accepted' });
+      if (action === 'reject') await sponsorshipProposalApi.reject(proposal.id, { responseMessage: 'Organizer rejected' });
+      if (action === 'received') await sponsorshipProposalApi.received(proposal.id);
+      if (action === 'cancel') await sponsorshipProposalApi.cancel(proposal.id);
+      await reloadProposals();
+    } catch (err) {
+      alert(err.response?.data?.message || 'Cập nhật proposal thất bại');
+    }
+  };
+
+  const openFinancialReport = (type, target) => {
+    setFinancialReportType(type);
+    setFinancialReportTarget(target);
+    setFinancialReportForm({
+      usedAmount: target.usedAmount != null ? String(target.usedAmount) : '',
+      summary: target.reportSummary || '',
+      expenseDetails: target.expenseDetails || '',
+      attachmentUrl: target.reportAttachmentUrl || '',
+    });
+    setFinancialReportModal(true);
+  };
+
+  const submitFinancialReport = async (e) => {
+    e.preventDefault();
+    const usedAmount = Number(financialReportForm.usedAmount);
+    if (!Number.isFinite(usedAmount) || usedAmount < 0) {
+      alert('Số tiền đã sử dụng phải từ 0 trở lên.');
+      return;
+    }
+    if (!financialReportForm.summary.trim()) {
+      alert('Vui lòng nhập tóm tắt báo cáo.');
+      return;
+    }
+
+    setFinancialReportSaving(true);
+    try {
+      const payload = {
+        usedAmount,
+        summary: financialReportForm.summary.trim(),
+        expenseDetails: financialReportForm.expenseDetails.trim(),
+        attachmentUrl: financialReportForm.attachmentUrl.trim(),
+      };
+      if (financialReportType === 'campaign') {
+        await supportCampaignApi.report(financialReportTarget.id, payload);
+        await reloadCampaigns();
+      } else {
+        await sponsorshipProposalApi.report(financialReportTarget.id, payload);
+        await reloadProposals();
+      }
+      setFinancialReportModal(false);
+    } catch (err) {
+      alert(err.response?.data?.message || 'Lưu báo cáo thất bại');
+    } finally {
+      setFinancialReportSaving(false);
+    }
+  };
+
   if (loading) return <LoadingSpinner />;
 
   const pending = registrations.filter((r) => r.status === 'Pending');
@@ -362,6 +616,8 @@ export default function ManageEvent() {
           { key: 'registrations', label: 'Danh sách đăng ký', icon: 'fa-list' },
           { key: 'shifts', label: 'Ca làm việc', icon: 'fa-clock' },
           { key: 'checkin', label: 'Điểm danh', icon: 'fa-qrcode' },
+          { key: 'campaigns', label: 'Kêu gọi ủng hộ', icon: 'fa-hand-holding-heart' },
+          { key: 'corporate', label: 'Tài trợ doanh nghiệp', icon: 'fa-handshake' },
           { key: 'milestones', label: 'Tiến độ tài trợ', icon: 'fa-timeline' },
           { key: 'report', label: 'Báo cáo', icon: 'fa-chart-column' },
         ].map((t) => (
@@ -385,8 +641,8 @@ export default function ManageEvent() {
               <p className="text-gray-500">Chưa có tình nguyện viên nào đăng ký</p>
             </div>
           ) : (
-            <div className="card overflow-hidden">
-              <table className="w-full text-sm">
+            <div className="card overflow-x-auto">
+              <table className="min-w-[460px] w-full text-sm">
                 <thead>
                   <tr className="table-header">
                     <th className="text-left px-4 py-3">Tình nguyện viên</th>
@@ -621,6 +877,278 @@ export default function ManageEvent() {
         </div>
       )}
 
+      {tab === 'campaigns' && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <h2 className="font-semibold text-gray-900">Kêu gọi ủng hộ</h2>
+              <p className="text-sm text-gray-500">Quản lý đợt kêu gọi tiền cá nhân và xác nhận khoản đã nhận.</p>
+            </div>
+            <button onClick={openCreateCampaign} className="btn-primary btn-sm flex items-center gap-1">
+              <i className="fa-solid fa-plus" /> Tạo đợt
+            </button>
+          </div>
+
+          {campaigns.length === 0 ? (
+            <div className="card p-12 text-center">
+              <i className="fa-solid fa-hand-holding-heart text-4xl text-gray-300 mb-3 block" />
+              <p className="text-gray-500">Chưa có đợt kêu gọi ủng hộ nào.</p>
+              <button onClick={openCreateCampaign} className="btn-primary mt-4 inline-flex items-center gap-2">
+                <i className="fa-solid fa-plus" /> Tạo đợt đầu tiên
+              </button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+              {campaigns.map((campaign) => {
+                const confirmedAmount = Number(campaign.confirmedAmount) || 0;
+                const pendingAmount = Number(campaign.pendingAmount) || 0;
+                const targetAmount = Number(campaign.targetAmount) || 0;
+                const pctDone = targetAmount > 0 ? Math.min(100, Math.round((confirmedAmount / targetAmount) * 100)) : 0;
+                return (
+                  <div key={campaign.id} className="card p-4 space-y-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <h3 className="font-semibold text-gray-900">{campaign.title}</h3>
+                          <span className="rounded-full border border-gray-200 bg-gray-50 px-2 py-0.5 text-xs text-gray-600">{campaign.status}</span>
+                        </div>
+                        <p className="mt-1 text-sm text-gray-600">{campaign.description}</p>
+                      </div>
+                    </div>
+                    <div>
+                      <div className="mb-1 flex justify-between text-xs text-gray-500">
+                        <span>Đã xác nhận {money(confirmedAmount)}</span>
+                        <span>Mục tiêu {money(targetAmount)}</span>
+                      </div>
+                      <div className="h-2 rounded-full bg-gray-100 overflow-hidden">
+                        <div className="h-full bg-green-500" style={{ width: `${pctDone}%` }} />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 text-sm">
+                      <div className="rounded-lg bg-green-50 p-3">
+                        <p className="text-xs text-green-700">Confirmed</p>
+                        <p className="font-semibold text-green-800">{campaign.confirmedCount || 0} lượt</p>
+                      </div>
+                      <div className="rounded-lg bg-yellow-50 p-3">
+                        <p className="text-xs text-yellow-700">Pending</p>
+                        <p className="font-semibold text-yellow-800">{campaign.pendingCount || 0} lượt · {money(pendingAmount)}</p>
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <button onClick={() => openDonations(campaign)} className="btn-secondary btn-sm">
+                        <i className="fa-solid fa-list mr-1" /> Donation
+                      </button>
+                      {(campaign.status === 'Closed' || campaign.status === 'Reported') && (
+                        <button onClick={() => openFinancialReport('campaign', campaign)} className="btn-secondary btn-sm">
+                          Báo cáo
+                        </button>
+                      )}
+                      {campaign.status !== 'Open' && campaign.status !== 'Cancelled' && (
+                        <button onClick={() => changeCampaignStatus(campaign, 'open')} className="btn-primary btn-sm">Mở</button>
+                      )}
+                      {campaign.status === 'Open' && (
+                        <button onClick={() => changeCampaignStatus(campaign, 'close')} className="btn-secondary btn-sm">Đóng</button>
+                      )}
+                      {campaign.status !== 'Cancelled' && (
+                        <button onClick={() => changeCampaignStatus(campaign, 'cancel')} className="btn-danger btn-sm">Hủy</button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          <Modal isOpen={campaignModal} onClose={() => setCampaignModal(false)} title="Tạo đợt kêu gọi" size="lg">
+            <form onSubmit={submitCampaign} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Tiêu đề *</label>
+                <input value={campaignForm.title} onChange={(e) => setCampaignForm((f) => ({ ...f, title: e.target.value }))} required className="input-field" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Mô tả *</label>
+                <textarea rows={3} value={campaignForm.description} onChange={(e) => setCampaignForm((f) => ({ ...f, description: e.target.value }))} required className="input-field resize-none" />
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Mục tiêu *</label>
+                  <input type="number" min="1" value={campaignForm.targetAmount} onChange={(e) => setCampaignForm((f) => ({ ...f, targetAmount: e.target.value }))} required className="input-field" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Tối thiểu mong muốn</label>
+                  <input type="number" min="0" value={campaignForm.minimumAmount} onChange={(e) => setCampaignForm((f) => ({ ...f, minimumAmount: e.target.value }))} className="input-field" />
+                </div>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Bắt đầu *</label>
+                  <input type="datetime-local" value={campaignForm.startDate} onChange={(e) => setCampaignForm((f) => ({ ...f, startDate: e.target.value }))} required className="input-field" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Kết thúc *</label>
+                  <input type="datetime-local" value={campaignForm.endDate} onChange={(e) => setCampaignForm((f) => ({ ...f, endDate: e.target.value }))} required className="input-field" />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Thông tin nhận tiền</label>
+                <textarea rows={3} value={campaignForm.receiveInfo} onChange={(e) => setCampaignForm((f) => ({ ...f, receiveInfo: e.target.value }))} className="input-field resize-none" placeholder="Ngân hàng, số tài khoản, nội dung chuyển khoản..." />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Ghi chú minh bạch</label>
+                <textarea rows={2} value={campaignForm.transparencyNote} onChange={(e) => setCampaignForm((f) => ({ ...f, transparencyNote: e.target.value }))} className="input-field resize-none" />
+              </div>
+              <label className="flex items-center gap-2 text-sm text-gray-700">
+                <input type="checkbox" checked={campaignForm.status === 'Open'} onChange={(e) => setCampaignForm((f) => ({ ...f, status: e.target.checked ? 'Open' : 'Draft' }))} />
+                Mở nhận ủng hộ ngay sau khi tạo
+              </label>
+              <div className="flex justify-end gap-3 pt-2">
+                <button type="button" onClick={() => setCampaignModal(false)} className="btn-secondary">Hủy</button>
+                <button type="submit" disabled={campaignSaving} className="btn-primary flex items-center gap-2">
+                  {campaignSaving && <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />}
+                  Tạo đợt
+                </button>
+              </div>
+            </form>
+          </Modal>
+
+          <Modal isOpen={donationModal} onClose={() => setDonationModal(false)} title="Danh sách ủng hộ" size="xl">
+            {donationsLoading ? <LoadingSpinner /> : (
+              <div className="space-y-2">
+                {donations.length === 0 ? (
+                  <p className="text-sm text-gray-500 text-center py-8">Chưa có khoản ủng hộ nào.</p>
+                ) : donations.map((donation) => (
+                  <div key={donation.id} className="rounded-lg border border-gray-100 p-3">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div>
+                        <p className="font-medium text-gray-900">{donation.isAnonymous ? 'Ẩn danh' : donation.displayName || donation.userName} · {money(donation.amount)}</p>
+                        <p className="text-xs text-gray-500">{donation.status} · {fmt(donation.createdAt)}</p>
+                        {(donation.phone || donation.email) && <p className="text-xs text-gray-500">{donation.phone} {donation.email}</p>}
+                        {donation.note && <p className="text-sm text-gray-600 mt-1">{donation.note}</p>}
+                        {donation.proofImageUrl && <a href={donation.proofImageUrl} target="_blank" rel="noreferrer" className="text-xs text-primary-600">Xem minh chứng</a>}
+                      </div>
+                      {donation.status === 'PendingConfirmation' && (
+                        <div className="flex gap-2">
+                          <button onClick={() => updateDonationStatus(donation, 'confirm')} className="btn-primary btn-sm">Xác nhận</button>
+                          <button onClick={() => updateDonationStatus(donation, 'reject')} className="btn-danger btn-sm">Từ chối</button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Modal>
+        </div>
+      )}
+
+      {tab === 'corporate' && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <h2 className="font-semibold text-gray-900">Tài trợ doanh nghiệp</h2>
+              <p className="text-sm text-gray-500">Mời sponsor hoặc xử lý đề nghị tài trợ từ sponsor.</p>
+            </div>
+            <button onClick={openInviteSponsor} className="btn-primary btn-sm flex items-center gap-1">
+              <i className="fa-solid fa-paper-plane" /> Mời tài trợ
+            </button>
+          </div>
+
+          {proposals.length === 0 ? (
+            <div className="card p-12 text-center">
+              <i className="fa-solid fa-handshake text-4xl text-gray-300 mb-3 block" />
+              <p className="text-gray-500">Chưa có lời mời hoặc đề nghị tài trợ nào.</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {proposals.map((proposal) => (
+                <div key={proposal.id} className="card p-4">
+                  <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h3 className="font-semibold text-gray-900">{proposal.title}</h3>
+                        <span className="rounded-full border border-gray-200 bg-gray-50 px-2 py-0.5 text-xs text-gray-600">{proposal.type}</span>
+                        <span className="rounded-full border border-primary-100 bg-primary-50 px-2 py-0.5 text-xs text-primary-700">{proposal.status}</span>
+                      </div>
+                      <p className="mt-1 text-sm text-gray-600">{proposal.message}</p>
+                      <div className="mt-2 flex flex-wrap gap-3 text-xs text-gray-500">
+                        <span>Sponsor: {proposal.sponsorName}</span>
+                        <span>Số tiền: {money(proposal.amount)}</span>
+                        {proposal.purpose && <span>Mục đích: {proposal.purpose}</span>}
+                      </div>
+                      {proposal.responseMessage && <p className="mt-2 text-xs text-gray-500">Phản hồi: {proposal.responseMessage}</p>}
+                    </div>
+                    <div className="flex flex-wrap gap-2 shrink-0">
+                      {proposal.type === 'SponsorOffer' && proposal.status === 'Pending' && (
+                        <>
+                          <button onClick={() => updateProposalStatus(proposal, 'accept')} className="btn-primary btn-sm">Accept</button>
+                          <button onClick={() => updateProposalStatus(proposal, 'reject')} className="btn-danger btn-sm">Reject</button>
+                        </>
+                      )}
+                      {proposal.type === 'OrganizerRequest' && proposal.status === 'Pending' && (
+                        <button onClick={() => updateProposalStatus(proposal, 'cancel')} className="btn-secondary btn-sm">Hủy lời mời</button>
+                      )}
+                      {proposal.status === 'Accepted' && (
+                        <button onClick={() => updateProposalStatus(proposal, 'received')} className="btn-primary btn-sm">Xác nhận đã nhận</button>
+                      )}
+                      {(proposal.status === 'Received' || proposal.status === 'Reported') && (
+                        <button onClick={() => openFinancialReport('proposal', proposal)} className="btn-secondary btn-sm">Báo cáo</button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <Modal isOpen={proposalModal} onClose={() => setProposalModal(false)} title="Mời sponsor tài trợ" size="lg">
+            <form onSubmit={submitSponsorInvite} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Sponsor *</label>
+                <select value={proposalForm.sponsorId} onChange={(e) => setProposalForm((f) => ({ ...f, sponsorId: e.target.value }))} required className="input-field">
+                  <option value="">-- Chọn sponsor --</option>
+                  {sponsorUsers.map((sponsor) => (
+                    <option key={sponsor.id} value={sponsor.id}>{sponsor.name || sponsor.userName}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Tiêu đề *</label>
+                <input value={proposalForm.title} onChange={(e) => setProposalForm((f) => ({ ...f, title: e.target.value }))} required className="input-field" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Nội dung kêu gọi *</label>
+                <textarea rows={4} value={proposalForm.message} onChange={(e) => setProposalForm((f) => ({ ...f, message: e.target.value }))} required className="input-field resize-none" />
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Số tiền mong muốn *</label>
+                  <input type="number" min="1" value={proposalForm.requestedAmount} onChange={(e) => setProposalForm((f) => ({ ...f, requestedAmount: e.target.value }))} required className="input-field" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">File/ảnh đính kèm URL</label>
+                  <input value={proposalForm.attachmentUrl} onChange={(e) => setProposalForm((f) => ({ ...f, attachmentUrl: e.target.value }))} className="input-field" />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Mục đích sử dụng</label>
+                <textarea rows={2} value={proposalForm.purpose} onChange={(e) => setProposalForm((f) => ({ ...f, purpose: e.target.value }))} className="input-field resize-none" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Quyền lợi/ghi nhận sponsor</label>
+                <textarea rows={2} value={proposalForm.sponsorBenefits} onChange={(e) => setProposalForm((f) => ({ ...f, sponsorBenefits: e.target.value }))} className="input-field resize-none" />
+              </div>
+              <div className="flex justify-end gap-3 pt-2">
+                <button type="button" onClick={() => setProposalModal(false)} className="btn-secondary">Hủy</button>
+                <button type="submit" disabled={proposalSaving || sponsorUsers.length === 0} className="btn-primary flex items-center gap-2">
+                  {proposalSaving && <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />}
+                  Gửi lời mời
+                </button>
+              </div>
+            </form>
+          </Modal>
+        </div>
+      )}
+
       {tab === 'milestones' && (
         <div className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -655,8 +1183,8 @@ export default function ManageEvent() {
               </button>
             </div>
           ) : (
-            <div className="card overflow-hidden">
-              <table className="w-full text-sm">
+            <div className="card overflow-x-auto">
+              <table className="min-w-[620px] w-full text-sm">
                 <thead>
                   <tr className="table-header">
                     <th className="text-left px-4 py-3">Mốc tiến độ</th>
@@ -830,6 +1358,44 @@ export default function ManageEvent() {
           )}
         </div>
       )}
+
+      <Modal isOpen={financialReportModal} onClose={() => setFinancialReportModal(false)} title="Báo cáo sử dụng tiền" size="lg">
+        <form onSubmit={submitFinancialReport} className="space-y-4">
+          {financialReportTarget && (
+            <div className="rounded-lg border border-gray-100 bg-gray-50 p-3">
+              <p className="text-sm font-medium text-gray-900">{financialReportTarget.title}</p>
+              <p className="text-xs text-gray-500 mt-1">
+                {financialReportType === 'campaign'
+                  ? `Đã xác nhận: ${money(financialReportTarget.confirmedAmount || 0)}`
+                  : `Đã nhận: ${money(financialReportTarget.amount || 0)}`}
+              </p>
+            </div>
+          )}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Số tiền đã sử dụng *</label>
+            <input type="number" min="0" value={financialReportForm.usedAmount} onChange={(e) => setFinancialReportForm((f) => ({ ...f, usedAmount: e.target.value }))} required className="input-field" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Tóm tắt báo cáo *</label>
+            <textarea rows={3} value={financialReportForm.summary} onChange={(e) => setFinancialReportForm((f) => ({ ...f, summary: e.target.value }))} required className="input-field resize-none" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Chi tiết chi phí</label>
+            <textarea rows={4} value={financialReportForm.expenseDetails} onChange={(e) => setFinancialReportForm((f) => ({ ...f, expenseDetails: e.target.value }))} className="input-field resize-none" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Minh chứng/đính kèm URL</label>
+            <input value={financialReportForm.attachmentUrl} onChange={(e) => setFinancialReportForm((f) => ({ ...f, attachmentUrl: e.target.value }))} className="input-field" />
+          </div>
+          <div className="flex justify-end gap-3 pt-2">
+            <button type="button" onClick={() => setFinancialReportModal(false)} className="btn-secondary">Hủy</button>
+            <button type="submit" disabled={financialReportSaving} className="btn-primary flex items-center gap-2">
+              {financialReportSaving && <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />}
+              Lưu báo cáo
+            </button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 }

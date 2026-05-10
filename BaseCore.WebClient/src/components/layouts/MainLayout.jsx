@@ -7,6 +7,7 @@ const NAV = {
     { to: '/dashboard', icon: 'fa-gauge', label: 'Tổng quan' },
     { to: '/events', icon: 'fa-calendar-days', label: 'Sự kiện' },
     { to: '/my-registrations', icon: 'fa-clipboard-list', label: 'Đăng ký của tôi' },
+    { to: '/my-donations', icon: 'fa-hand-holding-heart', label: 'Ủng hộ của tôi' },
     { to: '/profile', icon: 'fa-user', label: 'Hồ sơ' },
     { to: '/profile/passport', icon: 'fa-id-card', label: 'Hộ chiếu tình nguyện' },
     { to: '/my-badges', icon: 'fa-medal', label: 'Huy hiệu' },
