@@ -238,6 +238,9 @@ export default function EventDetail() {
   const canRegister = isAuthenticated && isVolunteer() && event.status === 'Approved' && !activeRegistration;
   const canWithdraw = activeRegistration?.status === 'Pending';
   const selectedShift = shifts.find((s) => String(s.id) === String(selectedShiftId));
+  const financialItems = impact ? [...(impact.supportCampaigns || []), ...(impact.receivedSponsorships || [])] : [];
+  const financialReports = financialItems.filter((x) => x.reportSummary);
+  const hasFinancialActivity = impact && (Number(impact.financialConfirmedAmount) || 0) > 0;
 
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
@@ -326,6 +329,49 @@ export default function EventDetail() {
               ) : (
                 <p className="mt-4 text-sm text-gray-500">Sự kiện chưa ghi nhận khoản ủng hộ hoặc tài trợ nào.</p>
               )}
+            </div>
+          )}
+
+          {event.status !== 'Completed' && hasFinancialActivity && (
+            <div className="card p-5">
+              <h3 className="font-semibold text-gray-900 mb-3">Minh bạch tài chính</h3>
+              <div className="rounded-lg border border-green-100 bg-green-50 p-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div>
+                    <p className="text-xs text-green-700">Ủng hộ cá nhân đã xác nhận</p>
+                    <p className="font-bold text-green-900">{money(impact.donationConfirmedAmount)}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-green-700">Tài trợ doanh nghiệp đã nhận</p>
+                    <p className="font-bold text-green-900">{money(impact.sponsorshipReceivedAmount)}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-green-700">Tổng tài chính ghi nhận</p>
+                    <p className="font-bold text-green-900">{money(impact.financialConfirmedAmount)}</p>
+                  </div>
+                </div>
+                {financialReports.length > 0 ? (
+                  <div className="mt-3 space-y-2">
+                    {financialReports.map((x) => (
+                      <div key={`${x.id}-${x.title}`} className="rounded-lg bg-white/70 px-3 py-2 text-sm">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="font-medium text-gray-900">{x.title}</p>
+                          {x.status && (
+                            <span className="rounded-full border border-green-100 bg-green-50 px-2 py-0.5 text-xs text-green-700">
+                              {x.status}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-gray-600 mt-1">{x.reportSummary}</p>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="mt-3 text-sm text-green-800">
+                    Đã ghi nhận khoản ủng hộ/tài trợ. Báo cáo sử dụng tiền sẽ được cập nhật khi ban tổ chức hoàn tất đối soát.
+                  </p>
+                )}
+              </div>
             </div>
           )}
 
