@@ -286,6 +286,7 @@ export const organizerVerificationApi = {
 
 export const dashboardApi = {
   get: () => api.get('/dashboard'),
+  getOrganizerInsights: (params = {}) => api.get('/dashboard/organizer-insights', { params }),
 };
 
 export const adminApi = {

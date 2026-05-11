@@ -1,4 +1,4 @@
-import React, { lazy, Suspense, useCallback, useEffect, useState } from 'react';
+import React, { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { eventApi, eventCategoryApi, organizerVerificationApi, skillApi } from '../../services/api';
 import ImageUploadField from '../../components/ui/ImageUploadField';
@@ -21,16 +21,59 @@ const INIT = {
   requiredSkillIds: '[]',
 };
 
+const STEPS = [
+  { id: 'basic', title: 'Thông tin cơ bản', icon: 'fa-regular fa-pen-to-square' },
+  { id: 'location', title: 'Địa điểm', icon: 'fa-solid fa-location-dot' },
+  { id: 'time', title: 'Thời gian & số lượng', icon: 'fa-regular fa-clock' },
+  { id: 'conditions', title: 'Điều kiện tham gia', icon: 'fa-solid fa-shield-heart' },
+  { id: 'images', title: 'Ảnh', icon: 'fa-regular fa-image' },
+  { id: 'preview', title: 'Xem trước & gửi duyệt', icon: 'fa-regular fa-eye' },
+];
+
+function Notice({ type = 'info', children }) {
+  const styles = {
+    info: 'border-blue-100 bg-blue-50 text-blue-700',
+    warn: 'border-amber-200 bg-amber-50 text-amber-800',
+    error: 'border-red-200 bg-red-50 text-red-700',
+    success: 'border-emerald-200 bg-emerald-50 text-emerald-700',
+  };
+
+  const icons = {
+    info: 'fa-solid fa-circle-info',
+    warn: 'fa-solid fa-triangle-exclamation',
+    error: 'fa-solid fa-circle-exclamation',
+    success: 'fa-solid fa-circle-check',
+  };
+
+  return (
+    <div className={`rounded-xl border px-3 py-2 text-sm ${styles[type]}`}>
+      <i className={`${icons[type]} mr-2`} />
+      {children}
+    </div>
+  );
+}
+
+function FieldHint({ children }) {
+  return <p className="mt-1 text-xs leading-5 text-gray-500">{children}</p>;
+}
+
+function CharacterCount({ value, max }) {
+  return <span className="text-xs text-gray-400">{String(value || '').length}/{max}</span>;
+}
+
 export default function EventForm() {
   const { id } = useParams();
   const navigate = useNavigate();
   const isEdit = !!id;
+  const draftKey = isEdit ? `event-draft-${id}` : 'event-draft-new';
+
   const [form, setForm] = useState(INIT);
   const [categories, setCategories] = useState([]);
   const [skills, setSkills] = useState([]);
   const [loading, setLoading] = useState(isEdit);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [stepError, setStepError] = useState('');
   const [locating, setLocating] = useState(false);
   const [locationNote, setLocationNote] = useState('');
   const [addressSearching, setAddressSearching] = useState(false);
@@ -39,16 +82,96 @@ export default function EventForm() {
   const [reverseGeocoding, setReverseGeocoding] = useState(false);
   const [verification, setVerification] = useState(null);
   const [checkingVerification, setCheckingVerification] = useState(!isEdit);
+  const [currentStep, setCurrentStep] = useState(0);
+  const [draftSaved, setDraftSaved] = useState(false);
 
-  const selectedSkillIds = (() => {
+  const selectedSkillIds = useMemo(() => {
     try {
-      return JSON.parse(form.requiredSkillIds || '[]');
+      const value = JSON.parse(form.requiredSkillIds || '[]');
+      return Array.isArray(value) ? value : [];
     } catch {
       return [];
     }
-  })();
+  }, [form.requiredSkillIds]);
 
-  const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
+  const selectedSkills = useMemo(
+    () => skills.filter((skill) => selectedSkillIds.includes(skill.id)),
+    [skills, selectedSkillIds]
+  );
+
+  const selectedCategory = useMemo(
+    () => categories.find((category) => String(category.id) === String(form.categoryId)),
+    [categories, form.categoryId]
+  );
+
+  const numericMin = parseInt(form.minParticipants, 10);
+  const numericMax = parseInt(form.maxParticipants, 10);
+  const minMaxInvalid = Number.isInteger(numericMin) && Number.isInteger(numericMax) && numericMin > numericMax;
+  const dateInvalid = form.startDate && form.endDate && new Date(form.endDate) <= new Date(form.startDate);
+
+  const set = (key, value) => {
+    setForm((previous) => ({ ...previous, [key]: value }));
+    setDraftSaved(false);
+  };
+
+  const validateAll = useCallback(() => {
+    const latitude = form.latitude ? parseFloat(form.latitude) : null;
+    const longitude = form.longitude ? parseFloat(form.longitude) : null;
+    const minParticipants = parseInt(form.minParticipants, 10);
+    const maxParticipants = parseInt(form.maxParticipants, 10);
+
+    if (!form.title.trim()) return 'Vui lòng nhập tên sự kiện.';
+    if (!form.categoryId) return 'Vui lòng chọn danh mục sự kiện.';
+    if (!form.startDate || !form.endDate) return 'Vui lòng nhập đầy đủ thời gian bắt đầu và kết thúc.';
+    if (new Date(form.endDate) <= new Date(form.startDate)) return 'Thời gian kết thúc phải sau thời gian bắt đầu.';
+    if (!form.location.trim()) return 'Vui lòng nhập địa điểm sự kiện.';
+    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+      return 'Vui lòng chọn vị trí trên bản đồ hoặc nhập đầy đủ latitude/longitude.';
+    }
+    if (latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) {
+      return 'Tọa độ không hợp lệ. Latitude phải từ -90 đến 90, longitude phải từ -180 đến 180.';
+    }
+    if (!Number.isInteger(minParticipants) || minParticipants < 1) {
+      return 'Số tình nguyện viên tối thiểu phải từ 1 trở lên.';
+    }
+    if (!Number.isInteger(maxParticipants) || maxParticipants < 1) {
+      return 'Số tình nguyện viên tối đa phải từ 1 trở lên.';
+    }
+    if (minParticipants > maxParticipants) {
+      return 'Số tối thiểu không được lớn hơn số tối đa.';
+    }
+
+    return '';
+  }, [form]);
+
+  const validateCurrentStep = useCallback((stepIndex = currentStep) => {
+    if (stepIndex === 0) {
+      if (!form.title.trim()) return 'Vui lòng nhập tên sự kiện trước khi tiếp tục.';
+      if (!form.categoryId) return 'Vui lòng chọn danh mục sự kiện.';
+    }
+
+    if (stepIndex === 1) {
+      const latitude = form.latitude ? parseFloat(form.latitude) : null;
+      const longitude = form.longitude ? parseFloat(form.longitude) : null;
+      if (!form.location.trim()) return 'Vui lòng nhập địa điểm sự kiện.';
+      if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+        return 'Vui lòng chọn vị trí trên bản đồ hoặc nhập tọa độ.';
+      }
+    }
+
+    if (stepIndex === 2) {
+      const minParticipants = parseInt(form.minParticipants, 10);
+      const maxParticipants = parseInt(form.maxParticipants, 10);
+      if (!form.startDate || !form.endDate) return 'Vui lòng nhập đầy đủ thời gian bắt đầu và kết thúc.';
+      if (new Date(form.endDate) <= new Date(form.startDate)) return 'Thời gian kết thúc phải sau thời gian bắt đầu.';
+      if (!Number.isInteger(minParticipants) || minParticipants < 1) return 'Số tối thiểu phải từ 1 trở lên.';
+      if (!Number.isInteger(maxParticipants) || maxParticipants < 1) return 'Số tối đa phải từ 1 trở lên.';
+      if (minParticipants > maxParticipants) return 'Số tối thiểu không được lớn hơn số tối đa.';
+    }
+
+    return '';
+  }, [currentStep, form]);
+
   const reverseGeocode = useCallback(async (latitude, longitude) => {
     const lat = Number(latitude);
     const lng = Number(longitude);
@@ -67,7 +190,7 @@ export default function EventForm() {
       if (!response.ok) throw new Error('reverse failed');
       const result = await response.json();
       const label = result?.display_name || `${Number(lat).toFixed(6)}, ${Number(lng).toFixed(6)}`;
-      setForm((f) => ({ ...f, location: label }));
+      setForm((previous) => ({ ...previous, location: label }));
       setAddressSuggestions([]);
       setLocationNote('Đã cập nhật địa chỉ theo vị trí được chọn trên bản đồ.');
     } catch {
@@ -78,7 +201,8 @@ export default function EventForm() {
   }, []);
 
   const setMapLocation = useCallback(({ latitude, longitude }) => {
-    setForm((f) => ({ ...f, latitude, longitude }));
+    setForm((previous) => ({ ...previous, latitude, longitude }));
+    setDraftSaved(false);
     reverseGeocode(latitude, longitude);
   }, [reverseGeocode]);
 
@@ -87,9 +211,7 @@ export default function EventForm() {
     setAddressError('');
     setAddressSuggestions([]);
 
-    if (normalizedQuery.length < 3) {
-      return;
-    }
+    if (normalizedQuery.length < 3) return;
 
     setAddressSearching(true);
     try {
@@ -121,12 +243,13 @@ export default function EventForm() {
   }, []);
 
   const selectAddressSuggestion = (suggestion) => {
-    setForm((f) => ({
-      ...f,
+    setForm((previous) => ({
+      ...previous,
       location: suggestion.label,
       latitude: suggestion.latitude,
       longitude: suggestion.longitude,
     }));
+    setDraftSaved(false);
     setAddressSuggestions([]);
     setAddressError('');
     setLocationNote('Đã chọn địa chỉ gợi ý và cập nhật vị trí trên bản đồ.');
@@ -134,26 +257,36 @@ export default function EventForm() {
 
   const toggleSkill = (skillId) => {
     const next = selectedSkillIds.includes(skillId)
-      ? selectedSkillIds.filter((x) => x !== skillId)
+      ? selectedSkillIds.filter((value) => value !== skillId)
       : [...selectedSkillIds, skillId];
     set('requiredSkillIds', JSON.stringify(next));
   };
 
   useEffect(() => {
-    eventCategoryApi.getAll().then((r) => setCategories(r.data || [])).catch(() => {});
-    skillApi.getAll().then((r) => setSkills(r.data || [])).catch(() => {});
+    eventCategoryApi.getAll().then((response) => setCategories(response.data || [])).catch(() => {});
+    skillApi.getAll().then((response) => setSkills(response.data || [])).catch(() => {});
 
     if (!isEdit) {
+      const rawDraft = localStorage.getItem(draftKey);
+      if (rawDraft) {
+        try {
+          setForm({ ...INIT, ...JSON.parse(rawDraft) });
+          setDraftSaved(true);
+        } catch {
+          localStorage.removeItem(draftKey);
+        }
+      }
+
       organizerVerificationApi.getMine()
-        .then((r) => setVerification(r.data))
+        .then((response) => setVerification(response.data))
         .catch(() => setVerification({ status: 'Unverified', canCreateEvents: false }))
         .finally(() => setCheckingVerification(false));
     }
 
     if (isEdit) {
       eventApi.getById(id)
-        .then((r) => {
-          const ev = r.data;
+        .then((response) => {
+          const ev = response.data;
           setForm({
             title: ev.title || '',
             description: ev.description || '',
@@ -173,7 +306,7 @@ export default function EventForm() {
         .catch(() => navigate('/my-events'))
         .finally(() => setLoading(false));
     }
-  }, [id]);
+  }, [draftKey, id, isEdit, navigate]);
 
   useEffect(() => {
     const query = form.location.trim();
@@ -189,67 +322,6 @@ export default function EventForm() {
 
     return () => window.clearTimeout(timer);
   }, [form.location, searchAddress]);
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError('');
-
-    const latitude = form.latitude ? parseFloat(form.latitude) : null;
-    const longitude = form.longitude ? parseFloat(form.longitude) : null;
-
-    if (!form.location.trim()) {
-      setError('Vui lòng nhập địa điểm sự kiện.');
-      return;
-    }
-
-    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
-      setError('Vui lòng chọn vị trí trên bản đồ hoặc nhập đầy đủ latitude/longitude.');
-      return;
-    }
-
-    if (latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) {
-      setError('Tọa độ không hợp lệ. Latitude phải từ -90 đến 90, longitude phải từ -180 đến 180.');
-      return;
-    }
-
-    const minParticipants = parseInt(form.minParticipants, 10);
-    const maxParticipants = parseInt(form.maxParticipants, 10);
-    if (!Number.isInteger(minParticipants) || minParticipants < 1) {
-      setError('Số tình nguyện viên tối thiểu phải từ 1 trở lên.');
-      return;
-    }
-    if (!Number.isInteger(maxParticipants) || maxParticipants < 1) {
-      setError('Số tình nguyện viên tối đa phải từ 1 trở lên.');
-      return;
-    }
-    if (minParticipants > maxParticipants) {
-      setError('Số tối thiểu không được lớn hơn số tối đa.');
-      return;
-    }
-
-    setSaving(true);
-
-    const payload = {
-      ...form,
-      latitude,
-      longitude,
-      minParticipants,
-      maxParticipants,
-      categoryId: parseInt(form.categoryId),
-      startDate: new Date(form.startDate).toISOString(),
-      endDate: new Date(form.endDate).toISOString(),
-    };
-
-    try {
-      if (isEdit) await eventApi.update(id, payload);
-      else await eventApi.create(payload);
-      navigate('/my-events');
-    } catch (err) {
-      setError(err.response?.data?.message || 'Lưu sự kiện thất bại');
-    } finally {
-      setSaving(false);
-    }
-  };
 
   const handleUseCurrentLocation = () => {
     if (!navigator.geolocation) {
@@ -274,15 +346,91 @@ export default function EventForm() {
     );
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-16">
-        <div className="w-8 h-8 border-4 border-primary-600 border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
-  }
+  const saveDraft = () => {
+    localStorage.setItem(draftKey, JSON.stringify(form));
+    setDraftSaved(true);
+    setError('');
+    setStepError('');
+  };
 
-  if (!isEdit && checkingVerification) {
+  const goNext = () => {
+    const message = validateCurrentStep();
+    if (message) {
+      setStepError(message);
+      return;
+    }
+
+    setStepError('');
+    setError('');
+    setCurrentStep((step) => Math.min(step + 1, STEPS.length - 1));
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const goBack = () => {
+    setStepError('');
+    setCurrentStep((step) => Math.max(step - 1, 0));
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const jumpToStep = (index) => {
+    if (index <= currentStep) {
+      setStepError('');
+      setCurrentStep(index);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+
+    for (let step = 0; step < index; step += 1) {
+      const message = validateCurrentStep(step);
+      if (message) {
+        setCurrentStep(step);
+        setStepError(message);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        return;
+      }
+    }
+
+    setStepError('');
+    setCurrentStep(index);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleSubmit = async () => {
+    setError('');
+    setStepError('');
+
+    const validationMessage = validateAll();
+    if (validationMessage) {
+      setError(validationMessage);
+      return;
+    }
+
+    setSaving(true);
+
+    const payload = {
+      ...form,
+      latitude: parseFloat(form.latitude),
+      longitude: parseFloat(form.longitude),
+      minParticipants: parseInt(form.minParticipants, 10),
+      maxParticipants: parseInt(form.maxParticipants, 10),
+      categoryId: parseInt(form.categoryId, 10),
+      startDate: new Date(form.startDate).toISOString(),
+      endDate: new Date(form.endDate).toISOString(),
+    };
+
+    try {
+      if (isEdit) await eventApi.update(id, payload);
+      else await eventApi.create(payload);
+      localStorage.removeItem(draftKey);
+      navigate('/my-events');
+    } catch (err) {
+      setError(err.response?.data?.message || 'Lưu sự kiện thất bại.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading || (!isEdit && checkingVerification)) {
     return (
       <div className="flex items-center justify-center py-16">
         <div className="w-8 h-8 border-4 border-primary-600 border-t-transparent rounded-full animate-spin" />
@@ -299,16 +447,16 @@ export default function EventForm() {
     }[verification.status] || verification.status;
 
     return (
-      <div className="max-w-2xl mx-auto space-y-5">
-        <div className="card p-6 space-y-4">
-          <div className="w-12 h-12 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
+      <div className="mx-auto max-w-2xl space-y-5">
+        <div className="card space-y-4 p-6">
+          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-amber-50 text-amber-600">
             <i className="fa-solid fa-building-shield text-xl" />
           </div>
           <div>
             <h1 className="text-xl font-bold text-gray-900">Cần xác minh tổ chức trước khi tạo sự kiện</h1>
-            <p className="text-sm text-gray-500 mt-2">
+            <p className="mt-2 text-sm text-gray-500">
               Trạng thái hiện tại: <span className="font-semibold text-amber-700">{statusLabel}</span>.
-              Sau khi admin duyệt hồ sơ, bạn có thể tạo sự kiện và gửi sự kiện đó vào luồng kiểm duyệt nội dung.
+              Sau khi admin duyệt hồ sơ, bạn có thể tạo sự kiện và gửi sự kiện vào luồng kiểm duyệt nội dung.
             </p>
           </div>
           {verification.adminNote && (
@@ -317,7 +465,7 @@ export default function EventForm() {
               <p className="mt-1">{verification.adminNote}</p>
             </div>
           )}
-          <div className="flex flex-col sm:flex-row gap-2">
+          <div className="flex flex-col gap-2 sm:flex-row">
             <Link to="/organizer/verification" className="btn-primary text-center">
               Mở hồ sơ xác minh
             </Link>
@@ -330,118 +478,122 @@ export default function EventForm() {
     );
   }
 
-  return (
-    <div className="max-w-2xl mx-auto space-y-5">
-      <div className="flex items-center gap-3">
-        <button onClick={() => navigate(-1)} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500">
-          <i className="fa-solid fa-arrow-left" />
-        </button>
-        <h1 className="text-xl font-bold text-gray-900">{isEdit ? 'Chỉnh sửa sự kiện' : 'Tạo sự kiện mới'}</h1>
-      </div>
-
-      {error && (
-        <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700 flex items-center gap-2">
-          <i className="fa-solid fa-circle-exclamation flex-shrink-0" /> {error}
-        </div>
-      )}
-
-      <form onSubmit={handleSubmit} className="space-y-5">
-        <div className="card p-5 space-y-4">
-          <h2 className="font-semibold text-gray-900 text-sm">Thông tin cơ bản</h2>
+  const renderStep = () => {
+    if (currentStep === 0) {
+      return (
+        <section className="space-y-5">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Tên sự kiện *</label>
-            <input type="text" value={form.title} onInput={(e) => set('title', e.target.value)} onChange={(e) => set('title', e.target.value)} required className="input-field" placeholder="VD: Ngày hội trồng cây xanh 2025" />
+            <h2 className="text-lg font-semibold text-gray-900">Thông tin cơ bản</h2>
+            <p className="mt-1 text-sm text-gray-500">Đặt tên ngắn gọn, mô tả rõ mục tiêu và chọn danh mục để volunteer dễ tìm thấy sự kiện.</p>
           </div>
+
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Mô tả</label>
-            <textarea rows={4} value={form.description} onInput={(e) => set('description', e.target.value)} onChange={(e) => set('description', e.target.value)} className="input-field resize-none" placeholder="Mô tả chi tiết về sự kiện..." />
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Danh mục *</label>
-              <select value={form.categoryId} onInput={(e) => set('categoryId', e.target.value)} onChange={(e) => set('categoryId', e.target.value)} required className="input-field">
-                <option value="">-- Chọn danh mục --</option>
-                {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-              </select>
+            <div className="mb-1 flex items-center justify-between gap-3">
+              <label className="block text-sm font-medium text-gray-700">Tên sự kiện *</label>
+              <CharacterCount value={form.title} max={80} />
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Số lượng tối đa *</label>
-              <input type="number" min={1} value={form.maxParticipants} onInput={(e) => set('maxParticipants', e.target.value)} onChange={(e) => set('maxParticipants', e.target.value)} required className="input-field" />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Số lượng tối thiểu *</label>
-              <input type="number" min={1} value={form.minParticipants} onInput={(e) => set('minParticipants', e.target.value)} onChange={(e) => set('minParticipants', e.target.value)} required className="input-field" />
-            </div>
-          </div>
-          <ImageUploadField
-            label="Ảnh bìa"
-            value={form.imageUrl}
-            onChange={(url) => set('imageUrl', url)}
-            helper="Upload ảnh từ máy để hiển thị trên trang danh sách và chi tiết sự kiện."
-          />
-          <label className="flex items-start gap-3 rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm text-gray-700">
             <input
-              type="checkbox"
-              className="mt-1"
-              checked={form.requiresKyc}
-              onChange={(e) => set('requiresKyc', e.target.checked)}
+              type="text"
+              value={form.title}
+              onInput={(event) => set('title', event.target.value)}
+              onChange={(event) => set('title', event.target.value)}
+              className="input-field"
+              maxLength={80}
+              placeholder="VD: Ngày hội trồng cây xanh 2026"
             />
-            <span>
-              Yêu cầu tình nguyện viên đã xác thực KYC mới được đăng ký sự kiện này.
-            </span>
-          </label>
-        </div>
-
-        <div className="card p-5 space-y-4">
-          <h2 className="font-semibold text-gray-900 text-sm">Thời gian & địa điểm</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Bắt đầu *</label>
-              <input type="datetime-local" value={form.startDate} onInput={(e) => set('startDate', e.target.value)} onChange={(e) => set('startDate', e.target.value)} required className="input-field" />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Kết thúc *</label>
-              <input type="datetime-local" value={form.endDate} onInput={(e) => set('endDate', e.target.value)} onChange={(e) => set('endDate', e.target.value)} required className="input-field" />
-            </div>
           </div>
+
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Địa điểm *</label>
+            <div className="mb-1 flex items-center justify-between gap-3">
+              <label className="block text-sm font-medium text-gray-700">Mô tả</label>
+              <CharacterCount value={form.description} max={1600} />
+            </div>
+            <textarea
+              rows={6}
+              value={form.description}
+              onInput={(event) => set('description', event.target.value)}
+              onChange={(event) => set('description', event.target.value)}
+              className="input-field resize-none"
+              maxLength={1600}
+              placeholder="Mô tả hoạt động, nhiệm vụ của volunteer và tác động xã hội kỳ vọng..."
+            />
+          </div>
+
+          <div>
+            <label className="mb-1 block text-sm font-medium text-gray-700">Danh mục *</label>
+            <select value={form.categoryId} onInput={(event) => set('categoryId', event.target.value)} onChange={(event) => set('categoryId', event.target.value)} className="input-field">
+              <option value="">-- Chọn danh mục --</option>
+              {categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
+            </select>
+          </div>
+
+          {skills.length > 0 && (
+            <div>
+              <div className="mb-3">
+                <label className="block text-sm font-medium text-gray-700">Kỹ năng cần có</label>
+                <FieldHint>Chọn kỹ năng để hệ thống gợi ý sự kiện phù hợp hơn cho volunteer.</FieldHint>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {skills.map((skill) => {
+                  const checked = selectedSkillIds.includes(skill.id);
+                  return (
+                    <button
+                      key={skill.id}
+                      type="button"
+                      onClick={() => toggleSkill(skill.id)}
+                      className={`rounded-full px-3 py-1.5 text-sm font-semibold transition ${
+                        checked ? 'bg-primary-600 text-white shadow-sm' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                      }`}
+                    >
+                      {checked && <i className="fa-solid fa-check mr-1 text-[10px]" />}
+                      {skill.name}
+                      {skill.category && <span className="ml-1 opacity-70">· {skill.category}</span>}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </section>
+      );
+    }
+
+    if (currentStep === 1) {
+      return (
+        <section className="space-y-5">
+          <div>
+            <h2 className="text-lg font-semibold text-gray-900">Địa điểm</h2>
+            <p className="mt-1 text-sm text-gray-500">Nhập địa chỉ để lấy gợi ý tự động, hoặc chọn trực tiếp trên bản đồ.</p>
+          </div>
+
+          <div>
+            <label className="mb-1 block text-sm font-medium text-gray-700">Địa điểm *</label>
             <div className="relative">
               <input
                 type="text"
                 value={form.location}
-                onInput={(e) => {
-                  set('location', e.target.value);
+                onInput={(event) => {
+                  set('location', event.target.value);
                   setAddressError('');
                 }}
-                onChange={(e) => {
-                  set('location', e.target.value);
+                onChange={(event) => {
+                  set('location', event.target.value);
                   setAddressError('');
                 }}
-                required
                 className="input-field pr-10"
-                placeholder="Số nhà, đường, quận, thành phố..."
+                placeholder="Số nhà, đường, phường/xã, quận/huyện, thành phố..."
               />
               <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-gray-400">
                 {addressSearching || reverseGeocoding ? (
-                  <div className="w-4 h-4 border-2 border-primary-600 border-t-transparent rounded-full animate-spin" />
+                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary-600 border-t-transparent" />
                 ) : (
                   <i className="fa-solid fa-location-dot" />
                 )}
               </div>
             </div>
-            {reverseGeocoding && (
-              <p className="mt-2 text-xs text-gray-500">
-                <i className="fa-solid fa-location-crosshairs mr-1" /> Đang cập nhật địa chỉ theo vị trí trên bản đồ...
-              </p>
-            )}
-            {addressError && (
-              <p className="mt-2 text-xs text-amber-700">
-                <i className="fa-solid fa-circle-info mr-1" /> {addressError}
-              </p>
-            )}
+
             {addressSuggestions.length > 0 && (
-              <div className="mt-2 overflow-hidden rounded-lg border border-gray-100 bg-white">
+              <div className="mt-2 max-h-64 overflow-auto rounded-xl border border-gray-100 bg-white shadow-sm">
                 {addressSuggestions.map((suggestion) => (
                   <button
                     key={suggestion.id}
@@ -455,116 +607,310 @@ export default function EventForm() {
                 ))}
               </div>
             )}
+
+            {reverseGeocoding && <FieldHint>Đang cập nhật địa chỉ theo vị trí trên bản đồ...</FieldHint>}
+            {addressError && <div className="mt-2"><Notice type="warn">{addressError}</Notice></div>}
           </div>
-          <div className="space-y-2">
+
+          <div className="space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <label className="block text-sm font-medium text-gray-700">Chọn vị trí trên bản đồ *</label>
-              <button
-                type="button"
-                onClick={handleUseCurrentLocation}
-                disabled={locating}
-                className="btn-secondary btn-sm flex items-center gap-2"
-              >
+              <button type="button" onClick={handleUseCurrentLocation} disabled={locating} className="btn-secondary btn-sm flex items-center gap-2">
                 <i className={`fa-solid fa-location-crosshairs ${locating ? 'fa-spin' : ''}`} />
                 {locating ? 'Đang định vị...' : 'Lấy vị trí hiện tại'}
               </button>
             </div>
-            <Suspense fallback={<div className="h-72 rounded-xl bg-gray-100 animate-pulse" />}>
-              <LocationPickerMap
-                latitude={form.latitude}
-                longitude={form.longitude}
-                onChange={setMapLocation}
-                height={300}
-              />
+            <Suspense fallback={<div className="h-80 rounded-xl bg-gray-100 animate-pulse" />}>
+              <LocationPickerMap latitude={form.latitude} longitude={form.longitude} onChange={setMapLocation} height={340} />
             </Suspense>
-            <p className="text-xs text-gray-400">
-              Click trên bản đồ hoặc kéo marker để cập nhật tọa độ. Tọa độ là bắt buộc để sự kiện xuất hiện trên bản đồ công khai và bộ lọc gần tôi.
-            </p>
+            <FieldHint>Click trên bản đồ hoặc kéo marker để cập nhật tọa độ. Nếu reverse geocode khả dụng, địa chỉ sẽ đổi theo vị trí vừa chọn.</FieldHint>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Vĩ độ (Latitude)
-                <span className="ml-1 text-xs font-normal text-gray-400">- dùng cho bản đồ</span>
-              </label>
-              <input type="number" step="any" value={form.latitude} onInput={(e) => set('latitude', e.target.value)} onChange={(e) => set('latitude', e.target.value)} required className="input-field" placeholder="10.7769" />
+              <label className="mb-1 block text-sm font-medium text-gray-700">Vĩ độ (Latitude)</label>
+              <input type="number" step="any" value={form.latitude} onInput={(event) => set('latitude', event.target.value)} onChange={(event) => set('latitude', event.target.value)} className="input-field" placeholder="10.7769" />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Kinh độ (Longitude)</label>
-              <input type="number" step="any" value={form.longitude} onInput={(e) => set('longitude', e.target.value)} onChange={(e) => set('longitude', e.target.value)} required className="input-field" placeholder="106.7009" />
+              <label className="mb-1 block text-sm font-medium text-gray-700">Kinh độ (Longitude)</label>
+              <input type="number" step="any" value={form.longitude} onInput={(event) => set('longitude', event.target.value)} onChange={(event) => set('longitude', event.target.value)} className="input-field" placeholder="106.7009" />
             </div>
           </div>
-          <p className="text-xs text-gray-400">
-            <i className="fa-solid fa-circle-info mr-1" />
-            Tọa độ giúp sự kiện hiển thị trên bản đồ tình nguyện. Tra cứu tại{' '}
-            <a href="https://maps.google.com" target="_blank" rel="noreferrer" style={{ color: '#1b61c9' }}>Google Maps</a>.
-          </p>
-          {!form.latitude || !form.longitude ? (
-            <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
-              <i className="fa-solid fa-triangle-exclamation mr-1" />
-              Vui lòng chọn tọa độ trước khi lưu sự kiện.
+
+          {!form.latitude || !form.longitude ? <Notice type="error">Vui lòng chọn tọa độ trước khi lưu sự kiện.</Notice> : null}
+          {locationNote && <Notice type="info">{locationNote}</Notice>}
+        </section>
+      );
+    }
+
+    if (currentStep === 2) {
+      return (
+        <section className="space-y-5">
+          <div>
+            <h2 className="text-lg font-semibold text-gray-900">Thời gian & số lượng</h2>
+            <p className="mt-1 text-sm text-gray-500">Thiết lập thời lượng sự kiện và ngưỡng số người để organizer biết khi nào cần cảnh báo.</p>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700">Bắt đầu *</label>
+              <input type="datetime-local" value={form.startDate} onInput={(event) => set('startDate', event.target.value)} onChange={(event) => set('startDate', event.target.value)} className="input-field" />
             </div>
-          ) : null}
-          {locationNote && (
-            <div className="rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-xs text-blue-700">
-              <i className="fa-solid fa-circle-info mr-1" />
-              {locationNote}
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700">Kết thúc *</label>
+              <input type="datetime-local" value={form.endDate} onInput={(event) => set('endDate', event.target.value)} onChange={(event) => set('endDate', event.target.value)} className="input-field" />
             </div>
+          </div>
+          {dateInvalid && <Notice type="error">Thời gian kết thúc phải sau thời gian bắt đầu.</Notice>}
+
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700">Số lượng tối thiểu *</label>
+              <input type="number" min={1} value={form.minParticipants} onInput={(event) => set('minParticipants', event.target.value)} onChange={(event) => set('minParticipants', event.target.value)} className="input-field" />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700">Số lượng tối đa *</label>
+              <input type="number" min={1} value={form.maxParticipants} onInput={(event) => set('maxParticipants', event.target.value)} onChange={(event) => set('maxParticipants', event.target.value)} className="input-field" />
+            </div>
+          </div>
+
+          {minMaxInvalid ? (
+            <Notice type="error">Số tối thiểu không được lớn hơn số tối đa.</Notice>
+          ) : (
+            <Notice type="warn">Nếu chưa đủ số người tối thiểu, sự kiện vẫn có thể bắt đầu nhưng hệ thống sẽ cảnh báo organizer trên màn quản lý.</Notice>
           )}
+        </section>
+      );
+    }
+
+    if (currentStep === 3) {
+      return (
+        <section className="space-y-5">
+          <div>
+            <h2 className="text-lg font-semibold text-gray-900">Điều kiện tham gia</h2>
+            <p className="mt-1 text-sm text-gray-500">Đặt điều kiện rõ ràng để volunteer biết mình có đủ điều kiện đăng ký hay không.</p>
+          </div>
+
+          <label className={`flex items-start gap-3 rounded-xl border p-4 text-sm ${form.requiresKyc ? 'border-primary-200 bg-primary-50 text-primary-800' : 'border-gray-200 bg-gray-50 text-gray-700'}`}>
+            <input type="checkbox" className="mt-1" checked={form.requiresKyc} onChange={(event) => set('requiresKyc', event.target.checked)} />
+            <span>
+              <span className="block font-semibold">Yêu cầu volunteer đã xác thực KYC</span>
+              <span className="mt-1 block leading-5">Khi bật lựa chọn này, volunteer chưa KYC verified sẽ bị chặn khi đăng ký sự kiện.</span>
+            </span>
+          </label>
+
+          {form.requiresKyc && <Notice type="warn">Volunteer chưa xác thực KYC sẽ thấy thông báo yêu cầu hoàn tất xác minh trước khi đăng ký.</Notice>}
+
+          <div className="rounded-xl border border-gray-200 bg-white p-4">
+            <h3 className="text-sm font-semibold text-gray-900">Kỹ năng đang yêu cầu</h3>
+            {selectedSkills.length > 0 ? (
+              <div className="mt-3 flex flex-wrap gap-2">
+                {selectedSkills.map((skill) => (
+                  <span key={skill.id} className="rounded-full bg-primary-50 px-3 py-1 text-sm font-medium text-primary-700">{skill.name}</span>
+                ))}
+              </div>
+            ) : (
+              <p className="mt-2 text-sm text-gray-500">Chưa chọn kỹ năng bắt buộc. Volunteer vẫn có thể đăng ký nếu đáp ứng các điều kiện khác.</p>
+            )}
+            <button type="button" onClick={() => jumpToStep(0)} className="mt-3 text-sm font-semibold text-primary-700 hover:text-primary-800">
+              Chỉnh kỹ năng ở bước thông tin cơ bản
+            </button>
+          </div>
+        </section>
+      );
+    }
+
+    if (currentStep === 4) {
+      return (
+        <section className="space-y-5">
+          <div>
+            <h2 className="text-lg font-semibold text-gray-900">Ảnh sự kiện</h2>
+            <p className="mt-1 text-sm text-gray-500">Ảnh thật giúp volunteer hình dung hoạt động tốt hơn.</p>
+          </div>
+
+          <Notice type="info">Nên dùng ảnh thật của hoạt động hoặc địa điểm. Tránh ảnh logo, poster nhiều chữ hoặc ảnh quá tối.</Notice>
+
+          <ImageUploadField
+            label="Ảnh bìa"
+            value={form.imageUrl}
+            onChange={(url) => set('imageUrl', url)}
+            helper="Upload ảnh từ máy để hiển thị trên trang danh sách và chi tiết sự kiện."
+            variant="card"
+          />
+        </section>
+      );
+    }
+
+    return (
+      <section className="space-y-5">
+        <div>
+          <h2 className="text-lg font-semibold text-gray-900">Xem trước & gửi duyệt</h2>
+          <p className="mt-1 text-sm text-gray-500">Kiểm tra lại thông tin như volunteer sẽ đọc trước khi gửi admin duyệt.</p>
         </div>
 
-        {skills.length > 0 && (
-          <div className="card p-5 space-y-3">
-            <div>
-              <h2 className="font-semibold text-gray-900 text-sm">Kỹ năng yêu cầu</h2>
-              <p className="text-xs text-gray-400 mt-0.5">Chọn các kỹ năng tình nguyện viên cần có để hệ thống gợi ý sự kiện phù hợp.</p>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {skills.map((s) => {
-                const checked = selectedSkillIds.includes(s.id);
-                return (
-                  <button key={s.id} type="button" onClick={() => toggleSkill(s.id)}
-                    style={{
-                      padding: '6px 14px',
-                      borderRadius: 20,
-                      border: 'none',
-                      fontSize: 13,
-                      fontWeight: 600,
-                      cursor: 'pointer',
-                      transition: 'all 0.13s',
-                      background: checked ? '#1b61c9' : 'rgba(4,14,32,0.06)',
-                      color: checked ? '#fff' : 'rgba(4,14,32,0.60)',
-                      boxShadow: checked ? '0 2px 8px rgba(27,97,201,0.25)' : 'none',
-                    }}>
-                    {checked && <i className="fa-solid fa-check mr-1.5" style={{ fontSize: 10 }} />}
-                    {s.name}
-                    {s.category && <span style={{ opacity: 0.65, marginLeft: 4, fontSize: 11 }}>· {s.category}</span>}
-                  </button>
-                );
-              })}
-            </div>
-            {selectedSkillIds.length > 0 && (
-              <p className="text-xs" style={{ color: '#1b61c9' }}>
-                Đã chọn {selectedSkillIds.length} kỹ năng - hệ thống sẽ gợi ý sự kiện này cho tình nguyện viên có kỹ năng phù hợp.
-              </p>
+        <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+          <div className="aspect-[16/7] bg-gray-100">
+            {form.imageUrl ? (
+              <img src={form.imageUrl} alt="" className="h-full w-full object-cover" />
+            ) : (
+              <div className="flex h-full items-center justify-center text-gray-400">
+                <i className="fa-regular fa-image mr-2" /> Chưa có ảnh bìa
+              </div>
             )}
           </div>
-        )}
+          <div className="space-y-5 p-5">
+            <div>
+              <div className="flex flex-wrap items-center gap-2">
+                {selectedCategory && <span className="badge bg-blue-50 text-blue-700">{selectedCategory.name}</span>}
+                {form.requiresKyc && <span className="badge bg-amber-50 text-amber-700">Yêu cầu KYC</span>}
+              </div>
+              <h3 className="mt-3 text-2xl font-bold text-gray-950">{form.title || 'Tên sự kiện'}</h3>
+              <p className="mt-2 whitespace-pre-line text-sm leading-6 text-gray-600">{form.description || 'Mô tả sự kiện sẽ hiển thị tại đây.'}</p>
+            </div>
 
-        <div className="flex gap-3 justify-end">
-          <button type="button" onClick={() => navigate(-1)} className="btn-secondary">Hủy</button>
-          <button type="submit" disabled={saving} className="btn-primary flex items-center gap-2">
-            {saving && <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />}
-            <i className="fa-solid fa-floppy-disk" /> {isEdit ? 'Lưu thay đổi' : 'Tạo sự kiện'}
-          </button>
+            <div className="grid grid-cols-1 gap-3 text-sm text-gray-700 sm:grid-cols-2">
+              <div className="rounded-xl bg-gray-50 p-3">
+                <i className="fa-regular fa-calendar mr-2 text-primary-600" />
+                {form.startDate ? new Date(form.startDate).toLocaleString('vi-VN') : 'Chưa có thời gian bắt đầu'}
+              </div>
+              <div className="rounded-xl bg-gray-50 p-3">
+                <i className="fa-solid fa-users mr-2 text-primary-600" />
+                {form.minParticipants || 1} - {form.maxParticipants || 50} volunteer
+              </div>
+              <div className="rounded-xl bg-gray-50 p-3 sm:col-span-2">
+                <i className="fa-solid fa-location-dot mr-2 text-primary-600" />
+                {form.location || 'Chưa có địa điểm'}
+              </div>
+            </div>
+
+            {selectedSkills.length > 0 && (
+              <div>
+                <h4 className="text-sm font-semibold text-gray-900">Kỹ năng cần có</h4>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {selectedSkills.map((skill) => <span key={skill.id} className="rounded-full bg-gray-100 px-3 py-1 text-sm text-gray-600">{skill.name}</span>)}
+                </div>
+              </div>
+            )}
+
+            <div className="grid grid-cols-2 gap-2 border-t border-gray-100 pt-4 sm:grid-cols-3">
+              {STEPS.slice(0, 5).map((step, index) => (
+                <button key={step.id} type="button" onClick={() => jumpToStep(index)} className="rounded-lg border border-gray-200 px-3 py-2 text-sm font-semibold text-gray-600 hover:border-primary-200 hover:bg-primary-50 hover:text-primary-700">
+                  <i className="fa-solid fa-pen mr-1.5" /> Sửa {step.title.toLowerCase()}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
-      </form>
 
-      {!isEdit && (
-        <p className="text-xs text-center text-gray-400">
-          <i className="fa-solid fa-info-circle mr-1" /> Sự kiện sẽ ở trạng thái <strong>Chờ duyệt</strong> cho đến khi Admin phê duyệt
-        </p>
+        {validateAll() && <Notice type="warn">{validateAll()}</Notice>}
+      </section>
+    );
+  };
+
+  return (
+    <div className="mx-auto max-w-5xl pb-28">
+      <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-3">
+          <button type="button" onClick={() => navigate(-1)} className="rounded-lg p-2 text-gray-500 hover:bg-gray-100" aria-label="Quay lại">
+            <i className="fa-solid fa-arrow-left" />
+          </button>
+          <div>
+            <h1 className="text-xl font-bold text-gray-900">{isEdit ? 'Chỉnh sửa sự kiện' : 'Tạo sự kiện mới'}</h1>
+            <p className="mt-1 text-sm text-gray-500">Bước {currentStep + 1}/{STEPS.length}: {STEPS[currentStep].title}</p>
+          </div>
+        </div>
+        {!isEdit && (
+          <span className="inline-flex items-center rounded-full bg-amber-50 px-3 py-1 text-sm font-semibold text-amber-700">
+            <i className="fa-solid fa-hourglass-half mr-2" /> Gửi xong sẽ chờ admin duyệt
+          </span>
+        )}
+      </div>
+
+      <div className="card mb-5 p-4">
+        <div className="hidden grid-cols-6 gap-3 md:grid">
+          {STEPS.map((step, index) => {
+            const active = index === currentStep;
+            const done = index < currentStep;
+            return (
+              <button
+                key={step.id}
+                type="button"
+                onClick={() => jumpToStep(index)}
+                className={`group flex min-h-[92px] flex-col items-center justify-start gap-2 rounded-xl border px-3 py-3 text-center transition ${
+                  active ? 'border-primary-200 bg-primary-50' : done ? 'border-emerald-100 bg-emerald-50/50' : 'border-gray-100 bg-white hover:border-primary-100 hover:bg-primary-50/40'
+                }`}
+              >
+                <span className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full text-sm font-bold ${
+                  active ? 'bg-primary-600 text-white shadow-md' : done ? 'bg-emerald-500 text-white' : 'bg-gray-100 text-gray-500'
+                }`}>
+                  {done ? <i className="fa-solid fa-check" /> : index + 1}
+                </span>
+                <span className={`flex min-h-[34px] items-center text-sm font-semibold leading-4 ${active ? 'text-primary-700' : 'text-gray-700'}`}>
+                  {step.title}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+        <div className="md:hidden">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">Bước {currentStep + 1}/{STEPS.length}</p>
+              <p className="text-base font-semibold text-gray-900">{STEPS[currentStep].title}</p>
+            </div>
+            <span className="flex h-10 w-10 items-center justify-center rounded-full bg-primary-600 text-sm font-bold text-white">{currentStep + 1}</span>
+          </div>
+          <div className="mt-3 h-2 overflow-hidden rounded-full bg-gray-100">
+            <div className="h-full rounded-full bg-primary-600 transition-all" style={{ width: `${((currentStep + 1) / STEPS.length) * 100}%` }} />
+          </div>
+        </div>
+      </div>
+
+      {(error || stepError) && (
+        <div className="mb-5">
+          <Notice type="error">{error || stepError}</Notice>
+        </div>
       )}
+
+      {draftSaved && (
+        <div className="mb-5">
+          <Notice type="success">Đã lưu nháp trên trình duyệt này.</Notice>
+        </div>
+      )}
+
+      <div>
+        <div className="card p-5 sm:p-6">
+          {renderStep()}
+        </div>
+
+        <div className="fixed inset-x-0 bottom-0 z-30 border-t border-gray-200 bg-white/95 px-4 py-3 shadow-[0_-8px_24px_rgba(15,23,42,0.08)] backdrop-blur">
+          <div className="mx-auto flex max-w-5xl flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div className="grid grid-cols-2 gap-2 sm:flex sm:items-center">
+              <button type="button" onClick={() => navigate(-1)} className="btn-secondary">
+                Hủy
+              </button>
+              <button type="button" onClick={saveDraft} className="btn-secondary">
+                <i className="fa-regular fa-bookmark mr-2" /> Lưu nháp
+              </button>
+            </div>
+            <div className="grid grid-cols-2 gap-2 sm:flex sm:items-center">
+              <button type="button" onClick={goBack} disabled={currentStep === 0} className="btn-secondary">
+                Quay lại
+              </button>
+              {currentStep < STEPS.length - 1 ? (
+                <button type="button" onClick={goNext} className="btn-primary">
+                  {currentStep === 4 ? 'Xem trước' : 'Tiếp tục'} <i className="fa-solid fa-arrow-right ml-2" />
+                </button>
+              ) : (
+                <button type="button" onClick={handleSubmit} disabled={saving || Boolean(validateAll())} className="btn-primary">
+                  {saving && <span className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />}
+                  <i className="fa-solid fa-paper-plane mr-2" /> {isEdit ? 'Lưu thay đổi' : 'Gửi duyệt'}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

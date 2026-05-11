@@ -19,6 +19,7 @@ const NAV = {
     { to: '/events', icon: 'fa-calendar-days', label: 'Sự kiện công khai' },
     { to: '/my-events', icon: 'fa-list-check', label: 'Sự kiện của tôi' },
     { to: '/events/create', icon: 'fa-circle-plus', label: 'Tạo sự kiện' },
+    { to: '/organizer/insights', icon: 'fa-chart-line', label: 'Báo cáo tác động' },
     { to: '/organizer/verification', icon: 'fa-building-shield', label: 'Xác minh tổ chức' },
     { to: '/notifications', icon: 'fa-bell', label: 'Thông báo' },
   ],
