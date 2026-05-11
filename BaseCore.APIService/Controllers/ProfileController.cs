@@ -67,6 +67,7 @@ namespace BaseCore.APIService.Controllers
                 profile.Interests = dto.Interests ?? "";
                 profile.Bio = dto.Bio ?? "";
                 profile.AvatarUrl = dto.AvatarUrl ?? "";
+                profile.KycStatus = "Unverified";
                 await _profileRepo.AddAsync(profile);
             }
             else
@@ -79,6 +80,37 @@ namespace BaseCore.APIService.Controllers
                 await _profileRepo.UpdateAsync(profile);
             }
             await RecordAuditAsync(userId, "Profile.Update", "VolunteerProfile", profile.Id);
+            return Ok(profile);
+        }
+
+        [HttpPost("api/profile/kyc")]
+        [EnableRateLimiting("write-sensitive")]
+        public async Task<IActionResult> SubmitKyc([FromBody] KycSubmitDto dto)
+        {
+            if (!int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var userId))
+                return Unauthorized();
+            if (string.IsNullOrWhiteSpace(dto.IdentityFrontImageUrl) ||
+                string.IsNullOrWhiteSpace(dto.IdentityBackImageUrl) ||
+                string.IsNullOrWhiteSpace(dto.PortraitImageUrl))
+                return BadRequest(new { message = "Vui lòng upload mặt trước CCCD, mặt sau CCCD và ảnh chân dung." });
+
+            var profile = await _profileRepo.GetByUserIdAsync(userId);
+            if (profile == null)
+            {
+                profile = new VolunteerProfile { UserId = userId, BloodType = "", Languages = "", Interests = "", Bio = "", AvatarUrl = "" };
+                await _profileRepo.AddAsync(profile);
+            }
+
+            profile.IdentityFrontImageUrl = dto.IdentityFrontImageUrl.Trim();
+            profile.IdentityBackImageUrl = dto.IdentityBackImageUrl.Trim();
+            profile.PortraitImageUrl = dto.PortraitImageUrl.Trim();
+            profile.KycStatus = "PendingVerification";
+            profile.KycSubmittedAt = DateTime.UtcNow;
+            profile.KycReviewedAt = null;
+            profile.KycReviewedBy = null;
+            profile.KycAdminNote = "";
+            await _profileRepo.UpdateAsync(profile);
+            await RecordAuditAsync(userId, "Profile.KycSubmit", "VolunteerProfile", profile.Id);
             return Ok(profile);
         }
 
@@ -157,7 +189,17 @@ namespace BaseCore.APIService.Controllers
                 return Unauthorized();
             try
             {
-                var vs = new VolunteerSkill { UserId = userId, SkillId = dto.SkillId, Level = dto.Level ?? "Beginner" };
+                var hasEvidence = !string.IsNullOrWhiteSpace(dto.EvidenceUrl);
+                var vs = new VolunteerSkill
+                {
+                    UserId = userId,
+                    SkillId = dto.SkillId,
+                    Level = dto.Level ?? "Beginner",
+                    EvidenceUrl = dto.EvidenceUrl?.Trim() ?? "",
+                    VerificationNote = dto.VerificationNote?.Trim() ?? "",
+                    VerificationStatus = hasEvidence ? "PendingVerification" : "SelfDeclared",
+                    VerificationSubmittedAt = hasEvidence ? DateTime.UtcNow : null
+                };
                 await _profileRepo.AddSkillAsync(vs);
                 await RecordAuditAsync(userId, "ProfileSkill.Add", "VolunteerSkill", vs.Id, $"SkillId={dto.SkillId}");
                 return Ok(vs);
@@ -174,6 +216,31 @@ namespace BaseCore.APIService.Controllers
             await _profileRepo.RemoveSkillAsync(userId, skillId);
             await RecordAuditAsync(userId, "ProfileSkill.Remove", "Skill", skillId);
             return Ok(new { message = "Skill removed" });
+        }
+
+        [HttpPut("api/profile/skills/{skillId}/verification")]
+        [EnableRateLimiting("write-sensitive")]
+        public async Task<IActionResult> SubmitSkillVerification(int skillId, [FromBody] SkillVerificationSubmitDto dto)
+        {
+            if (!int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var userId))
+                return Unauthorized();
+            if (string.IsNullOrWhiteSpace(dto.EvidenceUrl))
+                return BadRequest(new { message = "Vui lòng upload hoặc nhập minh chứng kỹ năng." });
+
+            var skills = await _profileRepo.GetSkillsByUserIdAsync(userId);
+            var vs = skills.FirstOrDefault(s => s.SkillId == skillId);
+            if (vs == null) return NotFound(new { message = "Skill not found in profile" });
+
+            vs.EvidenceUrl = dto.EvidenceUrl.Trim();
+            vs.VerificationNote = dto.VerificationNote?.Trim() ?? "";
+            vs.VerificationStatus = "PendingVerification";
+            vs.VerificationSubmittedAt = DateTime.UtcNow;
+            vs.VerificationReviewedAt = null;
+            vs.VerificationReviewedBy = null;
+            vs.AdminNote = "";
+            await _profileRepo.UpdateSkillAsync(vs);
+            await RecordAuditAsync(userId, "ProfileSkill.SubmitVerification", "VolunteerSkill", vs.Id, $"SkillId={skillId}");
+            return Ok(vs);
         }
 
         private int? CurrentUserId()
@@ -216,6 +283,13 @@ namespace BaseCore.APIService.Controllers
         public string? AvatarUrl { get; set; }
     }
 
+    public class KycSubmitDto
+    {
+        public string IdentityFrontImageUrl { get; set; } = "";
+        public string IdentityBackImageUrl { get; set; } = "";
+        public string PortraitImageUrl { get; set; } = "";
+    }
+
     public class SkillDto
     {
         public string Name { get; set; } = "";
@@ -226,5 +300,13 @@ namespace BaseCore.APIService.Controllers
     {
         public int SkillId { get; set; }
         public string? Level { get; set; }
+        public string? EvidenceUrl { get; set; }
+        public string? VerificationNote { get; set; }
+    }
+
+    public class SkillVerificationSubmitDto
+    {
+        public string EvidenceUrl { get; set; } = "";
+        public string? VerificationNote { get; set; }
     }
 }

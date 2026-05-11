@@ -146,6 +146,16 @@ namespace BaseCore.APIService.Controllers
         {
             if (!int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var userId))
                 return Unauthorized();
+
+            var organizerVerificationStatus = await _context.OrganizerVerifications
+                .Where(v => v.OrganizerId == userId)
+                .Select(v => v.Status)
+                .FirstOrDefaultAsync();
+            if (organizerVerificationStatus != "Verified")
+            {
+                return BadRequest(new { message = "Bạn cần xác minh tổ chức và được admin duyệt trước khi tạo sự kiện." });
+            }
+
             if (string.IsNullOrWhiteSpace(dto.Title))
                 return BadRequest(new { message = "Event title is required" });
             if (string.IsNullOrWhiteSpace(dto.Location))
@@ -153,13 +163,16 @@ namespace BaseCore.APIService.Controllers
             var coordinateError = ValidateCoordinates(dto.Latitude, dto.Longitude);
             if (coordinateError != null)
                 return BadRequest(new { message = coordinateError });
+            var participantError = ValidateParticipants(dto.MinParticipants, dto.MaxParticipants);
+            if (participantError != null)
+                return BadRequest(new { message = participantError });
 
             var ev = new Entities.Event
             {
                 Title = dto.Title.Trim(), Description = dto.Description ?? "", Location = dto.Location ?? "",
                 Latitude = dto.Latitude, Longitude = dto.Longitude,
                 StartDate = dto.StartDate, EndDate = dto.EndDate,
-                MaxParticipants = dto.MaxParticipants, CategoryId = dto.CategoryId,
+                MinParticipants = dto.MinParticipants, MaxParticipants = dto.MaxParticipants, RequiresKyc = dto.RequiresKyc, CategoryId = dto.CategoryId,
                 OrganizerId = userId, ImageUrl = dto.ImageUrl ?? "",
                 RequiredSkillIds = dto.RequiredSkillIds ?? "[]"
             };
@@ -185,6 +198,11 @@ namespace BaseCore.APIService.Controllers
             var coordinateError = ValidateCoordinates(nextLatitude, nextLongitude);
             if (coordinateError != null)
                 return BadRequest(new { message = coordinateError });
+            var nextMinParticipants = dto.MinParticipants ?? ev.MinParticipants;
+            var nextMaxParticipants = dto.MaxParticipants ?? ev.MaxParticipants;
+            var participantError = ValidateParticipants(nextMinParticipants, nextMaxParticipants);
+            if (participantError != null)
+                return BadRequest(new { message = participantError });
 
             ev.Title = dto.Title?.Trim() ?? ev.Title;
             ev.Description = dto.Description ?? ev.Description;
@@ -193,7 +211,9 @@ namespace BaseCore.APIService.Controllers
             ev.Longitude = nextLongitude;
             ev.StartDate = dto.StartDate ?? ev.StartDate;
             ev.EndDate = dto.EndDate ?? ev.EndDate;
-            ev.MaxParticipants = dto.MaxParticipants ?? ev.MaxParticipants;
+            ev.MinParticipants = nextMinParticipants;
+            ev.MaxParticipants = nextMaxParticipants;
+            ev.RequiresKyc = dto.RequiresKyc ?? ev.RequiresKyc;
             ev.CategoryId = dto.CategoryId ?? ev.CategoryId;
             ev.ImageUrl = dto.ImageUrl ?? ev.ImageUrl;
             ev.RequiredSkillIds = dto.RequiredSkillIds ?? ev.RequiredSkillIds;
@@ -303,6 +323,20 @@ namespace BaseCore.APIService.Controllers
 
             return null;
         }
+
+        private static string? ValidateParticipants(int minParticipants, int maxParticipants)
+        {
+            if (minParticipants < 1)
+                return "Minimum participants must be at least 1.";
+            if (maxParticipants < 1)
+                return "Maximum participants must be at least 1.";
+            if (minParticipants > maxParticipants)
+                return "Minimum participants cannot be greater than maximum participants.";
+            if (maxParticipants > 10000)
+                return "Maximum participants cannot exceed 10000.";
+
+            return null;
+        }
     }
 
     public class EventCreateDto
@@ -314,7 +348,9 @@ namespace BaseCore.APIService.Controllers
         public decimal? Longitude { get; set; }
         public DateTime StartDate { get; set; }
         public DateTime EndDate { get; set; }
+        public int MinParticipants { get; set; } = 1;
         public int MaxParticipants { get; set; }
+        public bool RequiresKyc { get; set; }
         public int CategoryId { get; set; }
         public string? ImageUrl { get; set; }
         public string? RequiredSkillIds { get; set; }
@@ -329,7 +365,9 @@ namespace BaseCore.APIService.Controllers
         public decimal? Longitude { get; set; }
         public DateTime? StartDate { get; set; }
         public DateTime? EndDate { get; set; }
+        public int? MinParticipants { get; set; }
         public int? MaxParticipants { get; set; }
+        public bool? RequiresKyc { get; set; }
         public int? CategoryId { get; set; }
         public string? ImageUrl { get; set; }
         public string? RequiredSkillIds { get; set; }

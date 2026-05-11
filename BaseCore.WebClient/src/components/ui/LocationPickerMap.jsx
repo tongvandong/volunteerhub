@@ -88,6 +88,7 @@ export default function LocationPickerMap({ latitude, longitude, onChange, heigh
     }
 
     markerRef.current.setLatLng([lat, lng]);
+    map.setView([lat, lng], Math.max(map.getZoom(), 15));
   }, [latitude, longitude, onChange]);
 
   return (

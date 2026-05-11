@@ -13,8 +13,10 @@ namespace BaseCore.Entities
         public decimal? Longitude { get; set; }
         public DateTime StartDate { get; set; }
         public DateTime EndDate { get; set; }
+        public int MinParticipants { get; set; } = 1;
         public int MaxParticipants { get; set; }
         public int CurrentParticipants { get; set; } = 0;
+        public bool RequiresKyc { get; set; } = false;
         public string RequiredSkillIds { get; set; } // JSON array, e.g. "[1,3]"
         public string Status { get; set; } = "Pending"; // Pending | Approved | Completed | Rejected | Cancelled
         public int CategoryId { get; set; }

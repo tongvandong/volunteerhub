@@ -19,6 +19,7 @@ const NAV = {
     { to: '/events', icon: 'fa-calendar-days', label: 'Sự kiện công khai' },
     { to: '/my-events', icon: 'fa-list-check', label: 'Sự kiện của tôi' },
     { to: '/events/create', icon: 'fa-circle-plus', label: 'Tạo sự kiện' },
+    { to: '/organizer/verification', icon: 'fa-building-shield', label: 'Xác minh tổ chức' },
     { to: '/notifications', icon: 'fa-bell', label: 'Thông báo' },
   ],
   Sponsor: [
@@ -30,6 +31,8 @@ const NAV = {
   Admin: [
     { to: '/dashboard', icon: 'fa-gauge', label: 'Tổng quan' },
     { to: '/admin/events', icon: 'fa-calendar-check', label: 'Duyệt sự kiện' },
+    { to: '/admin/organizer-verifications', icon: 'fa-building-shield', label: 'Duyệt tổ chức' },
+    { to: '/admin/volunteer-verifications', icon: 'fa-id-card', label: 'Duyệt volunteer' },
     { to: '/admin/users', icon: 'fa-users', label: 'Quản lý người dùng' },
     { to: '/admin/categories', icon: 'fa-tags', label: 'Danh mục' },
     { to: '/admin/skills', icon: 'fa-star', label: 'Kỹ năng' },
@@ -41,7 +44,7 @@ const NAV = {
 
 const ROLE_LABEL = {
   Volunteer: 'Tình nguyện viên',
-  Organizer: 'Nhà sáng lập',
+  Organizer: 'Nhà tổ chức',
   Sponsor: 'Nhà tài trợ',
   Admin: 'Quản trị viên',
 };

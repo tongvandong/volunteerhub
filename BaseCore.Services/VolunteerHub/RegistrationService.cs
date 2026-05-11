@@ -21,6 +21,15 @@ namespace BaseCore.Services.VolunteerHub
                 ?? throw new Exception("Event not found");
             if (ev.Status != "Approved") throw new Exception("Event is not open for registration");
             if (ev.CurrentParticipants >= ev.MaxParticipants) throw new Exception("Event is full");
+            if (ev.RequiresKyc)
+            {
+                var kycStatus = await _context.VolunteerProfiles
+                    .Where(p => p.UserId == userId)
+                    .Select(p => p.KycStatus)
+                    .FirstOrDefaultAsync();
+                if (kycStatus != "Verified")
+                    throw new Exception("This event requires verified volunteer identity (KYC). Please verify your profile before registering.");
+            }
 
             if (shiftId.HasValue)
             {
@@ -147,6 +156,30 @@ namespace BaseCore.Services.VolunteerHub
             reg.AttendedAt = DateTime.UtcNow;
 
             // Calculate volunteer hours
+            if (reg.Event.EndDate > reg.Event.StartDate)
+                reg.VolunteerHours = (decimal)(reg.Event.EndDate - reg.Event.StartDate).TotalHours;
+
+            await _context.SaveChangesAsync();
+            return reg;
+        }
+
+        public async Task<Registration> SelfCheckInAsync(int eventId, int userId, string? qrCode, decimal? latitude = null, decimal? longitude = null)
+        {
+            var reg = await _context.Registrations.Include(r => r.Event)
+                .FirstOrDefaultAsync(r => r.EventId == eventId && r.UserId == userId)
+                ?? throw new Exception("Registration not found");
+
+            if (reg.Event.Status != "Approved") throw new Exception("Event is not open for check-in");
+            if (reg.Status != "Confirmed") throw new Exception("Registration is not confirmed");
+            if (reg.IsAttended) throw new Exception("Already checked in");
+
+            var qrValid = !string.IsNullOrWhiteSpace(qrCode) && reg.Event.QrCode == qrCode.Trim();
+            var gpsValid = IsWithinEventRadius(reg.Event, latitude, longitude);
+            if (!qrValid && !gpsValid) throw new Exception("Invalid QR code or GPS location");
+
+            reg.IsAttended = true;
+            reg.AttendedAt = DateTime.UtcNow;
+
             if (reg.Event.EndDate > reg.Event.StartDate)
                 reg.VolunteerHours = (decimal)(reg.Event.EndDate - reg.Event.StartDate).TotalHours;
 

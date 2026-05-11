@@ -9,6 +9,7 @@ namespace BaseCore.Services.VolunteerHub
         Task<Registration> ConfirmAsync(int eventId, int registrationId, int organizerId);
         Task<Registration> CancelAsync(int eventId, int registrationId, int organizerId);
         Task<Registration> CheckInAsync(int eventId, int registrationId, int organizerId, string? qrCode, decimal? latitude = null, decimal? longitude = null);
+        Task<Registration> SelfCheckInAsync(int eventId, int userId, string? qrCode, decimal? latitude = null, decimal? longitude = null);
         Task<List<Registration>> GetByEventAsync(int eventId);
         Task<List<Registration>> GetByUserAsync(int userId);
         Task<Registration?> GetByEventAndUserAsync(int eventId, int userId);

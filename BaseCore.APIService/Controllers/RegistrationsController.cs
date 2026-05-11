@@ -93,6 +93,21 @@ namespace BaseCore.APIService.Controllers
             catch (Exception ex) { return BadRequest(new { message = ex.Message }); }
         }
 
+        [HttpPost("api/events/{eventId}/self-checkin"), Authorize(Roles = "Volunteer")]
+        [EnableRateLimiting("write-sensitive")]
+        public async Task<IActionResult> SelfCheckIn(int eventId, [FromBody] CheckInDto dto)
+        {
+            if (!int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var userId))
+                return Unauthorized();
+            try
+            {
+                var reg = await _registrationService.SelfCheckInAsync(eventId, userId, dto.QrCode, dto.Latitude, dto.Longitude);
+                await RecordAuditAsync(userId, "Registration.SelfCheckIn", "Registration", reg.Id, $"EventId={eventId}");
+                return Ok(reg);
+            }
+            catch (Exception ex) { return BadRequest(new { message = ex.Message }); }
+        }
+
         [HttpGet("api/my-registrations"), Authorize]
         public async Task<IActionResult> MyRegistrations()
         {

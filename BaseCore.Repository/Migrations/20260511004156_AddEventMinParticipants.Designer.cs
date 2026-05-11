@@ -4,6 +4,7 @@ using BaseCore.Repository;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace BaseCore.Repository.Migrations
 {
     [DbContext(typeof(MySqlDbContext))]
-    partial class MySqlDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260511004156_AddEventMinParticipants")]
+    partial class AddEventMinParticipants
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -448,9 +451,6 @@ namespace BaseCore.Repository.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
 
-                    b.Property<bool>("RequiresKyc")
-                        .HasColumnType("bit");
-
                     b.Property<DateTime>("StartDate")
                         .HasColumnType("datetime2");
 
@@ -489,7 +489,6 @@ namespace BaseCore.Repository.Migrations
                             OrganizerId = 2,
                             QrCode = "",
                             RequiredSkillIds = "[4]",
-                            RequiresKyc = false,
                             StartDate = new DateTime(2025, 8, 15, 7, 0, 0, 0, DateTimeKind.Unspecified),
                             Status = "Pending",
                             Title = "Trồng cây xanh Hà Nội 2025"
@@ -511,7 +510,6 @@ namespace BaseCore.Repository.Migrations
                             OrganizerId = 2,
                             QrCode = "EVT-2025-0002",
                             RequiredSkillIds = "[]",
-                            RequiresKyc = false,
                             StartDate = new DateTime(2025, 9, 5, 6, 0, 0, 0, DateTimeKind.Unspecified),
                             Status = "Approved",
                             Title = "Dọn sạch bãi biển Đà Nẵng"
@@ -533,7 +531,6 @@ namespace BaseCore.Repository.Migrations
                             OrganizerId = 2,
                             QrCode = "EVT-2025-0003",
                             RequiredSkillIds = "[3,6]",
-                            RequiresKyc = false,
                             StartDate = new DateTime(2025, 6, 1, 8, 0, 0, 0, DateTimeKind.Unspecified),
                             Status = "Completed",
                             Title = "Dạy kỹ năng số cho người cao tuổi"
@@ -1710,40 +1707,11 @@ namespace BaseCore.Repository.Migrations
                         .HasMaxLength(5)
                         .HasColumnType("nvarchar(5)");
 
-                    b.Property<string>("IdentityBackImageUrl")
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
-
-                    b.Property<string>("IdentityFrontImageUrl")
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
-
                     b.Property<string>("Interests")
                         .HasMaxLength(1000)
                         .HasColumnType("nvarchar(1000)");
 
-                    b.Property<string>("KycAdminNote")
-                        .HasMaxLength(1000)
-                        .HasColumnType("nvarchar(1000)");
-
-                    b.Property<DateTime?>("KycReviewedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int?>("KycReviewedBy")
-                        .HasColumnType("int");
-
-                    b.Property<string>("KycStatus")
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<DateTime?>("KycSubmittedAt")
-                        .HasColumnType("datetime2");
-
                     b.Property<string>("Languages")
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
-
-                    b.Property<string>("PortraitImageUrl")
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
 
@@ -1768,13 +1736,8 @@ namespace BaseCore.Repository.Migrations
                             AvatarUrl = "",
                             Bio = "Tình nguyện viên nhiệt huyết",
                             BloodType = "O",
-                            IdentityBackImageUrl = "",
-                            IdentityFrontImageUrl = "",
                             Interests = "Môi trường, Giáo dục",
-                            KycAdminNote = "Seed verified.",
-                            KycStatus = "Verified",
                             Languages = "Tiếng Việt, Tiếng Anh",
-                            PortraitImageUrl = "",
                             TotalVolunteerHours = 0m,
                             UserId = 4
                         });
@@ -1788,14 +1751,6 @@ namespace BaseCore.Repository.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<string>("AdminNote")
-                        .HasMaxLength(1000)
-                        .HasColumnType("nvarchar(1000)");
-
-                    b.Property<string>("EvidenceUrl")
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
-
                     b.Property<string>("Level")
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
@@ -1805,23 +1760,6 @@ namespace BaseCore.Repository.Migrations
 
                     b.Property<int>("UserId")
                         .HasColumnType("int");
-
-                    b.Property<string>("VerificationNote")
-                        .HasMaxLength(1000)
-                        .HasColumnType("nvarchar(1000)");
-
-                    b.Property<DateTime?>("VerificationReviewedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int?>("VerificationReviewedBy")
-                        .HasColumnType("int");
-
-                    b.Property<string>("VerificationStatus")
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<DateTime?>("VerificationSubmittedAt")
-                        .HasColumnType("datetime2");
 
                     b.HasKey("Id");
 

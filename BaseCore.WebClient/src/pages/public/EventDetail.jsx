@@ -5,6 +5,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import StatusBadge from '../../components/ui/StatusBadge';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import Modal from '../../components/ui/Modal';
+import ImageUploadField from '../../components/ui/ImageUploadField';
 
 function fmt(dt) {
   if (!dt) return '';
@@ -38,6 +39,7 @@ export default function EventDetail() {
   const [selectedShiftId, setSelectedShiftId] = useState('');
   const [allSkills, setAllSkills] = useState([]);
   const [mySkillIds, setMySkillIds] = useState([]);
+  const [myProfile, setMyProfile] = useState(null);
   const [impact, setImpact] = useState(null);
   const [shareMsg, setShareMsg] = useState('');
   const [campaigns, setCampaigns] = useState([]);
@@ -59,14 +61,15 @@ export default function EventDetail() {
   }, []);
 
   useEffect(() => {
-    if (!isAuthenticated) return;
+    if (!isAuthenticated || !isVolunteer()) return;
     profileApi.getMyProfile()
       .then((r) => {
+        setMyProfile(r.data?.profile || null);
         const skills = r.data?.volunteerSkills || r.data?.skills || [];
         setMySkillIds(skills.map((s) => s.skillId || s.id));
       })
       .catch(() => {});
-  }, [isAuthenticated]);
+  }, [isAuthenticated, isVolunteer]);
 
   const loadEventData = async ({ initial = false } = {}) => {
     if (initial) {
@@ -235,7 +238,8 @@ export default function EventDetail() {
     ? Math.round((event.currentParticipants / event.maxParticipants) * 100)
     : 0;
   const activeRegistration = myRegistration?.status === 'Cancelled' ? null : myRegistration;
-  const canRegister = isAuthenticated && isVolunteer() && event.status === 'Approved' && !activeRegistration;
+  const kycSatisfied = !event.requiresKyc || myProfile?.kycStatus === 'Verified';
+  const canRegister = isAuthenticated && isVolunteer() && event.status === 'Approved' && !activeRegistration && kycSatisfied;
   const canWithdraw = activeRegistration?.status === 'Pending';
   const selectedShift = shifts.find((s) => String(s.id) === String(selectedShiftId));
   const financialItems = impact ? [...(impact.supportCampaigns || []), ...(impact.receivedSponsorships || [])] : [];
@@ -266,6 +270,11 @@ export default function EventDetail() {
                 {event.category && (
                   <span className="bg-primary-50 text-primary-700 text-xs px-2 py-0.5 rounded-full border border-primary-100 font-medium">
                     {event.category.name}
+                  </span>
+                )}
+                {event.requiresKyc && (
+                  <span className="bg-amber-50 text-amber-700 text-xs px-2 py-0.5 rounded-full border border-amber-100 font-medium">
+                    Yêu cầu KYC
                   </span>
                 )}
               </div>
@@ -551,6 +560,7 @@ export default function EventDetail() {
               <div className="bg-primary-500 h-2 rounded-full" style={{ width: `${Math.min(pct, 100)}%` }} />
             </div>
             <p className="text-xs text-center text-gray-500">{pct}% đã đăng ký</p>
+            <p className="text-xs text-center text-gray-400 mt-1">Tối thiểu cần {event.minParticipants || 1} người</p>
           </div>
 
           <div className="card p-5 space-y-3">
@@ -603,6 +613,16 @@ export default function EventDetail() {
                     Đăng ký của bạn đã được xác nhận. Hiện không thể rút trên giao diện này.
                   </p>
                 )}
+              </div>
+            )}
+
+            {isAuthenticated && isVolunteer() && !activeRegistration && event.status === 'Approved' && event.requiresKyc && !kycSatisfied && (
+              <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+                <p className="font-medium">Sự kiện này yêu cầu KYC.</p>
+                <p className="mt-1">Bạn cần xác minh danh tính trước khi đăng ký.</p>
+                <Link to="/profile" className="mt-2 inline-flex text-xs font-semibold text-amber-900 underline">
+                  Mở hồ sơ để gửi KYC
+                </Link>
               </div>
             )}
 
@@ -706,10 +726,12 @@ export default function EventDetail() {
               <input type="email" value={donationForm.email} onChange={(e) => setDonationForm((f) => ({ ...f, email: e.target.value }))} className="input-field" />
             </div>
           </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Minh chứng chuyển khoản URL</label>
-            <input value={donationForm.proofImageUrl} onChange={(e) => setDonationForm((f) => ({ ...f, proofImageUrl: e.target.value }))} className="input-field" />
-          </div>
+          <ImageUploadField
+            label="Minh chứng chuyển khoản"
+            value={donationForm.proofImageUrl}
+            onChange={(url) => setDonationForm((f) => ({ ...f, proofImageUrl: url }))}
+            helper="Upload ảnh chụp biên lai hoặc màn hình chuyển khoản."
+          />
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Ghi chú</label>
             <textarea rows={3} value={donationForm.note} onChange={(e) => setDonationForm((f) => ({ ...f, note: e.target.value }))} className="input-field resize-none" />

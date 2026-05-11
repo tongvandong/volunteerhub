@@ -143,10 +143,8 @@ export default function LandingPage() {
     const totalSlots = featuredEvents.reduce((sum, event) => sum + (event.maxParticipants || 0), 0);
 
     return [
-      { label: 'Vai trò vận hành', value: '4' },
       { label: 'Sự kiện đang mở', value: featuredEvents.length ? `${featuredEvents.length}+` : '...' },
       { label: 'Suất tham gia nổi bật', value: totalSlots ? `${totalSlots}+` : '...' },
-      { label: 'Gateway API', value: '1' },
     ];
   }, [featuredEvents]);
 

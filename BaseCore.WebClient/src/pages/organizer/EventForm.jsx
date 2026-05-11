@@ -1,6 +1,7 @@
 import React, { lazy, Suspense, useCallback, useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
-import { eventApi, eventCategoryApi, skillApi } from '../../services/api';
+import { Link, useNavigate, useParams } from 'react-router-dom';
+import { eventApi, eventCategoryApi, organizerVerificationApi, skillApi } from '../../services/api';
+import ImageUploadField from '../../components/ui/ImageUploadField';
 
 const LocationPickerMap = lazy(() => import('../../components/ui/LocationPickerMap'));
 
@@ -12,7 +13,9 @@ const INIT = {
   longitude: '',
   startDate: '',
   endDate: '',
+  minParticipants: 1,
   maxParticipants: 50,
+  requiresKyc: false,
   categoryId: '',
   imageUrl: '',
   requiredSkillIds: '[]',
@@ -30,6 +33,12 @@ export default function EventForm() {
   const [error, setError] = useState('');
   const [locating, setLocating] = useState(false);
   const [locationNote, setLocationNote] = useState('');
+  const [addressSearching, setAddressSearching] = useState(false);
+  const [addressSuggestions, setAddressSuggestions] = useState([]);
+  const [addressError, setAddressError] = useState('');
+  const [reverseGeocoding, setReverseGeocoding] = useState(false);
+  const [verification, setVerification] = useState(null);
+  const [checkingVerification, setCheckingVerification] = useState(!isEdit);
 
   const selectedSkillIds = (() => {
     try {
@@ -40,9 +49,88 @@ export default function EventForm() {
   })();
 
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
+  const reverseGeocode = useCallback(async (latitude, longitude) => {
+    const lat = Number(latitude);
+    const lng = Number(longitude);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+
+    setReverseGeocoding(true);
+    setAddressError('');
+    try {
+      const params = new URLSearchParams({
+        format: 'jsonv2',
+        lat: String(lat),
+        lon: String(lng),
+        'accept-language': 'vi',
+      });
+      const response = await fetch(`https://nominatim.openstreetmap.org/reverse?${params.toString()}`);
+      if (!response.ok) throw new Error('reverse failed');
+      const result = await response.json();
+      const label = result?.display_name || `${Number(lat).toFixed(6)}, ${Number(lng).toFixed(6)}`;
+      setForm((f) => ({ ...f, location: label }));
+      setAddressSuggestions([]);
+      setLocationNote('Đã cập nhật địa chỉ theo vị trí được chọn trên bản đồ.');
+    } catch {
+      setAddressError('Đã cập nhật tọa độ nhưng chưa lấy được địa chỉ tương ứng.');
+    } finally {
+      setReverseGeocoding(false);
+    }
+  }, []);
+
   const setMapLocation = useCallback(({ latitude, longitude }) => {
     setForm((f) => ({ ...f, latitude, longitude }));
+    reverseGeocode(latitude, longitude);
+  }, [reverseGeocode]);
+
+  const searchAddress = useCallback(async (query) => {
+    const normalizedQuery = query.trim();
+    setAddressError('');
+    setAddressSuggestions([]);
+
+    if (normalizedQuery.length < 3) {
+      return;
+    }
+
+    setAddressSearching(true);
+    try {
+      const params = new URLSearchParams({
+        format: 'jsonv2',
+        q: normalizedQuery,
+        limit: '5',
+        countrycodes: 'vn',
+        addressdetails: '1',
+        'accept-language': 'vi',
+      });
+      const response = await fetch(`https://nominatim.openstreetmap.org/search?${params.toString()}`);
+      if (!response.ok) throw new Error('search failed');
+      const results = await response.json();
+      setAddressSuggestions((results || []).map((item) => ({
+        id: item.place_id,
+        label: item.display_name,
+        latitude: Number(item.lat).toFixed(6),
+        longitude: Number(item.lon).toFixed(6),
+      })));
+      if (!results?.length) {
+        setAddressError('Không tìm thấy địa chỉ phù hợp. Bạn vẫn có thể click trực tiếp trên bản đồ.');
+      }
+    } catch {
+      setAddressError('Không tìm được gợi ý lúc này. Hãy thử lại hoặc chọn trực tiếp trên bản đồ.');
+    } finally {
+      setAddressSearching(false);
+    }
   }, []);
+
+  const selectAddressSuggestion = (suggestion) => {
+    setForm((f) => ({
+      ...f,
+      location: suggestion.label,
+      latitude: suggestion.latitude,
+      longitude: suggestion.longitude,
+    }));
+    setAddressSuggestions([]);
+    setAddressError('');
+    setLocationNote('Đã chọn địa chỉ gợi ý và cập nhật vị trí trên bản đồ.');
+  };
 
   const toggleSkill = (skillId) => {
     const next = selectedSkillIds.includes(skillId)
@@ -54,6 +142,13 @@ export default function EventForm() {
   useEffect(() => {
     eventCategoryApi.getAll().then((r) => setCategories(r.data || [])).catch(() => {});
     skillApi.getAll().then((r) => setSkills(r.data || [])).catch(() => {});
+
+    if (!isEdit) {
+      organizerVerificationApi.getMine()
+        .then((r) => setVerification(r.data))
+        .catch(() => setVerification({ status: 'Unverified', canCreateEvents: false }))
+        .finally(() => setCheckingVerification(false));
+    }
 
     if (isEdit) {
       eventApi.getById(id)
@@ -67,7 +162,9 @@ export default function EventForm() {
             longitude: ev.longitude || '',
             startDate: ev.startDate ? ev.startDate.slice(0, 16) : '',
             endDate: ev.endDate ? ev.endDate.slice(0, 16) : '',
+            minParticipants: ev.minParticipants || 1,
             maxParticipants: ev.maxParticipants || 50,
+            requiresKyc: Boolean(ev.requiresKyc),
             categoryId: ev.categoryId || '',
             imageUrl: ev.imageUrl || '',
             requiredSkillIds: ev.requiredSkillIds || '[]',
@@ -77,6 +174,21 @@ export default function EventForm() {
         .finally(() => setLoading(false));
     }
   }, [id]);
+
+  useEffect(() => {
+    const query = form.location.trim();
+    if (query.length < 3) {
+      setAddressSuggestions([]);
+      setAddressError('');
+      return undefined;
+    }
+
+    const timer = window.setTimeout(() => {
+      searchAddress(query);
+    }, 550);
+
+    return () => window.clearTimeout(timer);
+  }, [form.location, searchAddress]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -100,13 +212,29 @@ export default function EventForm() {
       return;
     }
 
+    const minParticipants = parseInt(form.minParticipants, 10);
+    const maxParticipants = parseInt(form.maxParticipants, 10);
+    if (!Number.isInteger(minParticipants) || minParticipants < 1) {
+      setError('Số tình nguyện viên tối thiểu phải từ 1 trở lên.');
+      return;
+    }
+    if (!Number.isInteger(maxParticipants) || maxParticipants < 1) {
+      setError('Số tình nguyện viên tối đa phải từ 1 trở lên.');
+      return;
+    }
+    if (minParticipants > maxParticipants) {
+      setError('Số tối thiểu không được lớn hơn số tối đa.');
+      return;
+    }
+
     setSaving(true);
 
     const payload = {
       ...form,
       latitude,
       longitude,
-      maxParticipants: parseInt(form.maxParticipants),
+      minParticipants,
+      maxParticipants,
       categoryId: parseInt(form.categoryId),
       startDate: new Date(form.startDate).toISOString(),
       endDate: new Date(form.endDate).toISOString(),
@@ -133,10 +261,9 @@ export default function EventForm() {
     setLocationNote('');
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        setMapLocation({
-          latitude: pos.coords.latitude.toFixed(6),
-          longitude: pos.coords.longitude.toFixed(6),
-        });
+        const latitude = pos.coords.latitude.toFixed(6);
+        const longitude = pos.coords.longitude.toFixed(6);
+        setMapLocation({ latitude, longitude });
         setLocating(false);
       },
       () => {
@@ -151,6 +278,54 @@ export default function EventForm() {
     return (
       <div className="flex items-center justify-center py-16">
         <div className="w-8 h-8 border-4 border-primary-600 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (!isEdit && checkingVerification) {
+    return (
+      <div className="flex items-center justify-center py-16">
+        <div className="w-8 h-8 border-4 border-primary-600 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (!isEdit && verification && !verification.canCreateEvents) {
+    const statusLabel = {
+      Unverified: 'Chưa gửi hồ sơ',
+      PendingVerification: 'Đang chờ admin duyệt',
+      ChangesRequested: 'Cần bổ sung thông tin',
+      Rejected: 'Bị từ chối',
+    }[verification.status] || verification.status;
+
+    return (
+      <div className="max-w-2xl mx-auto space-y-5">
+        <div className="card p-6 space-y-4">
+          <div className="w-12 h-12 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
+            <i className="fa-solid fa-building-shield text-xl" />
+          </div>
+          <div>
+            <h1 className="text-xl font-bold text-gray-900">Cần xác minh tổ chức trước khi tạo sự kiện</h1>
+            <p className="text-sm text-gray-500 mt-2">
+              Trạng thái hiện tại: <span className="font-semibold text-amber-700">{statusLabel}</span>.
+              Sau khi admin duyệt hồ sơ, bạn có thể tạo sự kiện và gửi sự kiện đó vào luồng kiểm duyệt nội dung.
+            </p>
+          </div>
+          {verification.adminNote && (
+            <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+              <p className="font-semibold">Phản hồi từ admin</p>
+              <p className="mt-1">{verification.adminNote}</p>
+            </div>
+          )}
+          <div className="flex flex-col sm:flex-row gap-2">
+            <Link to="/organizer/verification" className="btn-primary text-center">
+              Mở hồ sơ xác minh
+            </Link>
+            <button type="button" onClick={() => navigate('/my-events')} className="btn-secondary">
+              Quay lại sự kiện của tôi
+            </button>
+          </div>
+        </div>
       </div>
     );
   }
@@ -193,11 +368,28 @@ export default function EventForm() {
               <label className="block text-sm font-medium text-gray-700 mb-1">Số lượng tối đa *</label>
               <input type="number" min={1} value={form.maxParticipants} onInput={(e) => set('maxParticipants', e.target.value)} onChange={(e) => set('maxParticipants', e.target.value)} required className="input-field" />
             </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Số lượng tối thiểu *</label>
+              <input type="number" min={1} value={form.minParticipants} onInput={(e) => set('minParticipants', e.target.value)} onChange={(e) => set('minParticipants', e.target.value)} required className="input-field" />
+            </div>
           </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">URL ảnh bìa</label>
-            <input type="url" value={form.imageUrl} onInput={(e) => set('imageUrl', e.target.value)} onChange={(e) => set('imageUrl', e.target.value)} className="input-field" placeholder="https://..." />
-          </div>
+          <ImageUploadField
+            label="Ảnh bìa"
+            value={form.imageUrl}
+            onChange={(url) => set('imageUrl', url)}
+            helper="Upload ảnh từ máy để hiển thị trên trang danh sách và chi tiết sự kiện."
+          />
+          <label className="flex items-start gap-3 rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm text-gray-700">
+            <input
+              type="checkbox"
+              className="mt-1"
+              checked={form.requiresKyc}
+              onChange={(e) => set('requiresKyc', e.target.checked)}
+            />
+            <span>
+              Yêu cầu tình nguyện viên đã xác thực KYC mới được đăng ký sự kiện này.
+            </span>
+          </label>
         </div>
 
         <div className="card p-5 space-y-4">
@@ -214,7 +406,55 @@ export default function EventForm() {
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Địa điểm *</label>
-            <input type="text" value={form.location} onInput={(e) => set('location', e.target.value)} onChange={(e) => set('location', e.target.value)} required className="input-field" placeholder="Số nhà, đường, quận, thành phố..." />
+            <div className="relative">
+              <input
+                type="text"
+                value={form.location}
+                onInput={(e) => {
+                  set('location', e.target.value);
+                  setAddressError('');
+                }}
+                onChange={(e) => {
+                  set('location', e.target.value);
+                  setAddressError('');
+                }}
+                required
+                className="input-field pr-10"
+                placeholder="Số nhà, đường, quận, thành phố..."
+              />
+              <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-gray-400">
+                {addressSearching || reverseGeocoding ? (
+                  <div className="w-4 h-4 border-2 border-primary-600 border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <i className="fa-solid fa-location-dot" />
+                )}
+              </div>
+            </div>
+            {reverseGeocoding && (
+              <p className="mt-2 text-xs text-gray-500">
+                <i className="fa-solid fa-location-crosshairs mr-1" /> Đang cập nhật địa chỉ theo vị trí trên bản đồ...
+              </p>
+            )}
+            {addressError && (
+              <p className="mt-2 text-xs text-amber-700">
+                <i className="fa-solid fa-circle-info mr-1" /> {addressError}
+              </p>
+            )}
+            {addressSuggestions.length > 0 && (
+              <div className="mt-2 overflow-hidden rounded-lg border border-gray-100 bg-white">
+                {addressSuggestions.map((suggestion) => (
+                  <button
+                    key={suggestion.id}
+                    type="button"
+                    onClick={() => selectAddressSuggestion(suggestion)}
+                    className="block w-full border-b border-gray-100 px-3 py-2 text-left text-sm text-gray-700 last:border-b-0 hover:bg-primary-50 hover:text-primary-700"
+                  >
+                    <span className="block font-medium">{suggestion.label}</span>
+                    <span className="mt-0.5 block text-xs text-gray-400">{suggestion.latitude}, {suggestion.longitude}</span>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
           <div className="space-y-2">
             <div className="flex flex-wrap items-center justify-between gap-2">

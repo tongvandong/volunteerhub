@@ -51,6 +51,7 @@ namespace BaseCore.Repository
         public DbSet<AuthRefreshToken> AuthRefreshTokens { get; set; }
         public DbSet<AuditLog> AuditLogs { get; set; }
         public DbSet<CertificateJob> CertificateJobs { get; set; }
+        public DbSet<OrganizerVerification> OrganizerVerifications { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -164,6 +165,11 @@ namespace BaseCore.Repository
                 entity.Property(e => e.TotalVolunteerHours).HasPrecision(10, 2);
                 entity.Property(e => e.Bio).HasMaxLength(2000).IsRequired(false);
                 entity.Property(e => e.AvatarUrl).HasMaxLength(500).IsRequired(false);
+                entity.Property(e => e.KycStatus).HasMaxLength(50).IsRequired(false);
+                entity.Property(e => e.IdentityFrontImageUrl).HasMaxLength(500).IsRequired(false);
+                entity.Property(e => e.IdentityBackImageUrl).HasMaxLength(500).IsRequired(false);
+                entity.Property(e => e.PortraitImageUrl).HasMaxLength(500).IsRequired(false);
+                entity.Property(e => e.KycAdminNote).HasMaxLength(1000).IsRequired(false);
                 entity.HasOne(e => e.User)
                       .WithMany()
                       .HasForeignKey(e => e.UserId)
@@ -175,6 +181,10 @@ namespace BaseCore.Repository
             {
                 entity.HasKey(e => e.Id);
                 entity.Property(e => e.Level).HasMaxLength(50).IsRequired(false);
+                entity.Property(e => e.VerificationStatus).HasMaxLength(50).IsRequired(false);
+                entity.Property(e => e.EvidenceUrl).HasMaxLength(500).IsRequired(false);
+                entity.Property(e => e.VerificationNote).HasMaxLength(1000).IsRequired(false);
+                entity.Property(e => e.AdminNote).HasMaxLength(1000).IsRequired(false);
                 entity.HasOne(e => e.User)
                       .WithMany()
                       .HasForeignKey(e => e.UserId)
@@ -352,6 +362,34 @@ namespace BaseCore.Repository
                       .OnDelete(DeleteBehavior.Cascade);
                 entity.HasIndex(e => e.CertificateId);
                 entity.HasIndex(e => new { e.Status, e.CreatedAtUtc });
+            });
+
+            modelBuilder.Entity<OrganizerVerification>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.OrganizationName).HasMaxLength(200).IsRequired();
+                entity.Property(e => e.RepresentativeName).HasMaxLength(150).IsRequired();
+                entity.Property(e => e.ContactEmail).HasMaxLength(150).IsRequired();
+                entity.Property(e => e.Phone).HasMaxLength(30).IsRequired(false);
+                entity.Property(e => e.Address).HasMaxLength(300).IsRequired(false);
+                entity.Property(e => e.WebsiteUrl).HasMaxLength(500).IsRequired(false);
+                entity.Property(e => e.Description).HasMaxLength(2000).IsRequired();
+                entity.Property(e => e.DocumentUrl).HasMaxLength(500).IsRequired(false);
+                entity.Property(e => e.VerificationNote).HasMaxLength(1000).IsRequired(false);
+                entity.Property(e => e.Status).HasMaxLength(50).IsRequired();
+                entity.Property(e => e.AdminNote).HasMaxLength(1000).IsRequired(false);
+                entity.Property(e => e.RejectReason).HasMaxLength(1000).IsRequired(false);
+                entity.HasOne(e => e.Organizer)
+                      .WithMany()
+                      .HasForeignKey(e => e.OrganizerId)
+                      .OnDelete(DeleteBehavior.Restrict);
+                entity.HasOne(e => e.Verifier)
+                      .WithMany()
+                      .HasForeignKey(e => e.VerifiedBy)
+                      .OnDelete(DeleteBehavior.Restrict)
+                      .IsRequired(false);
+                entity.HasIndex(e => e.OrganizerId).IsUnique();
+                entity.HasIndex(e => new { e.Status, e.SubmittedAt });
             });
 
             modelBuilder.Entity<Badge>(entity =>
@@ -589,6 +627,31 @@ namespace BaseCore.Repository
                 new User { Id = 4, UserName = "volunteer", Password = pwVol,     Salt = saltVol,     Name = "Le Van Hung",     Email = "volunteer@volunteerhub.vn", IsActive = true, UserType = 0, Created = new DateTime(2024, 1, 1), Position = "Volunteer", Contact = "", Image = "", Phone = "" }
             );
 
+            modelBuilder.Entity<OrganizerVerification>().HasData(
+                new OrganizerVerification
+                {
+                    Id = 1,
+                    OrganizerId = 2,
+                    OrganizationName = "Volunteer Hub Demo Club",
+                    RepresentativeName = "Nguyen Van Minh",
+                    ContactEmail = "organizer@volunteerhub.vn",
+                    Phone = "",
+                    Address = "Ha Noi",
+                    WebsiteUrl = "",
+                    Description = "Demo organizer account used for VolunteerHub review flows.",
+                    DocumentUrl = "",
+                    VerificationNote = "Seeded verified organizer for demo data.",
+                    CommitmentAccepted = true,
+                    Status = "Verified",
+                    AdminNote = "Seed verified.",
+                    RejectReason = "",
+                    SubmittedAt = new DateTime(2024, 1, 1),
+                    CreatedAt = new DateTime(2024, 1, 1),
+                    VerifiedAt = new DateTime(2024, 1, 1),
+                    VerifiedBy = 1
+                }
+            );
+
             // Seed skills
             modelBuilder.Entity<Skill>().HasData(
                 new Skill { Id = 1, Name = "Y tế",              Category = "Chuyên môn" },
@@ -617,7 +680,7 @@ namespace BaseCore.Repository
 
             // Seed volunteer profile cho volunteer user
             modelBuilder.Entity<VolunteerProfile>().HasData(
-                new VolunteerProfile { Id = 1, UserId = 4, BloodType = "O", Languages = "Tiếng Việt, Tiếng Anh", Interests = "Môi trường, Giáo dục", TotalVolunteerHours = 0, Bio = "Tình nguyện viên nhiệt huyết", AvatarUrl = "" }
+                new VolunteerProfile { Id = 1, UserId = 4, BloodType = "O", Languages = "Tiếng Việt, Tiếng Anh", Interests = "Môi trường, Giáo dục", TotalVolunteerHours = 0, Bio = "Tình nguyện viên nhiệt huyết", AvatarUrl = "", KycStatus = "Verified", IdentityFrontImageUrl = "", IdentityBackImageUrl = "", PortraitImageUrl = "", KycAdminNote = "Seed verified." }
             );
 
             // Seed events
@@ -627,7 +690,7 @@ namespace BaseCore.Repository
                     Id = 1, Title = "Trồng cây xanh Hà Nội 2025", Description = "Chiến dịch trồng 1000 cây xanh tại các tuyến phố Hà Nội",
                     Location = "Hà Nội", Latitude = 21.0285m, Longitude = 105.8542m,
                     StartDate = new DateTime(2025, 8, 15, 7, 0, 0), EndDate = new DateTime(2025, 8, 15, 17, 0, 0),
-                    MaxParticipants = 50, CurrentParticipants = 0, Status = "Pending",
+                    MinParticipants = 10, MaxParticipants = 50, CurrentParticipants = 0, RequiresKyc = false, Status = "Pending",
                     CategoryId = 1, OrganizerId = 2, ImageUrl = "", QrCode = "", RequiredSkillIds = "[4]",
                     CreatedAt = new DateTime(2025, 7, 1)
                 },
@@ -636,7 +699,7 @@ namespace BaseCore.Repository
                     Id = 2, Title = "Dọn sạch bãi biển Đà Nẵng", Description = "Vệ sinh bãi biển Mỹ Khê và tuyên truyền bảo vệ môi trường biển",
                     Location = "Đà Nẵng", Latitude = 16.0544m, Longitude = 108.2022m,
                     StartDate = new DateTime(2025, 9, 5, 6, 0, 0), EndDate = new DateTime(2025, 9, 5, 12, 0, 0),
-                    MaxParticipants = 100, CurrentParticipants = 1, Status = "Approved",
+                    MinParticipants = 20, MaxParticipants = 100, CurrentParticipants = 1, RequiresKyc = false, Status = "Approved",
                     CategoryId = 2, OrganizerId = 2, ImageUrl = "", QrCode = "EVT-2025-0002",
                     RequiredSkillIds = "[]", CreatedAt = new DateTime(2025, 7, 10)
                 },
@@ -645,7 +708,7 @@ namespace BaseCore.Repository
                     Id = 3, Title = "Dạy kỹ năng số cho người cao tuổi", Description = "Hướng dẫn người cao tuổi sử dụng điện thoại thông minh và internet",
                     Location = "TP. Hồ Chí Minh", Latitude = 10.8231m, Longitude = 106.6297m,
                     StartDate = new DateTime(2025, 6, 1, 8, 0, 0), EndDate = new DateTime(2025, 6, 30, 17, 0, 0),
-                    MaxParticipants = 30, CurrentParticipants = 1, Status = "Completed",
+                    MinParticipants = 5, MaxParticipants = 30, CurrentParticipants = 1, RequiresKyc = false, Status = "Completed",
                     CategoryId = 4, OrganizerId = 2, ImageUrl = "", QrCode = "EVT-2025-0003",
                     RequiredSkillIds = "[3,6]", CreatedAt = new DateTime(2025, 5, 1)
                 }

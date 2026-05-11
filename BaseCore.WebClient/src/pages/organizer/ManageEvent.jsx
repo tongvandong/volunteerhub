@@ -4,6 +4,7 @@ import { eventApi, registrationApi, ratingApi, sponsorApi, supportCampaignApi, s
 import StatusBadge from '../../components/ui/StatusBadge';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import Modal from '../../components/ui/Modal';
+import { QRCodeCanvas } from 'qrcode.react';
 
 function fmt(dt) {
   return dt ? new Date(dt).toLocaleDateString('vi-VN') : '';
@@ -28,6 +29,7 @@ export default function ManageEvent() {
   const [checkinCode, setCheckinCode] = useState('');
   const [checkinMsg, setCheckinMsg] = useState('');
   const [checkinLoading, setCheckinLoading] = useState(false);
+  const [qrModal, setQrModal] = useState(false);
   const [completing, setCompleting] = useState(false);
   const [shiftModal, setShiftModal] = useState(false);
   const [shiftForm, setShiftForm] = useState({ name: '', startTime: '', endTime: '', maxVolunteers: 10 });
@@ -131,7 +133,19 @@ export default function ManageEvent() {
     }
   };
 
+  const confirmMinimumParticipantsWarning = (actionText) => {
+    const minimum = Number(event?.minParticipants) || 1;
+    const confirmedCount = registrations.filter((r) => r.status === 'Confirmed').length;
+    if (confirmedCount >= minimum) return true;
+
+    return confirm(
+      `Sự kiện hiện mới có ${confirmedCount}/${minimum} tình nguyện viên đã xác nhận. ` +
+      `Bạn vẫn muốn ${actionText}?`
+    );
+  };
+
   const handleComplete = async () => {
+    if (!confirmMinimumParticipantsWarning('hoàn thành sự kiện')) return;
     if (!confirm('Đánh dấu sự kiện này là hoàn thành? Hệ thống sẽ phát chứng chỉ cho tình nguyện viên đã điểm danh.')) return;
     setCompleting(true);
     try {
@@ -147,6 +161,7 @@ export default function ManageEvent() {
   const handleCheckin = async (e) => {
     e.preventDefault();
     if (!selectedCheckinRegId || !checkinCode.trim()) return;
+    if (!confirmMinimumParticipantsWarning('tiếp tục điểm danh')) return;
 
     setCheckinLoading(true);
     setCheckinMsg('');
@@ -167,6 +182,7 @@ export default function ManageEvent() {
 
   const handleGpsCheckin = async () => {
     if (!selectedCheckinRegId) return;
+    if (!confirmMinimumParticipantsWarning('tiếp tục điểm danh GPS')) return;
     if (!navigator.geolocation) {
       setCheckinMsg('error:Trình duyệt không hỗ trợ GPS');
       return;
@@ -568,6 +584,8 @@ export default function ManageEvent() {
     ? Math.round(milestones.reduce((sum, m) => sum + (Number(m.progressPercent) || 0), 0) / milestones.length)
     : 0;
   const capacity = event?.maxParticipants || 0;
+  const minimumParticipants = event?.minParticipants || 1;
+  const hasMinimumParticipants = confirmed.length >= minimumParticipants;
   const fillRate = capacity > 0 ? Math.round((registrations.length / capacity) * 100) : 0;
   const attendanceRate = confirmed.length > 0 ? Math.round((attended.length / confirmed.length) * 100) : 0;
   const checkinParts = checkinMsg.split(':');
@@ -609,6 +627,27 @@ export default function ManageEvent() {
             <p className="text-xs text-gray-500 mt-0.5">{s.label}</p>
           </div>
         ))}
+      </div>
+
+      <div className={`rounded-lg border p-4 ${hasMinimumParticipants ? 'border-green-200 bg-green-50' : 'border-amber-200 bg-amber-50'}`}>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-3">
+            <div className={`mt-0.5 h-9 w-9 rounded-lg flex items-center justify-center ${hasMinimumParticipants ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
+              <i className={`fa-solid ${hasMinimumParticipants ? 'fa-circle-check' : 'fa-triangle-exclamation'}`} />
+            </div>
+            <div>
+              <p className={`text-sm font-semibold ${hasMinimumParticipants ? 'text-green-800' : 'text-amber-800'}`}>
+                {hasMinimumParticipants ? 'Đã đủ lực lượng tối thiểu' : 'Chưa đủ số tình nguyện viên tối thiểu'}
+              </p>
+              <p className={`mt-1 text-sm ${hasMinimumParticipants ? 'text-green-700' : 'text-amber-700'}`}>
+                Đã xác nhận {confirmed.length}/{minimumParticipants} người. Sự kiện vẫn có thể triển khai, nhưng hệ thống sẽ cảnh báo khi điểm danh hoặc hoàn thành nếu chưa đủ tối thiểu.
+              </p>
+            </div>
+          </div>
+          <Link to={`/events/${id}/edit`} className="btn-secondary btn-sm text-center shrink-0">
+            Điều chỉnh số lượng
+          </Link>
+        </div>
       </div>
 
       <div className="flex border-b border-gray-200 overflow-x-auto">
@@ -809,6 +848,9 @@ export default function ManageEvent() {
                 <div className="rounded-lg border border-primary-100 bg-primary-50 px-4 py-3 text-center">
                   <p className="text-xs font-medium uppercase tracking-wide text-primary-600">Mã QR sự kiện hiện tại</p>
                   <p className="mt-1 font-mono text-sm font-semibold text-primary-700">{event.qrCode}</p>
+                  <button type="button" onClick={() => setQrModal(true)} className="btn-secondary btn-sm mt-3 inline-flex items-center gap-2">
+                    <i className="fa-solid fa-expand" /> Hiển thị QR cho volunteer quét
+                  </button>
                 </div>
               )}
 
@@ -854,6 +896,23 @@ export default function ManageEvent() {
               </p>
             )}
           </div>
+
+          <Modal isOpen={qrModal} onClose={() => setQrModal(false)} title="QR điểm danh sự kiện" size="md">
+            <div className="space-y-4 text-center">
+              <div className="inline-flex rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+                {event?.qrCode && (
+                  <QRCodeCanvas value={event.qrCode} size={240} includeMargin level="M" />
+                )}
+              </div>
+              <div>
+                <p className="text-xs font-medium uppercase tracking-wide text-gray-400">Mã dự phòng</p>
+                <p className="mt-1 font-mono text-xl font-bold tracking-wider text-primary-700">{event?.qrCode}</p>
+              </div>
+              <p className="text-sm text-gray-500">
+                Volunteer đăng nhập tài khoản của mình, mở đăng ký sự kiện và quét mã này để tự điểm danh.
+              </p>
+            </div>
+          </Modal>
 
           {attended.length > 0 && (
             <div>

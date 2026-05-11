@@ -14,6 +14,8 @@ BEGIN TRY
 
     DELETE FROM dbo.AuditLogs;
     DELETE FROM dbo.AuthRefreshTokens;
+    DELETE FROM dbo.OrganizerVerifications
+    WHERE OrganizerId <> 2 OR OrganizationName LIKE N'Codex QA%';
 
     DELETE FROM dbo.CertificateJobs;
     DELETE FROM dbo.UserBadges;
@@ -59,6 +61,39 @@ BEGIN TRY
     SET IsActive = 1, UserType = 1, Name = N'Nguyen Van Minh', Email = N'organizer@volunteerhub.vn', Position = N'Organizer'
     WHERE Id = 2;
 
+    IF EXISTS (SELECT 1 FROM dbo.OrganizerVerifications WHERE OrganizerId = 2)
+    BEGIN
+        UPDATE dbo.OrganizerVerifications
+        SET OrganizationName = N'Volunteer Hub Demo Club',
+            RepresentativeName = N'Nguyen Van Minh',
+            ContactEmail = N'organizer@volunteerhub.vn',
+            Phone = N'',
+            Address = N'Ha Noi',
+            WebsiteUrl = N'',
+            Description = N'Demo organizer account used for VolunteerHub review flows.',
+            DocumentUrl = N'',
+            VerificationNote = N'Seeded verified organizer for demo data.',
+            CommitmentAccepted = 1,
+            Status = N'Verified',
+            AdminNote = N'Seed verified.',
+            RejectReason = N'',
+            SubmittedAt = '2024-01-01T00:00:00',
+            CreatedAt = '2024-01-01T00:00:00',
+            UpdatedAt = NULL,
+            VerifiedAt = '2024-01-01T00:00:00',
+            VerifiedBy = 1
+        WHERE OrganizerId = 2;
+    END
+    ELSE
+    BEGIN
+        SET IDENTITY_INSERT dbo.OrganizerVerifications ON;
+        INSERT INTO dbo.OrganizerVerifications
+            (Id, OrganizerId, OrganizationName, RepresentativeName, ContactEmail, Phone, Address, WebsiteUrl, Description, DocumentUrl, VerificationNote, CommitmentAccepted, Status, AdminNote, RejectReason, SubmittedAt, CreatedAt, UpdatedAt, VerifiedAt, VerifiedBy)
+        VALUES
+            (1, 2, N'Volunteer Hub Demo Club', N'Nguyen Van Minh', N'organizer@volunteerhub.vn', N'', N'Ha Noi', N'', N'Demo organizer account used for VolunteerHub review flows.', N'', N'Seeded verified organizer for demo data.', 1, N'Verified', N'Seed verified.', N'', '2024-01-01T00:00:00', '2024-01-01T00:00:00', NULL, '2024-01-01T00:00:00', 1);
+        SET IDENTITY_INSERT dbo.OrganizerVerifications OFF;
+    END
+
     UPDATE dbo.Users
     SET IsActive = 1, UserType = 2, Name = N'Tran Thi Lan', Email = N'sponsor@volunteerhub.vn', Position = N'Sponsor'
     WHERE Id = 3;
@@ -68,15 +103,15 @@ BEGIN TRY
     WHERE Id = 4;
 
     UPDATE dbo.Events
-    SET CurrentParticipants = 0, Status = N'Pending', QrCode = N'', RequiredSkillIds = N'[4]'
+    SET MinParticipants = 10, CurrentParticipants = 0, Status = N'Pending', QrCode = N'', RequiredSkillIds = N'[4]', RequiresKyc = 0
     WHERE Id = 1;
 
     UPDATE dbo.Events
-    SET CurrentParticipants = 1, Status = N'Approved', QrCode = N'EVT-2025-0002', RequiredSkillIds = N'[]'
+    SET MinParticipants = 20, CurrentParticipants = 1, Status = N'Approved', QrCode = N'EVT-2025-0002', RequiredSkillIds = N'[]', RequiresKyc = 0
     WHERE Id = 2;
 
     UPDATE dbo.Events
-    SET CurrentParticipants = 1, Status = N'Completed', QrCode = N'EVT-2025-0003', RequiredSkillIds = N'[3,6]'
+    SET MinParticipants = 5, CurrentParticipants = 1, Status = N'Completed', QrCode = N'EVT-2025-0003', RequiredSkillIds = N'[3,6]', RequiresKyc = 0
     WHERE Id = 3;
 
     IF EXISTS (SELECT 1 FROM dbo.VolunteerProfiles WHERE Id = 1)
@@ -88,20 +123,29 @@ BEGIN TRY
             Interests = N'Môi trường, Giáo dục',
             TotalVolunteerHours = 0,
             Bio = N'Tình nguyện viên nhiệt huyết',
-            AvatarUrl = N''
+            AvatarUrl = N'',
+            KycStatus = N'Verified',
+            IdentityFrontImageUrl = N'',
+            IdentityBackImageUrl = N'',
+            PortraitImageUrl = N'',
+            KycSubmittedAt = NULL,
+            KycReviewedAt = NULL,
+            KycReviewedBy = NULL,
+            KycAdminNote = N'Seed verified.'
         WHERE Id = 1;
     END
     ELSE
     BEGIN
         SET IDENTITY_INSERT dbo.VolunteerProfiles ON;
         INSERT INTO dbo.VolunteerProfiles
-            (Id, UserId, BloodType, Languages, Interests, TotalVolunteerHours, Bio, AvatarUrl)
+            (Id, UserId, BloodType, Languages, Interests, TotalVolunteerHours, Bio, AvatarUrl, KycStatus, IdentityFrontImageUrl, IdentityBackImageUrl, PortraitImageUrl, KycSubmittedAt, KycReviewedAt, KycReviewedBy, KycAdminNote)
         VALUES
-            (1, 4, N'O', N'Tiếng Việt, Tiếng Anh', N'Môi trường, Giáo dục', 0, N'Tình nguyện viên nhiệt huyết', N'');
+            (1, 4, N'O', N'Tiếng Việt, Tiếng Anh', N'Môi trường, Giáo dục', 0, N'Tình nguyện viên nhiệt huyết', N'', N'Verified', N'', N'', N'', NULL, NULL, NULL, N'Seed verified.');
         SET IDENTITY_INSERT dbo.VolunteerProfiles OFF;
     END
 
     DBCC CHECKIDENT ('dbo.Users', RESEED, 4) WITH NO_INFOMSGS;
+    DBCC CHECKIDENT ('dbo.OrganizerVerifications', RESEED, 1) WITH NO_INFOMSGS;
     DBCC CHECKIDENT ('dbo.EventCategories', RESEED, 4) WITH NO_INFOMSGS;
     DBCC CHECKIDENT ('dbo.Skills', RESEED, 7) WITH NO_INFOMSGS;
     DBCC CHECKIDENT ('dbo.Badges', RESEED, 3) WITH NO_INFOMSGS;

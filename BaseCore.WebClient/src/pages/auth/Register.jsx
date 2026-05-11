@@ -4,7 +4,7 @@ import { authApi } from '../../services/api';
 
 const ROLES = [
   { value: 0, label: 'Tình nguyện viên', icon: 'fa-hand-holding-heart', desc: 'Tham gia sự kiện và tích lũy giờ tình nguyện' },
-  { value: 1, label: 'Nhà sáng lập', icon: 'fa-calendar-check', desc: 'Tạo và quản lý các chương trình, sự kiện cộng đồng' },
+  { value: 1, label: 'Nhà tổ chức', icon: 'fa-calendar-check', desc: 'Tạo và quản lý các chương trình, sự kiện cộng đồng' },
   { value: 2, label: 'Nhà tài trợ', icon: 'fa-hand-holding-dollar', desc: 'Đồng hành, hỗ trợ nguồn lực cho các sự kiện' },
 ];
 
@@ -21,8 +21,8 @@ export default function Register() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handleSubmit = async (event) => {
+    event.preventDefault();
     setError('');
 
     if (form.password.length < 8) {
@@ -100,7 +100,7 @@ export default function Register() {
                 <input
                   type="text"
                   value={form.username}
-                  onChange={(e) => setForm({ ...form, username: e.target.value })}
+                  onChange={(event) => setForm({ ...form, username: event.target.value })}
                   required
                   className="input-field"
                   placeholder="username"
@@ -111,7 +111,7 @@ export default function Register() {
                 <input
                   type="password"
                   value={form.password}
-                  onChange={(e) => setForm({ ...form, password: e.target.value })}
+                  onChange={(event) => setForm({ ...form, password: event.target.value })}
                   required
                   className="input-field"
                   placeholder="Tối thiểu 8 ký tự"
@@ -124,7 +124,7 @@ export default function Register() {
               <input
                 type="text"
                 value={form.name}
-                onChange={(e) => setForm({ ...form, name: e.target.value })}
+                onChange={(event) => setForm({ ...form, name: event.target.value })}
                 required
                 className="input-field"
                 placeholder="Nguyễn Văn A"
@@ -137,7 +137,7 @@ export default function Register() {
                 <input
                   type="email"
                   value={form.email}
-                  onChange={(e) => setForm({ ...form, email: e.target.value })}
+                  onChange={(event) => setForm({ ...form, email: event.target.value })}
                   className="input-field"
                   placeholder="email@example.com"
                 />
@@ -147,7 +147,7 @@ export default function Register() {
                 <input
                   type="tel"
                   value={form.phone}
-                  onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                  onChange={(event) => setForm({ ...form, phone: event.target.value })}
                   className="input-field"
                   placeholder="0901234567"
                 />

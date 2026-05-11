@@ -8,6 +8,7 @@ namespace BaseCore.Repository.EFCore
         Task<VolunteerProfile?> GetByUserIdAsync(int userId);
         Task<List<VolunteerSkill>> GetSkillsByUserIdAsync(int userId);
         Task AddSkillAsync(VolunteerSkill volunteerSkill);
+        Task UpdateSkillAsync(VolunteerSkill volunteerSkill);
         Task RemoveSkillAsync(int userId, int skillId);
     }
 
@@ -32,6 +33,12 @@ namespace BaseCore.Repository.EFCore
         public async Task AddSkillAsync(VolunteerSkill volunteerSkill)
         {
             _context.VolunteerSkills.Add(volunteerSkill);
+            await _context.SaveChangesAsync();
+        }
+
+        public async Task UpdateSkillAsync(VolunteerSkill volunteerSkill)
+        {
+            _context.VolunteerSkills.Update(volunteerSkill);
             await _context.SaveChangesAsync();
         }
 

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { productApi, categoryApi } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
+import ImageUploadField from '../components/ui/ImageUploadField';
 
 const Products = () => {
     const [products, setProducts] = useState([]);
@@ -340,12 +341,12 @@ const Products = () => {
                                         />
                                     </div>
                                     <div className="form-group">
-                                        <label>Image URL</label>
-                                        <input
-                                            type="text"
-                                            className="form-control"
+                                        <ImageUploadField
+                                            label="Product image"
                                             value={formData.imageUrl}
-                                            onChange={(e) => setFormData({ ...formData, imageUrl: e.target.value })}
+                                            onChange={(url) => setFormData({ ...formData, imageUrl: url })}
+                                            helper="Upload an image from your computer."
+                                            compact
                                         />
                                     </div>
                                     <div className="form-group">

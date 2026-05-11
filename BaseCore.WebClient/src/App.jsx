@@ -24,8 +24,11 @@ const MyCertificates = lazy(() => import('./pages/volunteer/MyCertificates'));
 const MyEvents = lazy(() => import('./pages/organizer/MyEvents'));
 const EventForm = lazy(() => import('./pages/organizer/EventForm'));
 const ManageEvent = lazy(() => import('./pages/organizer/ManageEvent'));
+const OrganizerVerification = lazy(() => import('./pages/organizer/OrganizerVerification'));
 const MySponsorships = lazy(() => import('./pages/sponsor/MySponsorships'));
 const AdminEvents = lazy(() => import('./pages/admin/AdminEvents'));
+const AdminOrganizerVerifications = lazy(() => import('./pages/admin/AdminOrganizerVerifications'));
+const AdminVolunteerVerifications = lazy(() => import('./pages/admin/AdminVolunteerVerifications'));
 const AdminUsers = lazy(() => import('./pages/admin/AdminUsers'));
 const AdminCategories = lazy(() => import('./pages/admin/AdminCategories'));
 const AdminSkills = lazy(() => import('./pages/admin/AdminSkills'));
@@ -83,10 +86,13 @@ function AppRoutes() {
         <Route path="/events/create" element={<AppPage roles={['Organizer']}><EventForm /></AppPage>} />
         <Route path="/events/:id/edit" element={<AppPage roles={['Organizer']}><EventForm /></AppPage>} />
         <Route path="/events/:id/manage" element={<AppPage roles={['Organizer']}><ManageEvent /></AppPage>} />
+        <Route path="/organizer/verification" element={<AppPage roles={['Organizer']}><OrganizerVerification /></AppPage>} />
 
         <Route path="/my-sponsorships" element={<AppPage roles={['Sponsor']}><MySponsorships /></AppPage>} />
 
         <Route path="/admin/events" element={<AppPage roles={['Admin']}><AdminEvents /></AppPage>} />
+        <Route path="/admin/organizer-verifications" element={<AppPage roles={['Admin']}><AdminOrganizerVerifications /></AppPage>} />
+        <Route path="/admin/volunteer-verifications" element={<AppPage roles={['Admin']}><AdminVolunteerVerifications /></AppPage>} />
         <Route path="/admin/users" element={<AppPage roles={['Admin']}><AdminUsers /></AppPage>} />
         <Route path="/admin/categories" element={<AppPage roles={['Admin']}><AdminCategories /></AppPage>} />
         <Route path="/admin/skills" element={<AppPage roles={['Admin']}><AdminSkills /></AppPage>} />

@@ -161,6 +161,7 @@ export const registrationApi = {
   confirm: (eventId, regId) => api.put(`/events/${eventId}/registrations/${regId}/confirm`),
   cancel: (eventId, regId) => api.put(`/events/${eventId}/registrations/${regId}/cancel`),
   checkin: (eventId, regId, data) => api.post(`/events/${eventId}/registrations/${regId}/checkin`, data),
+  selfCheckin: (eventId, data) => api.post(`/events/${eventId}/self-checkin`, data),
   getMyRegistrations: () => api.get('/my-registrations'),
 };
 
@@ -193,6 +194,7 @@ export const notificationApi = {
 export const profileApi = {
   getMyProfile: () => api.get('/profile'),
   updateProfile: (data) => api.put('/profile', data),
+  submitKyc: (data) => api.post('/profile/kyc', data),
   getPassport: () => api.get('/profile/passport'),
   getUserProfile: (userId) => api.get(`/profile/${userId}`),
 };
@@ -206,6 +208,7 @@ export const skillApi = {
 
 export const profileSkillApi = {
   add: (data) => api.post('/profile/skills', data),
+  submitVerification: (skillId, data) => api.put(`/profile/skills/${skillId}/verification`, data),
   remove: (skillId) => api.delete(`/profile/skills/${skillId}`),
 };
 
@@ -266,6 +269,21 @@ export const sponsorshipProposalApi = {
   report: (proposalId, data) => api.post(`/sponsorship-proposals/${proposalId}/report`, data),
 };
 
+export const uploadApi = {
+  uploadImage: (file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return api.post('/uploads/images', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  },
+};
+
+export const organizerVerificationApi = {
+  getMine: () => api.get('/organizer/verification'),
+  submit: (data) => api.post('/organizer/verification', data),
+};
+
 export const dashboardApi = {
   get: () => api.get('/dashboard'),
 };
@@ -276,6 +294,16 @@ export const adminApi = {
     return api.get('/admin/users', { params: { ...rest, keyword: search } });
   },
   toggleUserStatus: (id) => api.put(`/admin/users/${id}/toggle-status`),
+  getOrganizerVerifications: (params = {}) => api.get('/admin/organizer-verifications', { params }),
+  approveOrganizerVerification: (id, data = {}) => api.put(`/admin/organizer-verifications/${id}/approve`, data),
+  rejectOrganizerVerification: (id, data = {}) => api.put(`/admin/organizer-verifications/${id}/reject`, data),
+  requestOrganizerVerificationChanges: (id, data = {}) => api.put(`/admin/organizer-verifications/${id}/request-changes`, data),
+  getVolunteerKycRequests: (params = {}) => api.get('/admin/volunteer-kyc', { params }),
+  approveVolunteerKyc: (id, data = {}) => api.put(`/admin/volunteer-kyc/${id}/approve`, data),
+  rejectVolunteerKyc: (id, data = {}) => api.put(`/admin/volunteer-kyc/${id}/reject`, data),
+  getVolunteerSkillVerifications: (params = {}) => api.get('/admin/volunteer-skill-verifications', { params }),
+  approveVolunteerSkill: (id, data = {}) => api.put(`/admin/volunteer-skill-verifications/${id}/approve`, data),
+  rejectVolunteerSkill: (id, data = {}) => api.put(`/admin/volunteer-skill-verifications/${id}/reject`, data),
   getMonitoringHealth: () => api.get('/monitoring/health'),
   getMonitoringSummary: () => api.get('/admin/monitoring/summary'),
   getAuditLogs: (params = {}) => api.get('/admin/audit-logs', { params }),

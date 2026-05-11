@@ -4,6 +4,7 @@ import { eventApi, sponsorshipProposalApi } from '../../services/api';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import Modal from '../../components/ui/Modal';
 import StatusBadge from '../../components/ui/StatusBadge';
+import ImageUploadField from '../../components/ui/ImageUploadField';
 
 function fmt(dt) {
   return dt ? new Date(dt).toLocaleDateString('vi-VN') : '';
@@ -221,10 +222,13 @@ export default function MySponsorships() {
             <textarea rows={2} value={form.publicMessage} onChange={(e) => setForm((f) => ({ ...f, publicMessage: e.target.value }))} className="input-field resize-none" />
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Logo URL</label>
-              <input value={form.logoUrl} onChange={(e) => setForm((f) => ({ ...f, logoUrl: e.target.value }))} className="input-field" />
-            </div>
+            <ImageUploadField
+              label="Logo tài trợ"
+              value={form.logoUrl}
+              onChange={(url) => setForm((f) => ({ ...f, logoUrl: url }))}
+              helper="Upload logo hoặc ảnh đại diện nhà tài trợ."
+              compact
+            />
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Đính kèm URL</label>
               <input value={form.attachmentUrl} onChange={(e) => setForm((f) => ({ ...f, attachmentUrl: e.target.value }))} className="input-field" />

@@ -52,6 +52,141 @@ namespace BaseCore.APIService.Controllers
             return Ok(new { id = user.Id, isActive = user.IsActive });
         }
 
+        [HttpGet("volunteer-kyc")]
+        public async Task<IActionResult> GetVolunteerKycRequests([FromQuery] string? status = "PendingVerification")
+        {
+            var query = _context.VolunteerProfiles
+                .Include(p => p.User)
+                .AsQueryable();
+
+            if (!string.IsNullOrWhiteSpace(status))
+                query = query.Where(p => p.KycStatus == status);
+
+            var items = await query
+                .OrderByDescending(p => p.KycSubmittedAt ?? DateTime.MinValue)
+                .Select(p => new
+                {
+                    p.Id,
+                    p.UserId,
+                    VolunteerName = p.User != null ? p.User.Name : "",
+                    VolunteerEmail = p.User != null ? p.User.Email : "",
+                    p.KycStatus,
+                    p.IdentityFrontImageUrl,
+                    p.IdentityBackImageUrl,
+                    p.PortraitImageUrl,
+                    p.KycSubmittedAt,
+                    p.KycReviewedAt,
+                    p.KycReviewedBy,
+                    p.KycAdminNote
+                })
+                .ToListAsync();
+
+            return Ok(items);
+        }
+
+        [HttpPut("volunteer-kyc/{profileId}/approve")]
+        [EnableRateLimiting("write-sensitive")]
+        public async Task<IActionResult> ApproveVolunteerKyc(int profileId, [FromBody] AdminReviewDto? dto = null)
+        {
+            var profile = await _context.VolunteerProfiles.FindAsync(profileId);
+            if (profile == null) return NotFound();
+
+            profile.KycStatus = "Verified";
+            profile.KycReviewedAt = DateTime.UtcNow;
+            profile.KycReviewedBy = GetCurrentUserId();
+            profile.KycAdminNote = dto?.Note ?? "";
+
+            await _context.SaveChangesAsync();
+            await RecordAuditAsync("Admin.VolunteerKyc.Approve", "VolunteerProfile", profile.Id, dto?.Note);
+            return Ok(profile);
+        }
+
+        [HttpPut("volunteer-kyc/{profileId}/reject")]
+        [EnableRateLimiting("write-sensitive")]
+        public async Task<IActionResult> RejectVolunteerKyc(int profileId, [FromBody] AdminReviewDto? dto = null)
+        {
+            var profile = await _context.VolunteerProfiles.FindAsync(profileId);
+            if (profile == null) return NotFound();
+
+            profile.KycStatus = "Rejected";
+            profile.KycReviewedAt = DateTime.UtcNow;
+            profile.KycReviewedBy = GetCurrentUserId();
+            profile.KycAdminNote = dto?.Note ?? "";
+
+            await _context.SaveChangesAsync();
+            await RecordAuditAsync("Admin.VolunteerKyc.Reject", "VolunteerProfile", profile.Id, dto?.Note);
+            return Ok(profile);
+        }
+
+        [HttpGet("volunteer-skill-verifications")]
+        public async Task<IActionResult> GetVolunteerSkillVerifications([FromQuery] string? status = "PendingVerification")
+        {
+            var query = _context.VolunteerSkills
+                .Include(vs => vs.User)
+                .Include(vs => vs.Skill)
+                .AsQueryable();
+
+            if (!string.IsNullOrWhiteSpace(status))
+                query = query.Where(vs => vs.VerificationStatus == status);
+
+            var items = await query
+                .OrderByDescending(vs => vs.VerificationSubmittedAt ?? DateTime.MinValue)
+                .Select(vs => new
+                {
+                    vs.Id,
+                    vs.UserId,
+                    VolunteerName = vs.User != null ? vs.User.Name : "",
+                    VolunteerEmail = vs.User != null ? vs.User.Email : "",
+                    SkillName = vs.Skill != null ? vs.Skill.Name : "",
+                    SkillCategory = vs.Skill != null ? vs.Skill.Category : "",
+                    vs.Level,
+                    vs.VerificationStatus,
+                    vs.EvidenceUrl,
+                    vs.VerificationNote,
+                    vs.VerificationSubmittedAt,
+                    vs.VerificationReviewedAt,
+                    vs.VerificationReviewedBy,
+                    vs.AdminNote
+                })
+                .ToListAsync();
+
+            return Ok(items);
+        }
+
+        [HttpPut("volunteer-skill-verifications/{id}/approve")]
+        [EnableRateLimiting("write-sensitive")]
+        public async Task<IActionResult> ApproveVolunteerSkill(int id, [FromBody] AdminReviewDto? dto = null)
+        {
+            var volunteerSkill = await _context.VolunteerSkills.FindAsync(id);
+            if (volunteerSkill == null) return NotFound();
+
+            volunteerSkill.VerificationStatus = "Verified";
+            volunteerSkill.VerificationReviewedAt = DateTime.UtcNow;
+            volunteerSkill.VerificationReviewedBy = GetCurrentUserId();
+            volunteerSkill.AdminNote = dto?.Note ?? "";
+
+            await _context.SaveChangesAsync();
+            await RecordAuditAsync("Admin.VolunteerSkill.Approve", "VolunteerSkill", volunteerSkill.Id, dto?.Note);
+            return Ok(volunteerSkill);
+        }
+
+        [HttpPut("volunteer-skill-verifications/{id}/reject")]
+        [EnableRateLimiting("write-sensitive")]
+        public async Task<IActionResult> RejectVolunteerSkill(int id, [FromBody] AdminReviewDto? dto = null)
+        {
+            var volunteerSkill = await _context.VolunteerSkills.FindAsync(id);
+            if (volunteerSkill == null) return NotFound();
+
+            volunteerSkill.VerificationStatus = "Rejected";
+            volunteerSkill.VerificationReviewedAt = DateTime.UtcNow;
+            volunteerSkill.VerificationReviewedBy = GetCurrentUserId();
+            volunteerSkill.AdminNote = dto?.Note ?? "";
+
+            await _context.SaveChangesAsync();
+            await RecordAuditAsync("Admin.VolunteerSkill.Reject", "VolunteerSkill", volunteerSkill.Id, dto?.Note);
+            return Ok(volunteerSkill);
+        }
+
         [HttpGet("export/events")]
         [EnableRateLimiting("read-sensitive")]
         public async Task<IActionResult> ExportEvents([FromQuery] string format = "json")
@@ -62,7 +197,7 @@ namespace BaseCore.APIService.Controllers
                 .Select(e => new
                 {
                     e.Id, e.Title, e.Status, e.Location,
-                    e.StartDate, e.EndDate, e.MaxParticipants, e.CurrentParticipants,
+                    e.StartDate, e.EndDate, e.MinParticipants, e.MaxParticipants, e.CurrentParticipants,
                     Category = e.Category != null ? e.Category.Name : "",
                     Organizer = e.Organizer != null ? e.Organizer.Name : "",
                     e.CreatedAt
@@ -73,9 +208,9 @@ namespace BaseCore.APIService.Controllers
             {
                 await RecordAuditAsync("Admin.Export.Events", "Event", null, "Format=csv");
                 var csv = new StringBuilder();
-                csv.AppendLine("Id,Title,Status,Location,StartDate,EndDate,MaxParticipants,CurrentParticipants,Category,Organizer,CreatedAt");
+                csv.AppendLine("Id,Title,Status,Location,StartDate,EndDate,MinParticipants,MaxParticipants,CurrentParticipants,Category,Organizer,CreatedAt");
                 foreach (var e in events)
-                    csv.AppendLine($"{e.Id},{EscapeCsv(e.Title)},{e.Status},{EscapeCsv(e.Location)},{e.StartDate:yyyy-MM-dd},{e.EndDate:yyyy-MM-dd},{e.MaxParticipants},{e.CurrentParticipants},{EscapeCsv(e.Category)},{EscapeCsv(e.Organizer)},{e.CreatedAt:yyyy-MM-dd}");
+                    csv.AppendLine($"{e.Id},{EscapeCsv(e.Title)},{e.Status},{EscapeCsv(e.Location)},{e.StartDate:yyyy-MM-dd},{e.EndDate:yyyy-MM-dd},{e.MinParticipants},{e.MaxParticipants},{e.CurrentParticipants},{EscapeCsv(e.Category)},{EscapeCsv(e.Organizer)},{e.CreatedAt:yyyy-MM-dd}");
                 return File(Encoding.UTF8.GetBytes(csv.ToString()), "text/csv", "events.csv");
             }
 
@@ -203,9 +338,7 @@ namespace BaseCore.APIService.Controllers
 
         private Task RecordAuditAsync(string action, string entityType, int? entityId = null, string? metadata = null)
         {
-            var userId = int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var parsedUserId)
-                ? parsedUserId
-                : (int?)null;
+            var userId = GetCurrentUserId();
 
             return _auditLogService.RecordAsync(
                 userId,
@@ -216,6 +349,13 @@ namespace BaseCore.APIService.Controllers
                 HttpContext.Connection.RemoteIpAddress?.ToString());
         }
 
+        private int? GetCurrentUserId()
+        {
+            return int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var parsedUserId)
+                ? parsedUserId
+                : (int?)null;
+        }
+
         private static string EscapeCsv(string? value)
         {
             if (string.IsNullOrEmpty(value)) return "";
@@ -223,5 +363,10 @@ namespace BaseCore.APIService.Controllers
                 return $"\"{value.Replace("\"", "\"\"")}\"";
             return value;
         }
+    }
+
+    public class AdminReviewDto
+    {
+        public string? Note { get; set; }
     }
 }

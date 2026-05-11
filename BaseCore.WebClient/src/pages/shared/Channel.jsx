@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom';
 import { channelApi } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
+import ImageUploadField from '../../components/ui/ImageUploadField';
 
 function fmt(dt) {
   if (!dt) return '';
@@ -278,12 +279,12 @@ export default function Channel() {
                     autoFocus
                     className="w-full text-sm border-0 resize-none focus:outline-none text-gray-800 placeholder-gray-400"
                   />
-                  <input
-                    type="url"
+                  <ImageUploadField
+                    label="Ảnh bài viết"
                     value={imageUrl}
-                    onChange={e => setImageUrl(e.target.value)}
-                    placeholder="URL ảnh (tùy chọn)"
-                    className="input-field text-sm"
+                    onChange={setImageUrl}
+                    helper="Tùy chọn, upload ảnh từ máy để đính kèm bài viết."
+                    compact
                   />
                 </div>
               </div>
