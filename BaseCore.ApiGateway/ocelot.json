@@ -33,6 +33,14 @@
       "Priority": 190
     },
     {
+      "DownstreamPathTemplate": "/api/users/volunteers",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [{ "Host": "localhost", "Port": 5002 }],
+      "UpstreamPathTemplate": "/api/users/volunteers",
+      "UpstreamHttpMethod": [ "GET", "POST", "PUT", "DELETE", "OPTIONS" ],
+      "Priority": 185
+    },
+    {
       "DownstreamPathTemplate": "/api/users/{everything}",
       "DownstreamScheme": "http",
       "DownstreamHostAndPorts": [{ "Host": "localhost", "Port": 5002 }],
@@ -223,6 +231,14 @@
       "UpstreamPathTemplate": "/api/admin/organizer-verifications",
       "UpstreamHttpMethod": [ "GET", "POST", "PUT", "DELETE", "OPTIONS" ],
       "Priority": 170
+    },
+    {
+      "DownstreamPathTemplate": "/api/admin/ratings",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [{ "Host": "localhost", "Port": 5003 }],
+      "UpstreamPathTemplate": "/api/admin/ratings",
+      "UpstreamHttpMethod": [ "GET", "POST", "PUT", "DELETE", "OPTIONS" ],
+      "Priority": 185
     },
     {
       "DownstreamPathTemplate": "/api/users/{userId}/ratings",

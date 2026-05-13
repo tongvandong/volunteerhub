@@ -147,8 +147,11 @@ export const eventApi = {
   update: (id, data) => api.put(`/events/${id}`, data),
   delete: (id) => api.delete(`/events/${id}`),
   approve: (id) => api.put(`/events/${id}/approve`),
-  reject: (id) => api.put(`/events/${id}/reject`),
+  reject: (id, data = {}) => api.put(`/events/${id}/reject`, data),
   complete: (id) => api.put(`/events/${id}/complete`),
+  cancel: (id, reason) => api.put(`/events/${id}/cancel`, { reason }),
+  resubmit: (id) => api.post(`/events/${id}/resubmit`),
+  uncomplete: (id) => api.post(`/events/${id}/uncomplete`),
   getRegistrations: (id) => api.get(`/events/${id}/registrations`),
   getShifts: (id) => api.get(`/events/${id}/shifts`),
   createShift: (id, data) => api.post(`/events/${id}/shifts`, data),
@@ -160,6 +163,10 @@ export const registrationApi = {
   getMyRegistration: (eventId) => api.get(`/events/${eventId}/my-registration`),
   confirm: (eventId, regId) => api.put(`/events/${eventId}/registrations/${regId}/confirm`),
   cancel: (eventId, regId) => api.put(`/events/${eventId}/registrations/${regId}/cancel`),
+  requestCancelRegistration: (eventId, reason) => api.post(`/events/${eventId}/register/cancel-request`, { reason }),
+  walkIn: (eventId, volunteerUserId, note) => api.post(`/events/${eventId}/walk-in`, { volunteerUserId, note }),
+  manualAttend: (eventId, regId, hours) => api.post(`/events/${eventId}/registrations/${regId}/manual-attend`, { hours }),
+  adjustHours: (eventId, regId, hours) => api.put(`/events/${eventId}/registrations/${regId}/hours`, { hours }),
   checkin: (eventId, regId, data) => api.post(`/events/${eventId}/registrations/${regId}/checkin`, data),
   selfCheckin: (eventId, data) => api.post(`/events/${eventId}/self-checkin`, data),
   getMyRegistrations: () => api.get('/my-registrations'),
@@ -226,6 +233,10 @@ export const badgeApi = {
 export const ratingApi = {
   create: (eventId, data) => api.post(`/events/${eventId}/ratings`, data),
   getUserRatings: (userId) => api.get(`/users/${userId}/ratings`),
+  getAdminRatings: (params = {}) => api.get('/admin/ratings', { params }),
+  hide: (id, reason) => api.put(`/ratings/${id}/hide`, { reason }),
+  unhide: (id) => api.put(`/ratings/${id}/unhide`),
+  delete: (id) => api.delete(`/ratings/${id}`),
 };
 
 export const sponsorApi = {
@@ -282,6 +293,10 @@ export const uploadApi = {
 export const organizerVerificationApi = {
   getMine: () => api.get('/organizer/verification'),
   submit: (data) => api.post('/organizer/verification', data),
+};
+
+export const userApi = {
+  getVolunteerLookup: (params = {}) => api.get('/users/volunteers', { params }),
 };
 
 export const dashboardApi = {

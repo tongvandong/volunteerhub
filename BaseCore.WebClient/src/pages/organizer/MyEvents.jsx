@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { eventApi } from '../../services/api';
 import StatusBadge from '../../components/ui/StatusBadge';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
+import { eventApi } from '../../services/api';
 
 function fmt(dt) {
   return dt ? new Date(dt).toLocaleDateString('vi-VN') : '';
@@ -12,6 +12,7 @@ export default function MyEvents() {
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
+  const [resubmittingId, setResubmittingId] = useState(null);
 
   useEffect(() => {
     eventApi.getMine()
@@ -25,42 +26,66 @@ export default function MyEvents() {
 
     try {
       await eventApi.delete(id);
-      setEvents((prev) => prev.filter((e) => e.id !== id));
+      setEvents((prev) => prev.filter((event) => event.id !== id));
     } catch (err) {
       alert(err.response?.data?.message || 'Xóa thất bại');
     }
   };
 
-  const filtered = filter === 'all' ? events : events.filter((e) => e.status === filter);
-  const counts = {
-    Pending: events.filter((e) => e.status === 'Pending').length,
-    Approved: events.filter((e) => e.status === 'Approved').length,
-    Completed: events.filter((e) => e.status === 'Completed').length,
+  const handleResubmit = async (id) => {
+    setResubmittingId(id);
+    try {
+      const response = await eventApi.resubmit(id);
+      setEvents((prev) => prev.map((event) => (
+        event.id === id ? { ...event, ...response.data, status: 'Pending' } : event
+      )));
+    } catch (err) {
+      alert(err.response?.data?.message || 'Gửi duyệt lại thất bại');
+    } finally {
+      setResubmittingId(null);
+    }
   };
+
+  const filtered = filter === 'all' ? events : events.filter((event) => event.status === filter);
+  const counts = {
+    all: events.length,
+    Pending: events.filter((event) => event.status === 'Pending').length,
+    Approved: events.filter((event) => event.status === 'Approved').length,
+    Completed: events.filter((event) => event.status === 'Completed').length,
+    Rejected: events.filter((event) => event.status === 'Rejected').length,
+    Cancelled: events.filter((event) => event.status === 'Cancelled').length,
+  };
+
+  const filterCards = [
+    { key: 'all', label: 'Tất cả', count: counts.all, color: 'bg-gray-50 border-gray-200' },
+    { key: 'Pending', label: 'Chờ duyệt', count: counts.Pending, color: 'bg-yellow-50 border-yellow-200' },
+    { key: 'Approved', label: 'Đang mở', count: counts.Approved, color: 'bg-green-50 border-green-200' },
+    { key: 'Completed', label: 'Hoàn thành', count: counts.Completed, color: 'bg-blue-50 border-blue-200' },
+    { key: 'Rejected', label: 'Bị từ chối', count: counts.Rejected, color: 'bg-red-50 border-red-200' },
+    { key: 'Cancelled', label: 'Đã hủy', count: counts.Cancelled, color: 'bg-orange-50 border-orange-200' },
+  ];
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-3">
         <h1 className="text-xl font-bold text-gray-900">Sự kiện của tôi</h1>
         <Link to="/events/create" className="btn-primary flex items-center gap-2">
           <i className="fa-solid fa-circle-plus" /> Tạo sự kiện
         </Link>
       </div>
 
-      <div className="grid grid-cols-4 gap-3">
-        {[
-          { key: 'all', label: 'Tất cả', count: events.length, color: 'bg-gray-50 border-gray-200' },
-          { key: 'Pending', label: 'Chờ duyệt', count: counts.Pending, color: 'bg-yellow-50 border-yellow-200' },
-          { key: 'Approved', label: 'Đang mở', count: counts.Approved, color: 'bg-green-50 border-green-200' },
-          { key: 'Completed', label: 'Hoàn thành', count: counts.Completed, color: 'bg-blue-50 border-blue-200' },
-        ].map((t) => (
+      <div className="grid grid-cols-2 xl:grid-cols-6 gap-3">
+        {filterCards.map((item) => (
           <button
-            key={t.key}
-            onClick={() => setFilter(t.key)}
-            className={`p-3 rounded-xl border-2 text-center transition-all ${filter === t.key ? 'border-primary-500 bg-primary-50' : `${t.color}`}`}
+            key={item.key}
+            type="button"
+            onClick={() => setFilter(item.key)}
+            className={`rounded-xl border-2 p-3 text-center transition-all ${
+              filter === item.key ? 'border-primary-500 bg-primary-50' : item.color
+            }`}
           >
-            <p className="text-lg font-bold text-gray-900">{t.count}</p>
-            <p className="text-xs text-gray-500">{t.label}</p>
+            <p className="text-lg font-bold text-gray-900">{item.count}</p>
+            <p className="text-xs text-gray-500">{item.label}</p>
           </button>
         ))}
       </div>
@@ -75,11 +100,11 @@ export default function MyEvents() {
         </div>
       ) : (
         <div className="space-y-3">
-          {filtered.map((ev) => (
-            <div key={ev.id} className="card p-5 flex flex-col sm:flex-row sm:items-center gap-4">
+          {filtered.map((event) => (
+            <div key={event.id} className="card p-5 flex flex-col sm:flex-row sm:items-center gap-4">
               <div className="w-16 h-16 rounded-xl bg-primary-100 flex-shrink-0 overflow-hidden">
-                {ev.imageUrl ? (
-                  <img src={ev.imageUrl} alt="" className="w-full h-full object-cover" />
+                {event.imageUrl ? (
+                  <img src={event.imageUrl} alt="" className="w-full h-full object-cover" />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center">
                     <i className="fa-solid fa-calendar text-primary-300 text-xl" />
@@ -88,28 +113,48 @@ export default function MyEvents() {
               </div>
 
               <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-1">
-                  <h3 className="text-sm font-semibold text-gray-900 truncate">{ev.title}</h3>
-                  <StatusBadge status={ev.status} />
+                <div className="flex items-center gap-2 mb-1 flex-wrap">
+                  <h3 className="text-sm font-semibold text-gray-900 truncate">{event.title}</h3>
+                  <StatusBadge status={event.status} />
                 </div>
                 <div className="flex flex-wrap gap-3 text-xs text-gray-400">
-                  <span><i className="fa-solid fa-calendar mr-1" />{fmt(ev.startDate)}</span>
-                  {ev.location && <span><i className="fa-solid fa-location-dot mr-1" />{ev.location}</span>}
-                  <span><i className="fa-solid fa-users mr-1" />{ev.currentParticipants}/{ev.maxParticipants}</span>
+                  <span><i className="fa-solid fa-calendar mr-1" />{fmt(event.startDate)}</span>
+                  {event.location && <span><i className="fa-solid fa-location-dot mr-1" />{event.location}</span>}
+                  <span><i className="fa-solid fa-users mr-1" />{event.currentParticipants}/{event.maxParticipants}</span>
                 </div>
               </div>
 
-              <div className="flex items-center gap-2 flex-shrink-0">
-                {(ev.status === 'Approved' || ev.status === 'Completed') && (
-                  <Link to={`/events/${ev.id}/manage`} className="btn-secondary btn-sm flex items-center gap-1">
+              <div className="flex flex-wrap items-center gap-2 flex-shrink-0">
+                {(event.status === 'Approved' || event.status === 'Completed' || event.status === 'Cancelled') && (
+                  <Link to={`/events/${event.id}/manage`} className="btn-secondary btn-sm flex items-center gap-1">
                     <i className="fa-solid fa-list-check" /> Quản lý
                   </Link>
                 )}
-                <Link to={`/events/${ev.id}/edit`} className="btn-secondary btn-sm flex items-center gap-1">
-                  <i className="fa-solid fa-pen" /> Sửa
-                </Link>
-                {ev.status === 'Pending' && (
-                  <button onClick={() => handleDelete(ev.id)} className="btn-danger btn-sm flex items-center gap-1">
+
+                {event.status !== 'Completed' && event.status !== 'Cancelled' && (
+                  <Link to={`/events/${event.id}/edit`} className="btn-secondary btn-sm flex items-center gap-1">
+                    <i className="fa-solid fa-pen" /> Sửa
+                  </Link>
+                )}
+
+                {event.status === 'Rejected' && (
+                  <button
+                    type="button"
+                    onClick={() => handleResubmit(event.id)}
+                    disabled={resubmittingId === event.id}
+                    className="btn-primary btn-sm flex items-center gap-1"
+                  >
+                    {resubmittingId === event.id ? (
+                      <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      <i className="fa-solid fa-paper-plane" />
+                    )}
+                    Gửi duyệt lại
+                  </button>
+                )}
+
+                {event.status === 'Pending' && (
+                  <button type="button" onClick={() => handleDelete(event.id)} className="btn-danger btn-sm flex items-center gap-1">
                     <i className="fa-solid fa-trash" />
                   </button>
                 )}

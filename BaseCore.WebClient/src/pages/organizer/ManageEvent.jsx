@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
-import { eventApi, registrationApi, ratingApi, sponsorApi, supportCampaignApi, sponsorshipProposalApi } from '../../services/api';
+import { eventApi, registrationApi, ratingApi, sponsorApi, supportCampaignApi, sponsorshipProposalApi, userApi } from '../../services/api';
 import StatusBadge from '../../components/ui/StatusBadge';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import Modal from '../../components/ui/Modal';
@@ -90,6 +90,16 @@ export default function ManageEvent() {
     expenseDetails: '',
     attachmentUrl: '',
   });
+  const [cancelEventModal, setCancelEventModal] = useState(false);
+  const [cancelEventReason, setCancelEventReason] = useState('');
+  const [cancelEventSaving, setCancelEventSaving] = useState(false);
+  const [walkInModal, setWalkInModal] = useState(false);
+  const [walkInSaving, setWalkInSaving] = useState(false);
+  const [volunteerOptions, setVolunteerOptions] = useState([]);
+  const [volunteerSearch, setVolunteerSearch] = useState('');
+  const [walkInForm, setWalkInForm] = useState({ volunteerUserId: '', note: '' });
+  const [manualHours, setManualHours] = useState({});
+  const [hoursSaving, setHoursSaving] = useState({});
 
   useEffect(() => {
     Promise.all([
@@ -114,6 +124,24 @@ export default function ManageEvent() {
       .finally(() => setLoading(false));
   }, [id]);
 
+  const reloadRegistrations = async () => {
+    const response = await eventApi.getRegistrations(id);
+    setRegistrations(response.data || []);
+  };
+
+  const loadVolunteerOptions = async (keyword = '') => {
+    const response = await userApi.getVolunteerLookup({ keyword, take: 30 });
+    setVolunteerOptions(response.data || []);
+  };
+
+  useEffect(() => {
+    if (!walkInModal) return;
+    const timeoutId = setTimeout(() => {
+      loadVolunteerOptions(volunteerSearch).catch(() => {});
+    }, 250);
+    return () => clearTimeout(timeoutId);
+  }, [walkInModal, volunteerSearch]);
+
   const handleConfirm = async (regId) => {
     try {
       await registrationApi.confirm(id, regId);
@@ -127,9 +155,88 @@ export default function ManageEvent() {
     if (!confirm('Hủy đăng ký này?')) return;
     try {
       await registrationApi.cancel(id, regId);
-      setRegistrations((prev) => prev.map((r) => (r.id === regId ? { ...r, status: 'Cancelled' } : r)));
+      setRegistrations((prev) => prev.map((r) => (r.id === regId ? { ...r, status: 'Cancelled', cancelRequested: false } : r)));
     } catch (err) {
       alert(err.response?.data?.message || 'Thất bại');
+    }
+  };
+
+  const openWalkInModal = async () => {
+    setVolunteerSearch('');
+    setWalkInForm({ volunteerUserId: '', note: '' });
+    setWalkInModal(true);
+    try {
+      await loadVolunteerOptions('');
+    } catch (err) {
+      alert(err.response?.data?.message || 'Không tải được danh sách volunteer');
+    }
+  };
+
+  const submitWalkIn = async (e) => {
+    e.preventDefault();
+    if (!walkInForm.volunteerUserId) {
+      alert('Vui lòng chọn volunteer');
+      return;
+    }
+
+    setWalkInSaving(true);
+    try {
+      await registrationApi.walkIn(id, Number(walkInForm.volunteerUserId), walkInForm.note.trim());
+      await reloadRegistrations();
+      setWalkInModal(false);
+    } catch (err) {
+      alert(err.response?.data?.message || 'Đăng ký tại chỗ thất bại');
+    } finally {
+      setWalkInSaving(false);
+    }
+  };
+
+  const submitManualAttend = async (registration) => {
+    const hours = manualHours[registration.id] === '' || manualHours[registration.id] == null
+      ? undefined
+      : Number(manualHours[registration.id]);
+
+    setHoursSaving((prev) => ({ ...prev, [`attend-${registration.id}`]: true }));
+    try {
+      await registrationApi.manualAttend(id, registration.id, hours);
+      await reloadRegistrations();
+    } catch (err) {
+      alert(err.response?.data?.message || 'Bổ sung điểm danh thất bại');
+    } finally {
+      setHoursSaving((prev) => ({ ...prev, [`attend-${registration.id}`]: false }));
+    }
+  };
+
+  const saveAdjustedHours = async (registration) => {
+    const hours = Number(manualHours[registration.id]);
+    if (!Number.isFinite(hours) || hours < 0) {
+      alert('Số giờ phải lớn hơn hoặc bằng 0');
+      return;
+    }
+
+    setHoursSaving((prev) => ({ ...prev, [`hours-${registration.id}`]: true }));
+    try {
+      await registrationApi.adjustHours(id, registration.id, hours);
+      await reloadRegistrations();
+    } catch (err) {
+      alert(err.response?.data?.message || 'Điều chỉnh giờ thất bại');
+    } finally {
+      setHoursSaving((prev) => ({ ...prev, [`hours-${registration.id}`]: false }));
+    }
+  };
+
+  const submitCancelEvent = async (e) => {
+    e.preventDefault();
+    setCancelEventSaving(true);
+    try {
+      const response = await eventApi.cancel(id, cancelEventReason.trim());
+      setEvent((prev) => ({ ...prev, ...response.data, status: 'Cancelled' }));
+      setCancelEventModal(false);
+      navigate('/my-events');
+    } catch (err) {
+      alert(err.response?.data?.message || 'Hủy sự kiện thất bại');
+    } finally {
+      setCancelEventSaving(false);
     }
   };
 
@@ -613,10 +720,15 @@ export default function ManageEvent() {
             Hoàn thành
           </button>
         )}
+        {(event?.status === 'Pending' || event?.status === 'Approved') && (
+          <button type="button" onClick={() => setCancelEventModal(true)} className="btn-danger btn-sm flex items-center justify-center gap-1 shrink-0 basis-full sm:basis-auto">
+            <i className="fa-solid fa-ban" /> Hủy sự kiện
+          </button>
+        )}
         <StatusBadge status={event?.status} />
       </div>
 
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         {[
           { label: 'Chờ xác nhận', value: pending.length, color: 'text-yellow-600', bg: 'bg-yellow-50' },
           { label: 'Đã xác nhận', value: confirmed.length, color: 'text-green-600', bg: 'bg-green-50' },
@@ -674,6 +786,12 @@ export default function ManageEvent() {
 
       {tab === 'registrations' && (
         <div className="space-y-3">
+          <div className="flex justify-end">
+            <button type="button" onClick={openWalkInModal} className="btn-secondary btn-sm flex items-center gap-2">
+              <i className="fa-solid fa-person-walking" /> Đăng ký tại chỗ
+            </button>
+          </div>
+
           {registrations.length === 0 ? (
             <div className="card p-12 text-center">
               <i className="fa-solid fa-users text-4xl text-gray-300 mb-3 block" />
@@ -681,13 +799,14 @@ export default function ManageEvent() {
             </div>
           ) : (
             <div className="card overflow-x-auto">
-              <table className="min-w-[460px] w-full text-sm">
+              <table className="min-w-[760px] w-full text-sm">
                 <thead>
                   <tr className="table-header">
                     <th className="text-left px-4 py-3">Tình nguyện viên</th>
                     <th className="text-left px-4 py-3">Ngày đăng ký</th>
                     <th className="text-left px-4 py-3">Trạng thái</th>
                     <th className="text-left px-4 py-3">Điểm danh</th>
+                    <th className="text-left px-4 py-3">Giờ ghi nhận</th>
                     <th className="px-4 py-3"></th>
                   </tr>
                 </thead>
@@ -698,6 +817,14 @@ export default function ManageEvent() {
                         <div className="font-medium text-gray-900">{r.user?.name || r.user?.userName || `User #${r.userId}`}</div>
                         {r.note && <p className="text-xs text-gray-400 italic mt-0.5">"{r.note}"</p>}
                         {r.shift?.name && <p className="text-xs text-primary-600 mt-0.5">Ca: {r.shift.name}</p>}
+                        {r.cancelRequested && r.status !== 'Cancelled' && (
+                          <div className="mt-2 inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-800">
+                            <i className="fa-solid fa-hourglass-half" /> Đang chờ hủy
+                          </div>
+                        )}
+                        {r.cancelRequested && r.cancelReason && r.status !== 'Cancelled' && (
+                          <p className="text-xs text-amber-700 mt-1">Lý do: {r.cancelReason}</p>
+                        )}
                         {r.isAttended && event?.status === 'Completed' && (
                           <div className="mt-2 rounded-lg border border-gray-100 bg-gray-50 p-2">
                             {ratingForms[r.id]?.done ? (
@@ -733,6 +860,30 @@ export default function ManageEvent() {
                         )}
                       </td>
                       <td className="px-4 py-3">
+                        {r.isAttended ? (
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="number"
+                              min="0"
+                              step="0.5"
+                              value={manualHours[r.id] ?? r.volunteerHours ?? 0}
+                              onChange={(e) => setManualHours((prev) => ({ ...prev, [r.id]: e.target.value }))}
+                              className="input-field w-24"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => saveAdjustedHours(r)}
+                              disabled={!!hoursSaving[`hours-${r.id}`]}
+                              className="btn-secondary btn-sm text-xs"
+                            >
+                              {hoursSaving[`hours-${r.id}`] ? 'Đang lưu...' : 'Lưu'}
+                            </button>
+                          </div>
+                        ) : (
+                          <span className="text-xs text-gray-400">Chưa có</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3">
                         <div className="flex items-center gap-1.5 justify-end">
                           {r.status === 'Pending' && (
                             <>
@@ -745,9 +896,19 @@ export default function ManageEvent() {
                             </>
                           )}
                           {r.status === 'Confirmed' && !r.isAttended && (
-                            <button onClick={() => handleCancel(r.id)} className="btn-secondary btn-sm text-xs">
-                              <i className="fa-solid fa-xmark mr-1" /> Hủy
-                            </button>
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => submitManualAttend(r)}
+                                disabled={!!hoursSaving[`attend-${r.id}`]}
+                                className="btn-primary btn-sm text-xs"
+                              >
+                                <i className="fa-solid fa-user-check mr-1" /> {hoursSaving[`attend-${r.id}`] ? 'Đang lưu...' : 'Bổ sung điểm danh'}
+                              </button>
+                              <button onClick={() => handleCancel(r.id)} className="btn-secondary btn-sm text-xs">
+                                <i className="fa-solid fa-xmark mr-1" /> Hủy
+                              </button>
+                            </>
                           )}
                         </div>
                       </td>
@@ -912,6 +1073,79 @@ export default function ManageEvent() {
                 Volunteer đăng nhập tài khoản của mình, mở đăng ký sự kiện và quét mã này để tự điểm danh.
               </p>
             </div>
+          </Modal>
+
+          <Modal isOpen={walkInModal} onClose={() => setWalkInModal(false)} title="Đăng ký tại chỗ" size="md">
+            <form onSubmit={submitWalkIn} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Tìm volunteer</label>
+                <input
+                  value={volunteerSearch}
+                  onChange={(e) => setVolunteerSearch(e.target.value)}
+                  className="input-field"
+                  placeholder="Nhập tên, username hoặc email"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Volunteer *</label>
+                <select
+                  value={walkInForm.volunteerUserId}
+                  onChange={(e) => setWalkInForm((prev) => ({ ...prev, volunteerUserId: e.target.value }))}
+                  className="input-field"
+                  required
+                >
+                  <option value="">-- Chọn volunteer --</option>
+                  {volunteerOptions.map((volunteer) => (
+                    <option key={volunteer.id} value={volunteer.id}>
+                      {(volunteer.name || volunteer.userName)}{volunteer.profile?.kycStatus === 'Verified' ? ' · KYC' : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Ghi chú</label>
+                <textarea
+                  rows={3}
+                  value={walkInForm.note}
+                  onChange={(e) => setWalkInForm((prev) => ({ ...prev, note: e.target.value }))}
+                  className="input-field resize-none"
+                  placeholder="Ví dụ: volunteer đến trực tiếp tại điểm tập trung"
+                />
+              </div>
+              <div className="flex justify-end gap-3 pt-2">
+                <button type="button" onClick={() => setWalkInModal(false)} className="btn-secondary">Hủy</button>
+                <button type="submit" disabled={walkInSaving} className="btn-primary flex items-center gap-2">
+                  {walkInSaving && <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />}
+                  Xác nhận walk-in
+                </button>
+              </div>
+            </form>
+          </Modal>
+
+          <Modal isOpen={cancelEventModal} onClose={() => setCancelEventModal(false)} title="Hủy sự kiện" size="md">
+            <form onSubmit={submitCancelEvent} className="space-y-4">
+              <div className="rounded-lg border border-red-100 bg-red-50 p-3 text-sm text-red-700">
+                <i className="fa-solid fa-circle-exclamation mr-1" />
+                Hệ thống sẽ dừng nhận đăng ký mới và đánh dấu sự kiện là đã hủy.
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Lý do hủy</label>
+                <textarea
+                  rows={4}
+                  value={cancelEventReason}
+                  onChange={(e) => setCancelEventReason(e.target.value)}
+                  className="input-field resize-none"
+                  placeholder="Ví dụ: thời tiết xấu, thay đổi kế hoạch, địa điểm không khả dụng..."
+                />
+              </div>
+              <div className="flex justify-end gap-3 pt-2">
+                <button type="button" onClick={() => setCancelEventModal(false)} className="btn-secondary">Đóng</button>
+                <button type="submit" disabled={cancelEventSaving} className="btn-danger flex items-center gap-2">
+                  {cancelEventSaving && <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />}
+                  Xác nhận hủy
+                </button>
+              </div>
+            </form>
           </Modal>
 
           {attended.length > 0 && (

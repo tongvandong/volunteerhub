@@ -85,6 +85,68 @@ namespace BaseCore.APIService.Controllers
             return Ok(new { ratings, averageScore = avgScore, totalRatings = ratings.Count });
         }
 
+        [HttpGet("api/admin/ratings"), Authorize(Roles = "Admin")]
+        [EnableRateLimiting("read-sensitive")]
+        public async Task<IActionResult> GetAdminRatings(
+            [FromQuery] int? eventId,
+            [FromQuery] bool? hidden,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 20)
+        {
+            page = Math.Max(1, page);
+            pageSize = Math.Clamp(pageSize, 1, 100);
+
+            var query = _context.Ratings
+                .AsNoTracking()
+                .Include(r => r.Event)
+                .Include(r => r.Rater)
+                .Include(r => r.Ratee)
+                .AsQueryable();
+
+            if (eventId.HasValue)
+            {
+                query = query.Where(r => r.EventId == eventId.Value);
+            }
+
+            if (hidden.HasValue)
+            {
+                query = query.Where(r => r.IsHidden == hidden.Value);
+            }
+
+            var totalCount = await query.CountAsync();
+            var items = await query
+                .OrderByDescending(r => r.CreatedAt)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .Select(r => new
+                {
+                    r.Id,
+                    r.EventId,
+                    eventTitle = r.Event != null ? r.Event.Title : "",
+                    raterId = r.RaterId,
+                    raterName = r.Rater != null ? (r.Rater.Name ?? r.Rater.UserName) : "",
+                    rateeId = r.RateeId,
+                    rateeName = r.Ratee != null ? (r.Ratee.Name ?? r.Ratee.UserName) : "",
+                    r.Score,
+                    r.Comment,
+                    r.CreatedAt,
+                    r.IsHidden,
+                    r.HiddenReason,
+                    r.HiddenAt,
+                    r.HiddenBy
+                })
+                .ToListAsync();
+
+            return Ok(new
+            {
+                items,
+                totalCount,
+                page,
+                pageSize,
+                totalPages = (int)Math.Ceiling((double)totalCount / pageSize)
+            });
+        }
+
         [HttpPut("api/ratings/{id}/hide"), Authorize(Roles = "Admin")]
         [EnableRateLimiting("write-sensitive")]
         public async Task<IActionResult> HideRating(int id, [FromBody] RatingModerationDto? dto)

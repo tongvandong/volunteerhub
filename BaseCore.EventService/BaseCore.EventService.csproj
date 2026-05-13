@@ -28,7 +28,7 @@
     <Compile Include="..\BaseCore.APIService\Controllers\Shared\RatingsController.cs" Link="Controllers\Shared\RatingsController.cs" />
     <Compile Include="..\BaseCore.APIService\Controllers\Shared\ChannelsController.cs" Link="Controllers\Shared\ChannelsController.cs" />
     <Compile Include="..\BaseCore.APIService\Controllers\Admin\DashboardController.cs" Link="Controllers\Admin\DashboardController.cs" />
-    <Compile Include="..\BaseCore.APIService\Controllers\Admin\AdminController.cs" Link="Controllers\Admin\AdminController.cs" />
+    <Compile Include="..\BaseCore.APIService\Controllers\Admin\AdminEventController.cs" Link="Controllers\Admin\AdminEventController.cs" />
   </ItemGroup>
 
 </Project>

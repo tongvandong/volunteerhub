@@ -33,6 +33,7 @@ const AdminVolunteerVerifications = lazy(() => import('./pages/admin/AdminVolunt
 const AdminUsers = lazy(() => import('./pages/admin/AdminUsers'));
 const AdminCategories = lazy(() => import('./pages/admin/AdminCategories'));
 const AdminSkills = lazy(() => import('./pages/admin/AdminSkills'));
+const AdminRatings = lazy(() => import('./pages/admin/AdminRatings'));
 const AdminExport = lazy(() => import('./pages/admin/AdminExport'));
 const AdminMonitoring = lazy(() => import('./pages/admin/AdminMonitoring'));
 
@@ -98,6 +99,7 @@ function AppRoutes() {
         <Route path="/admin/users" element={<AppPage roles={['Admin']}><AdminUsers /></AppPage>} />
         <Route path="/admin/categories" element={<AppPage roles={['Admin']}><AdminCategories /></AppPage>} />
         <Route path="/admin/skills" element={<AppPage roles={['Admin']}><AdminSkills /></AppPage>} />
+        <Route path="/admin/ratings" element={<AppPage roles={['Admin']}><AdminRatings /></AppPage>} />
         <Route path="/admin/monitoring" element={<AppPage roles={['Admin']}><AdminMonitoring /></AppPage>} />
         <Route path="/admin/export" element={<AppPage roles={['Admin']}><AdminExport /></AppPage>} />
 

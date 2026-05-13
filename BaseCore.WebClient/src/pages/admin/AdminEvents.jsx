@@ -1,11 +1,58 @@
-import React, { useState, useEffect } from 'react';
-import { eventApi } from '../../services/api';
+import React, { useEffect, useState } from 'react';
+import Modal from '../../components/ui/Modal';
 import StatusBadge from '../../components/ui/StatusBadge';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import Pagination from '../../components/ui/Pagination';
+import { eventApi } from '../../services/api';
 
 function fmt(dt) {
   return dt ? new Date(dt).toLocaleDateString('vi-VN') : '';
+}
+
+function RejectEventModal({ event, onClose, onSubmit, saving }) {
+  const [reason, setReason] = useState('');
+
+  useEffect(() => {
+    setReason('');
+  }, [event]);
+
+  if (!event) return null;
+
+  return (
+    <Modal isOpen={!!event} onClose={onClose} title="Từ chối sự kiện" size="md">
+      <form
+        className="space-y-4"
+        onSubmit={(e) => {
+          e.preventDefault();
+          onSubmit(reason);
+        }}
+      >
+        <div className="rounded-lg border border-red-100 bg-red-50 p-3 text-sm text-red-700">
+          <i className="fa-solid fa-circle-exclamation mr-1" />
+          Sự kiện sẽ quay về trạng thái bị từ chối. Nhà tổ chức có thể sửa và gửi duyệt lại.
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Lý do từ chối</label>
+          <textarea
+            rows={4}
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            className="input-field resize-none"
+            placeholder="Ví dụ: thông tin chưa đầy đủ, thời gian không hợp lệ, chưa rõ tính pháp lý..."
+          />
+        </div>
+
+        <div className="flex justify-end gap-2 pt-2">
+          <button type="button" onClick={onClose} className="btn-secondary">Đóng</button>
+          <button type="submit" disabled={saving} className="btn-danger flex items-center gap-2">
+            {saving && <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />}
+            Xác nhận từ chối
+          </button>
+        </div>
+      </form>
+    </Modal>
+  );
 }
 
 export default function AdminEvents() {
@@ -15,17 +62,18 @@ export default function AdminEvents() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [actionLoading, setActionLoading] = useState({});
+  const [rejectTarget, setRejectTarget] = useState(null);
 
-  const load = (p = 1, status = filter) => {
+  const load = (nextPage = 1, status = filter) => {
     setLoading(true);
-    const params = { page: p, pageSize: 15 };
+    const params = { page: nextPage, pageSize: 15 };
     if (status !== 'all') params.status = status;
 
     eventApi.getAll(params)
       .then((r) => {
         setEvents(r.data?.items || []);
         setTotalPages(r.data?.totalPages || 1);
-        setPage(p);
+        setPage(nextPage);
       })
       .catch(() => {})
       .finally(() => setLoading(false));
@@ -35,7 +83,7 @@ export default function AdminEvents() {
     load(1, filter);
   }, [filter]);
 
-  const setAction = (id, val) => setActionLoading((prev) => ({ ...prev, [id]: val }));
+  const setAction = (id, value) => setActionLoading((prev) => ({ ...prev, [id]: value }));
 
   const getErrorMessage = (err) => {
     const status = err.response?.status;
@@ -47,7 +95,7 @@ export default function AdminEvents() {
     setAction(id, 'approve');
     try {
       await eventApi.approve(id);
-      setEvents((prev) => prev.map((e) => (e.id === id ? { ...e, status: 'Approved' } : e)));
+      setEvents((prev) => prev.map((event) => (event.id === id ? { ...event, status: 'Approved' } : event)));
     } catch (err) {
       alert(getErrorMessage(err));
     } finally {
@@ -55,18 +103,18 @@ export default function AdminEvents() {
     }
   };
 
-  const reject = async (id) => {
-    const reason = prompt('Lý do từ chối (tùy chọn):');
-    if (reason === null) return;
+  const reject = async (reason) => {
+    if (!rejectTarget) return;
 
-    setAction(id, 'reject');
+    setAction(rejectTarget.id, 'reject');
     try {
-      await eventApi.reject(id, { reason });
-      setEvents((prev) => prev.map((e) => (e.id === id ? { ...e, status: 'Rejected' } : e)));
+      await eventApi.reject(rejectTarget.id, { reason });
+      setEvents((prev) => prev.map((event) => (event.id === rejectTarget.id ? { ...event, status: 'Rejected' } : event)));
+      setRejectTarget(null);
     } catch (err) {
       alert(getErrorMessage(err));
     } finally {
-      setAction(id, null);
+      setAction(rejectTarget.id, null);
     }
   };
 
@@ -76,7 +124,7 @@ export default function AdminEvents() {
     setAction(id, 'complete');
     try {
       await eventApi.complete(id);
-      setEvents((prev) => prev.map((e) => (e.id === id ? { ...e, status: 'Completed' } : e)));
+      setEvents((prev) => prev.map((event) => (event.id === id ? { ...event, status: 'Completed' } : event)));
     } catch (err) {
       alert(getErrorMessage(err));
     } finally {
@@ -84,26 +132,44 @@ export default function AdminEvents() {
     }
   };
 
+  const uncomplete = async (id) => {
+    if (!confirm('Mở lại sẽ thu hồi chứng chỉ đã cấp của sự kiện. Tiếp tục?')) return;
+
+    setAction(id, 'uncomplete');
+    try {
+      await eventApi.uncomplete(id);
+      setEvents((prev) => prev.map((event) => (event.id === id ? { ...event, status: 'Approved' } : event)));
+    } catch (err) {
+      alert(getErrorMessage(err));
+    } finally {
+      setAction(id, null);
+    }
+  };
+
+  const filters = [
+    { key: 'Pending', label: 'Chờ duyệt' },
+    { key: 'Approved', label: 'Đã duyệt' },
+    { key: 'Completed', label: 'Hoàn thành' },
+    { key: 'Rejected', label: 'Từ chối' },
+    { key: 'Cancelled', label: 'Đã hủy' },
+    { key: 'all', label: 'Tất cả' },
+  ];
+
   return (
     <div className="space-y-5">
       <h1 className="text-xl font-bold text-gray-900">Duyệt sự kiện</h1>
 
       <div className="flex gap-2 flex-wrap">
-        {[
-          { key: 'Pending', label: 'Chờ duyệt' },
-          { key: 'Approved', label: 'Đã duyệt' },
-          { key: 'Completed', label: 'Hoàn thành' },
-          { key: 'Rejected', label: 'Từ chối' },
-          { key: 'all', label: 'Tất cả' },
-        ].map((t) => (
+        {filters.map((item) => (
           <button
-            key={t.key}
-            onClick={() => setFilter(t.key)}
+            key={item.key}
+            type="button"
+            onClick={() => setFilter(item.key)}
             className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
-              filter === t.key ? 'bg-primary-600 text-white' : 'bg-white border border-gray-200 text-gray-600 hover:border-primary-300'
+              filter === item.key ? 'bg-primary-600 text-white' : 'bg-white border border-gray-200 text-gray-600 hover:border-primary-300'
             }`}
           >
-            {t.label}
+            {item.label}
           </button>
         ))}
       </div>
@@ -127,43 +193,57 @@ export default function AdminEvents() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {events.map((ev) => (
-                <tr key={ev.id} className="odd:bg-gray-50/50 hover:bg-gray-50">
+              {events.map((event) => (
+                <tr key={event.id} className="odd:bg-gray-50/50 hover:bg-gray-50">
                   <td className="px-4 py-3">
-                    <div className="font-medium text-gray-900 max-w-xs truncate">{ev.title}</div>
-                    {ev.location && <div className="text-xs text-gray-400 mt-0.5"><i className="fa-solid fa-location-dot mr-1" />{ev.location}</div>}
+                    <div className="font-medium text-gray-900 max-w-xs truncate">{event.title}</div>
+                    {event.location && (
+                      <div className="text-xs text-gray-400 mt-0.5">
+                        <i className="fa-solid fa-location-dot mr-1" />{event.location}
+                      </div>
+                    )}
                   </td>
-                  <td className="px-4 py-3 text-gray-600">{ev.organizer?.name || ev.organizer?.userName || '-'}</td>
+                  <td className="px-4 py-3 text-gray-600">{event.organizer?.name || event.organizer?.userName || '-'}</td>
                   <td className="px-4 py-3 text-gray-600">
-                    <div>{fmt(ev.startDate)}</div>
-                    <div className="text-xs text-gray-400">→ {fmt(ev.endDate)}</div>
+                    <div>{fmt(event.startDate)}</div>
+                    <div className="text-xs text-gray-400">→ {fmt(event.endDate)}</div>
                   </td>
-                  <td className="px-4 py-3 text-gray-600">{ev.currentParticipants}/{ev.maxParticipants}</td>
-                  <td className="px-4 py-3"><StatusBadge status={ev.status} /></td>
+                  <td className="px-4 py-3 text-gray-600">{event.currentParticipants}/{event.maxParticipants}</td>
+                  <td className="px-4 py-3"><StatusBadge status={event.status} /></td>
                   <td className="px-4 py-3">
-                    <div className="flex items-center gap-1.5 justify-end">
-                      {ev.status === 'Pending' && (
+                    <div className="flex items-center gap-1.5 justify-end flex-wrap">
+                      {event.status === 'Pending' && (
                         <>
-                          <button onClick={() => approve(ev.id)} disabled={!!actionLoading[ev.id]} className="btn-primary btn-sm text-xs flex items-center gap-1">
-                            {actionLoading[ev.id] === 'approve'
+                          <button type="button" onClick={() => approve(event.id)} disabled={!!actionLoading[event.id]} className="btn-primary btn-sm text-xs flex items-center gap-1">
+                            {actionLoading[event.id] === 'approve'
                               ? <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
                               : <i className="fa-solid fa-check" />}
                             Duyệt
                           </button>
-                          <button onClick={() => reject(ev.id)} disabled={!!actionLoading[ev.id]} className="btn-danger btn-sm text-xs flex items-center gap-1">
-                            {actionLoading[ev.id] === 'reject'
+                          <button type="button" onClick={() => setRejectTarget(event)} disabled={!!actionLoading[event.id]} className="btn-danger btn-sm text-xs flex items-center gap-1">
+                            {actionLoading[event.id] === 'reject'
                               ? <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
                               : <i className="fa-solid fa-xmark" />}
                             Từ chối
                           </button>
                         </>
                       )}
-                      {ev.status === 'Approved' && (
-                        <button onClick={() => complete(ev.id)} disabled={!!actionLoading[ev.id]} className="btn-secondary btn-sm text-xs flex items-center gap-1">
-                          {actionLoading[ev.id] === 'complete'
+
+                      {event.status === 'Approved' && (
+                        <button type="button" onClick={() => complete(event.id)} disabled={!!actionLoading[event.id]} className="btn-secondary btn-sm text-xs flex items-center gap-1">
+                          {actionLoading[event.id] === 'complete'
                             ? <div className="w-3 h-3 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
                             : <i className="fa-solid fa-flag-checkered" />}
                           Hoàn thành
+                        </button>
+                      )}
+
+                      {event.status === 'Completed' && (
+                        <button type="button" onClick={() => uncomplete(event.id)} disabled={!!actionLoading[event.id]} className="btn-secondary btn-sm text-xs flex items-center gap-1">
+                          {actionLoading[event.id] === 'uncomplete'
+                            ? <div className="w-3 h-3 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
+                            : <i className="fa-solid fa-rotate-left" />}
+                          Mở lại
                         </button>
                       )}
                     </div>
@@ -176,8 +256,15 @@ export default function AdminEvents() {
       )}
 
       {totalPages > 1 && (
-        <Pagination currentPage={page} totalPages={totalPages} onPageChange={(p) => load(p)} />
+        <Pagination currentPage={page} totalPages={totalPages} onPageChange={(nextPage) => load(nextPage)} />
       )}
+
+      <RejectEventModal
+        event={rejectTarget}
+        onClose={() => setRejectTarget(null)}
+        onSubmit={reject}
+        saving={actionLoading[rejectTarget?.id] === 'reject'}
+      />
     </div>
   );
 }

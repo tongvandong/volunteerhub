@@ -25,7 +25,7 @@
 
   <ItemGroup>
     <Compile Include="..\BaseCore.APIService\Controllers\Finance\**\*.cs" Link="Controllers\Finance\%(RecursiveDir)%(Filename)%(Extension)" />
-    <Compile Include="..\BaseCore.APIService\Controllers\Admin\AdminController.cs" Link="Controllers\Admin\AdminController.cs" />
+    <Compile Include="..\BaseCore.APIService\Controllers\Admin\AdminFinanceController.cs" Link="Controllers\Admin\AdminFinanceController.cs" />
   </ItemGroup>
 
 </Project>
