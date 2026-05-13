@@ -171,27 +171,31 @@ namespace BaseCore.APIService.Controllers
 
         [HttpPut("api/sponsorship-proposals/{proposalId}/received"), Authorize(Roles = "Organizer,Admin")]
         [EnableRateLimiting("write-sensitive")]
-        public async Task<IActionResult> MarkReceived(int proposalId)
+        public async Task<IActionResult> MarkReceived(int proposalId, [FromBody] ProposalReceivedDto? dto = null)
         {
             if (!TryGetUserId(out var userId)) return Unauthorized();
             var proposal = await BaseProposalQuery().FirstOrDefaultAsync(p => p.Id == proposalId);
             if (proposal == null) return NotFound(new { message = "Proposal not found" });
             if (!CanManageEvent(proposal.Event, userId)) return Forbid();
             if (proposal.Status != "Accepted") return BadRequest(new { message = "Only accepted proposals can be marked as received" });
+            if (dto != null && dto.ActualReceivedAmount.HasValue && dto.ActualReceivedAmount.Value < 0)
+                return BadRequest(new { message = "Actual received amount cannot be negative" });
 
             proposal.Status = "Received";
             proposal.ReceivedAt = DateTime.UtcNow;
             proposal.ReceivedBy = userId;
+            var pledged = ResolveAmount(proposal);
+            var actual = dto?.ActualReceivedAmount ?? pledged;
+            proposal.ActualReceivedAmount = actual;
 
             if (proposal.LegacyEventSponsorId == null)
             {
-                var amount = ResolveAmount(proposal);
                 var legacy = new EventSponsor
                 {
                     EventId = proposal.EventId,
                     SponsorId = proposal.SponsorId,
                     ContributionType = "Financial",
-                    Amount = amount,
+                    Amount = actual,
                     Note = !string.IsNullOrWhiteSpace(proposal.PublicSponsorName)
                         ? proposal.PublicSponsorName
                         : proposal.PublicMessage.Length > 0 ? proposal.PublicMessage : proposal.Title,
@@ -201,10 +205,37 @@ namespace BaseCore.APIService.Controllers
                 await _context.SaveChangesAsync();
                 proposal.LegacyEventSponsorId = legacy.Id;
             }
+            else
+            {
+                // Keep legacy EventSponsor in sync with the actual amount
+                var legacy = await _context.EventSponsors.FindAsync(proposal.LegacyEventSponsorId.Value);
+                if (legacy != null) legacy.Amount = actual;
+            }
 
             await _context.SaveChangesAsync();
-            await RecordAuditAsync(userId, "SponsorshipProposal.Received", "SponsorshipProposal", proposal.Id, $"EventId={proposal.EventId};Amount={ResolveAmount(proposal):0.##}");
+            await RecordAuditAsync(userId, "SponsorshipProposal.Received", "SponsorshipProposal", proposal.Id, $"EventId={proposal.EventId};Pledged={pledged:0.##};Actual={actual:0.##}");
             return Ok(await GetProposalDto(proposal.Id));
+        }
+
+        [HttpPut("api/sponsorship-proposals/{proposalId}/admin-revert-to-pending"), Authorize(Roles = "Admin")]
+        [EnableRateLimiting("write-sensitive")]
+        public async Task<IActionResult> AdminRevertToPending(int proposalId, [FromBody] ProposalResponseDto? dto)
+        {
+            if (!TryGetUserId(out var userId)) return Unauthorized();
+            var proposal = await BaseProposalQuery().FirstOrDefaultAsync(p => p.Id == proposalId);
+            if (proposal == null) return NotFound(new { message = "Proposal not found" });
+            if (proposal.Status == "Received" || proposal.Status == "Reported")
+                return BadRequest(new { message = "Cannot revert a received or reported proposal. Use Report to adjust figures." });
+            if (proposal.Status == "Pending")
+                return BadRequest(new { message = "Proposal is already pending" });
+
+            proposal.Status = "Pending";
+            proposal.RespondedAt = null;
+            proposal.CancelledAt = null;
+            proposal.ResponseMessage = dto?.ResponseMessage?.Trim() ?? proposal.ResponseMessage;
+            await _context.SaveChangesAsync();
+            await RecordAuditAsync(userId, "SponsorshipProposal.AdminRevertToPending", "SponsorshipProposal", proposal.Id);
+            return Ok(ToDto(proposal));
         }
 
         [HttpPost("api/sponsorship-proposals/{proposalId}/report"), Authorize(Roles = "Organizer,Admin")]
@@ -217,7 +248,8 @@ namespace BaseCore.APIService.Controllers
             if (!CanManageEvent(proposal.Event, userId)) return Forbid();
             if (proposal.Status is not ("Received" or "Reported")) return BadRequest(new { message = "Only received proposals can be reported" });
 
-            var validation = ValidateReport(dto, ResolveAmount(proposal));
+            var receivedAmount = proposal.ActualReceivedAmount ?? ResolveAmount(proposal);
+            var validation = ValidateReport(dto, receivedAmount);
             if (validation != null) return BadRequest(new { message = validation });
 
             proposal.UsedAmount = dto.UsedAmount;
@@ -290,6 +322,7 @@ namespace BaseCore.APIService.Controllers
                 p.RequestedAmount,
                 p.OfferedAmount,
                 amount = ResolveAmount(p),
+                p.ActualReceivedAmount,
                 p.Purpose,
                 p.SponsorBenefits,
                 p.PublicSponsorName,
@@ -391,5 +424,10 @@ namespace BaseCore.APIService.Controllers
         public string Summary { get; set; } = "";
         public string? ExpenseDetails { get; set; }
         public string? AttachmentUrl { get; set; }
+    }
+
+    public class ProposalReceivedDto
+    {
+        public decimal? ActualReceivedAmount { get; set; }
     }
 }

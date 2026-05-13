@@ -93,7 +93,14 @@ namespace BaseCore.APIService.Controllers
             if (category == null)
                 return NotFound(new { message = "Category not found" });
 
-            await _categoryRepository.DeleteAsync(category);
+            try
+            {
+                await _categoryRepository.DeleteAsync(category);
+            }
+            catch (Microsoft.EntityFrameworkCore.DbUpdateException)
+            {
+                return BadRequest(new { message = "Cannot delete a category that is used by products" });
+            }
             return Ok(new { message = "Category deleted successfully" });
         }
     }

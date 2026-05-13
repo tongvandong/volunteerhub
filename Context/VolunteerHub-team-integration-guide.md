@@ -2,6 +2,8 @@
 
 Tài liệu này dùng để chia công việc cho nhóm 3 người khi phát triển Volunteer Hub. Hướng tiếp cận đề xuất là mỗi phần chính vẫn viết bằng C#/.NET để ổn định, nhưng có thể tích hợp module nhỏ bằng ngôn ngữ khác nếu môn học yêu cầu.
 
+Lưu ý về Admin: admin không nên tách thành một service độc lập nếu nhóm chỉ có 3 người, vì admin chủ yếu là lớp kiểm duyệt/quản trị nằm trên từng nghiệp vụ. Thay vào đó, mỗi người phụ trách luôn phần admin tương ứng với service của mình. Các màn admin tổng hợp như monitoring/export/dashboard sẽ được thống nhất ở cuối tài liệu.
+
 ## 1. Chia nội dung làm việc
 
 ### Phần 1 - Identity / Profile / KYC
@@ -20,6 +22,13 @@ Chức năng chính:
 - Chặn organizer chưa verified tạo event.
 - Cung cấp thông tin KYC/verification cho các phần khác kiểm tra điều kiện nghiệp vụ.
 
+Phần admin thuộc phạm vi này:
+
+- Admin duyệt/từ chối/request changes hồ sơ xác minh organizer.
+- Admin duyệt/từ chối KYC volunteer.
+- Admin duyệt/từ chối xác minh kỹ năng volunteer nếu có.
+- Admin quản lý người dùng, khóa/mở tài khoản nếu liên quan đến identity.
+
 Công nghệ:
 
 - Core service: C#/.NET.
@@ -35,6 +44,7 @@ Folder chính:
 - `BaseCore.WebClient/src/pages/organizer/OrganizerVerification.jsx`
 - `BaseCore.WebClient/src/pages/admin/AdminOrganizerVerifications.jsx`
 - `BaseCore.WebClient/src/pages/admin/AdminVolunteerVerifications.jsx`
+- `BaseCore.WebClient/src/pages/admin/AdminUsers.jsx`
 
 ### Phần 2 - Event / Registration / Attendance
 
@@ -53,6 +63,14 @@ Chức năng chính:
 - Điểm danh QR và điểm danh thủ công.
 - Tính giờ tham gia.
 - Cấp certificate sau khi volunteer hoàn thành sự kiện.
+- Báo cáo tác động của organizer theo sự kiện.
+
+Phần admin thuộc phạm vi này:
+
+- Admin duyệt/từ chối event.
+- Admin xem danh sách event theo trạng thái.
+- Admin quản lý danh mục sự kiện.
+- Admin kiểm tra luồng đăng ký, điểm danh, certificate nếu cần đối soát.
 
 Công nghệ:
 
@@ -87,7 +105,9 @@ Folder chính:
 - `BaseCore.WebClient/src/pages/public/EventDetail.jsx`
 - `BaseCore.WebClient/src/pages/organizer/EventForm.jsx`
 - `BaseCore.WebClient/src/pages/organizer/ManageEvent.jsx`
+- `BaseCore.WebClient/src/pages/organizer/OrganizerInsights.jsx`
 - `BaseCore.WebClient/src/pages/admin/AdminEvents.jsx`
+- `BaseCore.WebClient/src/pages/admin/AdminCategories.jsx`
 - `BaseCore.WebClient/src/pages/volunteer/MyRegistrations.jsx`
 
 ### Phần 3 - Donation / Sponsorship / Financial Report
@@ -100,12 +120,19 @@ Chức năng chính:
 
 - Organizer tạo campaign kêu gọi ủng hộ cho event.
 - Volunteer ủng hộ cá nhân vào campaign.
-- Organizer confirm donation.
+- Organizer confirm/reject donation.
 - Sponsor gửi đề nghị tài trợ event.
 - Organizer accept/reject sponsorship proposal.
 - Sponsor/organizer cập nhật trạng thái đã nhận.
 - Tạo report sử dụng tài trợ.
 - Tổng hợp báo cáo tài chính theo event.
+
+Phần admin thuộc phạm vi này:
+
+- Admin xem/export dữ liệu tài chính.
+- Admin xem tổng quan donation/sponsorship theo event.
+- Admin đối soát các báo cáo minh bạch nếu có khiếu nại.
+- Admin export finance phục vụ chấm/demo.
 
 Công nghệ:
 
@@ -139,6 +166,26 @@ Folder chính:
 - `BaseCore.WebClient/src/pages/admin/AdminExport.jsx`
 - Các phần finance trong `BaseCore.WebClient/src/pages/public/EventDetail.jsx`
 - Các phần campaign/sponsorship trong `BaseCore.WebClient/src/pages/organizer/ManageEvent.jsx`
+
+### Phần admin tổng hợp / platform chung
+
+Không giao thành một service độc lập, nhưng cần có người điều phối khi sửa các file dùng chung. Có thể để trưởng nhóm hoặc người đang rảnh nhất phụ trách từng đợt.
+
+Phạm vi chung:
+
+- `BaseCore.APIService/Controllers/Admin/MonitoringController.cs`
+- `BaseCore.APIService/Controllers/Admin/DashboardController.cs`
+- `BaseCore.WebClient/src/pages/admin/AdminMonitoring.jsx`
+- `BaseCore.WebClient/src/pages/admin/AdminExport.jsx`
+- `BaseCore.WebClient/src/pages/Dashboard.jsx`
+- Sidebar, routing, layout admin trong `App.jsx` và `MainLayout.jsx`
+
+Nguyên tắc chia admin:
+
+- Admin kiểm duyệt identity/KYC thuộc thành viên 1.
+- Admin duyệt event/danh mục sự kiện thuộc thành viên 2.
+- Admin export/báo cáo tài chính thuộc thành viên 3.
+- Admin monitoring/dashboard tổng hợp phải báo nhóm trước khi sửa vì dễ đụng nhiều service.
 
 ## 2. Yêu cầu kết nối và đồng bộ
 
@@ -181,6 +228,17 @@ Luôn cần kiểm tra:
 - Sponsor chỉ được xem và cập nhật proposal của mình.
 - Organizer chỉ được accept/reject sponsorship proposal của event mình quản lý.
 
+### Đồng bộ Admin với các service
+
+Admin không nên bypass nghiệp vụ. Admin endpoint vẫn phải gọi hoặc tuân thủ cùng rule với service chính.
+
+Ví dụ:
+
+- Admin duyệt event phải cập nhật đúng trạng thái event, audit log và notification nếu có.
+- Admin duyệt organizer phải làm Identity Service đổi trạng thái verification.
+- Admin export tài chính phải lấy dữ liệu đã xác nhận từ Finance Service, không tự cộng từ dữ liệu thô chưa lọc trạng thái.
+- Admin monitoring chỉ đọc và tổng hợp, không tự sửa dữ liệu nghiệp vụ.
+
 ### Đồng bộ file và module phụ
 
 Rust Certificate Generator:
@@ -219,14 +277,20 @@ API Gateway / API Endpoint
   |
   +-- Identity Service - C#/.NET
   |     +-- Auth, profile, KYC, organizer verification
+  |     +-- Admin: user, KYC, organizer verification
   |
   +-- Event Service - C#/.NET
-  |     +-- Event, registration, attendance
+  |     +-- Event, registration, attendance, organizer insights
+  |     +-- Admin: event approval, event categories
   |     +-- Rust Certificate Generator
   |
   +-- Finance Service - C#/.NET
-        +-- Donation, sponsorship, financial report
-        +-- Ruby Financial Report Renderer
+  |     +-- Donation, sponsorship, financial report
+  |     +-- Admin: finance export, financial overview
+  |     +-- Ruby Financial Report Renderer
+  |
+  +-- Admin Platform / Monitoring
+        +-- Dashboard, audit log, system health, export entrypoint
 ```
 
 Luồng demo sau khi hợp nhất:
@@ -249,6 +313,7 @@ Luồng demo sau khi hợp nhất:
 15. Organizer accept/received/report sponsorship.
 16. Ruby module render báo cáo tài chính.
 17. Admin/export xem tổng hợp tác động xã hội và tài chính.
+18. Admin monitoring/audit log kiểm tra thao tác nhạy cảm.
 ```
 
 Hợp nhất thành công khi:
@@ -257,6 +322,8 @@ Hợp nhất thành công khi:
 - Event flow chạy hết từ tạo event đến attendance.
 - Donation/sponsorship flow chạy hết từ campaign/proposal đến report.
 - Certificate/report module phụ gọi được từ C# service.
+- Admin kiểm duyệt được organizer/event/KYC đúng nghiệp vụ.
+- Admin export/monitoring xem được dữ liệu tổng hợp.
 - Frontend không cần biết chi tiết module phụ nằm ở đâu.
 
 ## 4. Hướng dẫn tránh xung đột khi lập trình
@@ -266,9 +333,9 @@ Hợp nhất thành công khi:
 Mỗi người làm trên branch riêng:
 
 ```text
-feature/identity-kyc
-feature/event-attendance-certificate
-feature/finance-sponsorship-report
+feature/identity-kyc-admin
+feature/event-attendance-certificate-admin
+feature/finance-sponsorship-report-admin
 ```
 
 Không commit trực tiếp vào branch chính khi chưa build/test.
@@ -283,6 +350,8 @@ Trước khi mỗi người code độc lập, cả nhóm cần thống nhất:
 - Response body.
 - Status code khi lỗi.
 - Tên field và kiểu dữ liệu.
+- Role nào được gọi endpoint.
+- Endpoint admin thuộc service nào.
 
 Ví dụ contract cần chốt:
 
@@ -296,6 +365,8 @@ POST /api/support-campaigns
 POST /api/donations
 POST /api/sponsorship-proposals
 POST /api/sponsorship-proposals/{id}/accept
+GET  /api/admin/export/finance
+GET  /api/admin/monitoring/summary
 ```
 
 ### Hạn chế cùng sửa file chung
@@ -305,6 +376,7 @@ Các file dễ conflict:
 - `BaseCore.APIService/Program.cs`
 - `BaseCore.WebClient/src/App.jsx`
 - `BaseCore.WebClient/src/components/layouts/MainLayout.jsx`
+- `BaseCore.WebClient/src/pages/admin/*`
 - `BaseCore.Entities/*`
 - `BaseCore.Repository/MySqlDbContext.cs`
 - `BaseCore.Repository/Migrations/*`
@@ -322,6 +394,7 @@ Nên tạo extension riêng cho từng module:
 AddIdentityModule()
 AddEventModule()
 AddFinanceModule()
+AddAdminMonitoringModule()
 ```
 
 Sau đó `Program.cs` chỉ gọi extension, mỗi thành viên sửa file module của mình.
@@ -342,6 +415,7 @@ Mỗi commit nên có nội dung rõ:
 feat(identity): add volunteer KYC status
 feat(events): add QR attendance endpoint
 feat(finance): add sponsorship proposal report
+feat(admin): add monitoring summary
 ```
 
 Trước khi push:
@@ -378,6 +452,7 @@ Sau mỗi lần merge lớn, chạy lại workflow chuẩn:
 8. Sponsor gửi đề nghị tài trợ.
 9. Organizer accept/received/report.
 10. Xem report/certificate/export.
+11. Admin kiểm tra monitoring/audit log/export.
 ```
 
 Nếu workflow này chạy được thì việc hợp nhất giữa 3 phần được xem là đạt.

@@ -228,6 +228,12 @@ namespace BaseCore.APIService.Controllers
             var validation = ValidateReport(dto);
             if (validation != null) return BadRequest(new { message = validation });
 
+            var confirmedAmount = await _context.IndividualDonations
+                .Where(d => d.CampaignId == campaignId && d.Status == "Confirmed")
+                .SumAsync(d => (decimal?)d.Amount) ?? 0;
+            if (dto.UsedAmount > confirmedAmount && !dto.AllowOverspend)
+                return BadRequest(new { message = $"Used amount ({dto.UsedAmount:0.##}) exceeds confirmed donations ({confirmedAmount:0.##}). Set allowOverspend=true only if organizer contributed extra funds out-of-band." });
+
             campaign.UsedAmount = dto.UsedAmount;
             campaign.ReportSummary = dto.Summary.Trim();
             campaign.ExpenseDetails = dto.ExpenseDetails?.Trim() ?? "";
@@ -593,5 +599,6 @@ namespace BaseCore.APIService.Controllers
         public string Summary { get; set; } = "";
         public string? ExpenseDetails { get; set; }
         public string? AttachmentUrl { get; set; }
+        public bool AllowOverspend { get; set; }
     }
 }

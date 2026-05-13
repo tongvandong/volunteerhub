@@ -24,6 +24,8 @@ namespace BaseCore.Entities
         public string ImageUrl { get; set; }
         public string QrCode { get; set; } // auto-generated when Approved
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        public string CancelReason { get; set; } = "";
+        public DateTime? CancelledAt { get; set; }
 
         // Navigation
         public EventCategory Category { get; set; }

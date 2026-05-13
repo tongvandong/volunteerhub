@@ -84,6 +84,60 @@ namespace BaseCore.APIService.Controllers
             var avgScore = await _ratingRepo.GetAverageScoreAsync(userId);
             return Ok(new { ratings, averageScore = avgScore, totalRatings = ratings.Count });
         }
+
+        [HttpPut("api/ratings/{id}/hide"), Authorize(Roles = "Admin")]
+        [EnableRateLimiting("write-sensitive")]
+        public async Task<IActionResult> HideRating(int id, [FromBody] RatingModerationDto? dto)
+        {
+            if (!int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var userId))
+                return Unauthorized();
+            var rating = await _context.Ratings.FindAsync(id);
+            if (rating == null) return NotFound();
+
+            rating.IsHidden = true;
+            rating.HiddenReason = dto?.Reason?.Trim() ?? "";
+            rating.HiddenAt = DateTime.UtcNow;
+            rating.HiddenBy = userId;
+            await _context.SaveChangesAsync();
+            await _auditLogService.RecordAsync(userId, "Rating.Hide", "Rating", id, dto?.Reason,
+                HttpContext.Connection.RemoteIpAddress?.ToString());
+            return Ok(rating);
+        }
+
+        [HttpPut("api/ratings/{id}/unhide"), Authorize(Roles = "Admin")]
+        [EnableRateLimiting("write-sensitive")]
+        public async Task<IActionResult> UnhideRating(int id)
+        {
+            if (!int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var userId))
+                return Unauthorized();
+            var rating = await _context.Ratings.FindAsync(id);
+            if (rating == null) return NotFound();
+
+            rating.IsHidden = false;
+            rating.HiddenReason = "";
+            rating.HiddenAt = null;
+            rating.HiddenBy = null;
+            await _context.SaveChangesAsync();
+            await _auditLogService.RecordAsync(userId, "Rating.Unhide", "Rating", id, null,
+                HttpContext.Connection.RemoteIpAddress?.ToString());
+            return Ok(rating);
+        }
+
+        [HttpDelete("api/ratings/{id}"), Authorize(Roles = "Admin")]
+        [EnableRateLimiting("write-sensitive")]
+        public async Task<IActionResult> DeleteRating(int id)
+        {
+            if (!int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var userId))
+                return Unauthorized();
+            var rating = await _context.Ratings.FindAsync(id);
+            if (rating == null) return NotFound();
+
+            _context.Ratings.Remove(rating);
+            await _context.SaveChangesAsync();
+            await _auditLogService.RecordAsync(userId, "Rating.Delete", "Rating", id, null,
+                HttpContext.Connection.RemoteIpAddress?.ToString());
+            return Ok(new { message = "Deleted" });
+        }
     }
 
     public class RatingCreateDto
@@ -91,5 +145,10 @@ namespace BaseCore.APIService.Controllers
         public int RateeId { get; set; }
         public int Score { get; set; }
         public string? Comment { get; set; }
+    }
+
+    public class RatingModerationDto
+    {
+        public string? Reason { get; set; }
     }
 }

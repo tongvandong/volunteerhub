@@ -220,6 +220,7 @@ namespace BaseCore.Repository
                 entity.Property(e => e.Status).HasMaxLength(50).IsRequired(false);
                 entity.Property(e => e.ImageUrl).HasMaxLength(500).IsRequired(false);
                 entity.Property(e => e.QrCode).HasMaxLength(500).IsRequired(false);
+                entity.Property(e => e.CancelReason).HasMaxLength(1000).IsRequired(false);
                 entity.HasOne(e => e.Category)
                       .WithMany()
                       .HasForeignKey(e => e.CategoryId)
@@ -255,6 +256,7 @@ namespace BaseCore.Repository
                 entity.Property(e => e.Status).HasMaxLength(50).IsRequired(false);
                 entity.Property(e => e.Note).HasMaxLength(500).IsRequired(false);
                 entity.Property(e => e.VolunteerHours).HasPrecision(5, 2);
+                entity.Property(e => e.CancelReason).HasMaxLength(500).IsRequired(false);
                 entity.HasOne(e => e.Event)
                       .WithMany(ev => ev.Registrations)
                       .HasForeignKey(e => e.EventId)
@@ -419,6 +421,7 @@ namespace BaseCore.Repository
             {
                 entity.HasKey(e => e.Id);
                 entity.Property(e => e.Comment).HasMaxLength(500).IsRequired(false);
+                entity.Property(e => e.HiddenReason).HasMaxLength(500).IsRequired(false);
                 entity.HasOne(e => e.Event)
                       .WithMany()
                       .HasForeignKey(e => e.EventId)
@@ -541,6 +544,7 @@ namespace BaseCore.Repository
                 entity.Property(e => e.AttachmentUrl).HasMaxLength(500).IsRequired(false);
                 entity.Property(e => e.ResponseMessage).HasMaxLength(1000).IsRequired(false);
                 entity.Property(e => e.Status).HasMaxLength(50).IsRequired();
+                entity.Property(e => e.ActualReceivedAmount).HasPrecision(18, 2);
                 entity.Property(e => e.UsedAmount).HasPrecision(18, 2);
                 entity.Property(e => e.ReportSummary).HasMaxLength(2000).IsRequired(false);
                 entity.Property(e => e.ExpenseDetails).HasMaxLength(4000).IsRequired(false);

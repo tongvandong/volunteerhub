@@ -16,5 +16,10 @@ namespace BaseCore.Services.VolunteerHub
         Task<Entities.Event> ApproveAsync(int eventId); // Admin: Approved + create Channel
         Task<Entities.Event> RejectAsync(int eventId);  // Admin: Rejected
         Task<Entities.Event> CompleteAsync(int eventId, int? organizerId = null); // Organizer/Admin: Completed + issue certs
+        Task<Entities.Event> ResubmitAsync(int eventId, int organizerId); // Organizer: Rejected -> Pending
+        Task<Entities.Event> CancelAsync(int eventId, int? organizerId, string? reason); // Organizer/Admin: -> Cancelled + cascade
+        Task NotifyEventChangeAsync(int eventId, string reason); // Notify confirmed volunteers and active sponsors
+        Task<Entities.Event> UncompleteAsync(int eventId); // Admin only: Completed -> Approved + revoke certificates
+        Task<int> AutoCompleteOverdueAsync(); // Admin trigger: complete Approved events past EndDate
     }
 }

@@ -103,6 +103,30 @@ namespace BaseCore.Services.VolunteerHub
             await _context.SaveChangesAsync();
         }
 
+        public async Task<Registration> RequestCancelAsync(int eventId, int userId, string? reason)
+        {
+            var reg = await _context.Registrations
+                .Include(r => r.Event)
+                .FirstOrDefaultAsync(r => r.EventId == eventId && r.UserId == userId)
+                ?? throw new Exception("Registration not found");
+            if (reg.Status != "Confirmed") throw new Exception("Only confirmed registrations can request cancellation");
+            if (reg.IsAttended) throw new Exception("Cannot request cancellation after check-in");
+            if (reg.Event.Status == "Completed" || reg.Event.Status == "Cancelled") throw new Exception("Event is no longer active");
+
+            reg.CancelRequested = true;
+            reg.CancelRequestedAt = DateTime.UtcNow;
+            reg.CancelReason = reason?.Trim() ?? "";
+            await _context.SaveChangesAsync();
+
+            var volunteer = await _context.Users.FindAsync(userId);
+            await _notificationService.SendAsync(reg.Event.OrganizerId,
+                "Yêu cầu hủy đăng ký",
+                $"{volunteer?.Name} xin hủy tham gia '{reg.Event.Title}'.",
+                "RegistrationCancelRequested", eventId);
+
+            return reg;
+        }
+
         public async Task<Registration> ConfirmAsync(int eventId, int registrationId, int organizerId)
         {
             var reg = await _context.Registrations.Include(r => r.Event)
@@ -131,10 +155,20 @@ namespace BaseCore.Services.VolunteerHub
             if (reg.EventId != eventId) throw new Exception("Registration not found in this event");
             if (reg.Event.OrganizerId != organizerId) throw new Exception("Not authorized");
 
+            var wasCancelRequest = reg.CancelRequested;
             reg.Status = "Cancelled";
+            reg.CancelRequested = false;
             var ev = await _context.Events.FindAsync(reg.EventId);
             if (ev != null && ev.CurrentParticipants > 0) ev.CurrentParticipants--;
             await _context.SaveChangesAsync();
+
+            if (wasCancelRequest)
+            {
+                await _notificationService.SendAsync(reg.UserId,
+                    "Đăng ký đã được hủy",
+                    $"Ban tổ chức đã xác nhận hủy đăng ký của bạn cho sự kiện '{reg.Event.Title}'.",
+                    "RegistrationCancelled", reg.EventId);
+            }
 
             return reg;
         }
@@ -213,6 +247,107 @@ namespace BaseCore.Services.VolunteerHub
         }
 
         private static double ToRadians(double degrees) => degrees * Math.PI / 180;
+
+        public async Task<Registration> WalkInAsync(int eventId, int volunteerUserId, int organizerId, string? note)
+        {
+            var ev = await _context.Events.FindAsync(eventId)
+                ?? throw new Exception("Event not found");
+            if (ev.OrganizerId != organizerId) throw new Exception("Not authorized");
+            if (ev.Status != "Approved") throw new Exception("Event is not open for walk-in check-in");
+
+            var volunteer = await _context.Users.FindAsync(volunteerUserId)
+                ?? throw new Exception("Volunteer account not found");
+            if (!volunteer.IsActive) throw new Exception("Volunteer account is not active");
+            if (volunteer.UserType != 0) throw new Exception("Target user is not a volunteer");
+
+            var existing = await _context.Registrations
+                .FirstOrDefaultAsync(r => r.EventId == eventId && r.UserId == volunteerUserId);
+            var attendedAt = DateTime.UtcNow;
+            var hours = ev.EndDate > ev.StartDate ? (decimal)(ev.EndDate - ev.StartDate).TotalHours : 0m;
+
+            if (existing != null)
+            {
+                if (existing.IsAttended) return existing;
+                if (existing.Status == "Cancelled")
+                {
+                    // Re-activate cancelled registration for walk-in
+                    if (ev.CurrentParticipants < ev.MaxParticipants) ev.CurrentParticipants++;
+                }
+                existing.Status = "Confirmed";
+                existing.ConfirmedAt = existing.ConfirmedAt ?? attendedAt;
+                existing.IsAttended = true;
+                existing.AttendedAt = attendedAt;
+                existing.VolunteerHours = hours;
+                existing.CancelRequested = false;
+                existing.Note = string.IsNullOrWhiteSpace(note) ? existing.Note : note.Trim();
+                await _context.SaveChangesAsync();
+                return existing;
+            }
+
+            var reg = new Registration
+            {
+                EventId = eventId,
+                UserId = volunteerUserId,
+                Status = "Confirmed",
+                Note = note?.Trim() ?? "Walk-in",
+                RegisteredAt = attendedAt,
+                ConfirmedAt = attendedAt,
+                IsAttended = true,
+                AttendedAt = attendedAt,
+                VolunteerHours = hours
+            };
+            _context.Registrations.Add(reg);
+            // Walk-in bypasses capacity check to support on-site reality
+            ev.CurrentParticipants++;
+            await _context.SaveChangesAsync();
+            return reg;
+        }
+
+        public async Task<Registration> ManualAttendAsync(int eventId, int registrationId, int organizerId, decimal? hoursOverride)
+        {
+            var reg = await _context.Registrations.Include(r => r.Event)
+                .FirstOrDefaultAsync(r => r.Id == registrationId)
+                ?? throw new Exception("Registration not found");
+            if (reg.EventId != eventId) throw new Exception("Registration not found in this event");
+            if (reg.Event.OrganizerId != organizerId) throw new Exception("Not authorized");
+            if (reg.Status != "Confirmed") throw new Exception("Registration is not confirmed");
+            if (reg.Event.Status != "Approved" && reg.Event.Status != "Completed")
+                throw new Exception("Event must be approved or completed to record attendance");
+
+            // Grace window: allow manual attend up to 7 days after EndDate
+            if (DateTime.UtcNow > reg.Event.EndDate.AddDays(7))
+                throw new Exception("Manual attendance window (7 days after event) has closed");
+
+            if (reg.IsAttended && !hoursOverride.HasValue) return reg;
+
+            reg.IsAttended = true;
+            reg.AttendedAt = reg.AttendedAt ?? DateTime.UtcNow;
+            var defaultHours = reg.Event.EndDate > reg.Event.StartDate
+                ? (decimal)(reg.Event.EndDate - reg.Event.StartDate).TotalHours
+                : 0m;
+            reg.VolunteerHours = hoursOverride.HasValue && hoursOverride.Value >= 0
+                ? hoursOverride.Value
+                : (reg.VolunteerHours > 0 ? reg.VolunteerHours : defaultHours);
+
+            await _context.SaveChangesAsync();
+            return reg;
+        }
+
+        public async Task<Registration> AdjustHoursAsync(int eventId, int registrationId, int organizerId, decimal hours)
+        {
+            if (hours < 0 || hours > 24 * 60) throw new Exception("Hours must be between 0 and 1440");
+
+            var reg = await _context.Registrations.Include(r => r.Event)
+                .FirstOrDefaultAsync(r => r.Id == registrationId)
+                ?? throw new Exception("Registration not found");
+            if (reg.EventId != eventId) throw new Exception("Registration not found in this event");
+            if (reg.Event.OrganizerId != organizerId) throw new Exception("Not authorized");
+            if (!reg.IsAttended) throw new Exception("Cannot adjust hours for a volunteer who did not check in");
+
+            reg.VolunteerHours = hours;
+            await _context.SaveChangesAsync();
+            return reg;
+        }
 
         public async Task<List<Registration>> GetByEventAsync(int eventId)
         {

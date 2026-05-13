@@ -19,7 +19,7 @@ namespace BaseCore.Repository.EFCore
             return await _dbSet
                 .Include(r => r.Rater)
                 .Include(r => r.Event)
-                .Where(r => r.RateeId == rateeId)
+                .Where(r => r.RateeId == rateeId && !r.IsHidden)
                 .OrderByDescending(r => r.CreatedAt)
                 .ToListAsync();
         }
@@ -31,7 +31,7 @@ namespace BaseCore.Repository.EFCore
 
         public async Task<double> GetAverageScoreAsync(int rateeId)
         {
-            var ratings = await _dbSet.Where(r => r.RateeId == rateeId).ToListAsync();
+            var ratings = await _dbSet.Where(r => r.RateeId == rateeId && !r.IsHidden).ToListAsync();
             return ratings.Any() ? ratings.Average(r => r.Score) : 0;
         }
     }

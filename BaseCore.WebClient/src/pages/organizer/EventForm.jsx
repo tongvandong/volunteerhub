@@ -83,6 +83,7 @@ export default function EventForm() {
   const [verification, setVerification] = useState(null);
   const [checkingVerification, setCheckingVerification] = useState(!isEdit);
   const [currentStep, setCurrentStep] = useState(0);
+  const [maxUnlockedStep, setMaxUnlockedStep] = useState(0);
   const [draftSaved, setDraftSaved] = useState(false);
 
   const selectedSkillIds = useMemo(() => {
@@ -108,9 +109,25 @@ export default function EventForm() {
   const numericMax = parseInt(form.maxParticipants, 10);
   const minMaxInvalid = Number.isInteger(numericMin) && Number.isInteger(numericMax) && numericMin > numericMax;
   const dateInvalid = form.startDate && form.endDate && new Date(form.endDate) <= new Date(form.startDate);
+  const stepByField = {
+    title: 0,
+    description: 0,
+    categoryId: 0,
+    requiredSkillIds: 0,
+    location: 1,
+    latitude: 1,
+    longitude: 1,
+    startDate: 2,
+    endDate: 2,
+    minParticipants: 2,
+    maxParticipants: 2,
+    requiresKyc: 3,
+    imageUrl: 4,
+  };
 
   const set = (key, value) => {
     setForm((previous) => ({ ...previous, [key]: value }));
+    setMaxUnlockedStep((step) => Math.min(step, stepByField[key] ?? step));
     setDraftSaved(false);
   };
 
@@ -202,6 +219,7 @@ export default function EventForm() {
 
   const setMapLocation = useCallback(({ latitude, longitude }) => {
     setForm((previous) => ({ ...previous, latitude, longitude }));
+    setMaxUnlockedStep((step) => Math.min(step, 1));
     setDraftSaved(false);
     reverseGeocode(latitude, longitude);
   }, [reverseGeocode]);
@@ -249,6 +267,7 @@ export default function EventForm() {
       latitude: suggestion.latitude,
       longitude: suggestion.longitude,
     }));
+    setMaxUnlockedStep((step) => Math.min(step, 1));
     setDraftSaved(false);
     setAddressSuggestions([]);
     setAddressError('');
@@ -360,9 +379,11 @@ export default function EventForm() {
       return;
     }
 
+    const nextStep = Math.min(currentStep + 1, STEPS.length - 1);
     setStepError('');
     setError('');
-    setCurrentStep((step) => Math.min(step + 1, STEPS.length - 1));
+    setCurrentStep(nextStep);
+    setMaxUnlockedStep((step) => Math.max(step, nextStep));
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -383,7 +404,6 @@ export default function EventForm() {
     for (let step = 0; step < index; step += 1) {
       const message = validateCurrentStep(step);
       if (message) {
-        setCurrentStep(step);
         setStepError(message);
         window.scrollTo({ top: 0, behavior: 'smooth' });
         return;
@@ -392,8 +412,17 @@ export default function EventForm() {
 
     setStepError('');
     setCurrentStep(index);
+    setMaxUnlockedStep((step) => Math.max(step, index));
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
+
+  const canReachStep = useCallback((targetIndex) => {
+    for (let step = 0; step < targetIndex; step += 1) {
+      if (validateCurrentStep(step)) return false;
+    }
+
+    return true;
+  }, [validateCurrentStep]);
 
   const handleSubmit = async () => {
     setError('');
@@ -830,18 +859,21 @@ export default function EventForm() {
         <div className="hidden grid-cols-6 gap-3 md:grid">
           {STEPS.map((step, index) => {
             const active = index === currentStep;
-            const done = index < currentStep;
+            const reachable = canReachStep(index);
+            const unlocked = index <= currentStep || (index <= maxUnlockedStep + 1 && reachable);
+            const done = index < Math.max(currentStep, maxUnlockedStep) && canReachStep(index + 1);
             return (
               <button
                 key={step.id}
                 type="button"
                 onClick={() => jumpToStep(index)}
+                disabled={!unlocked}
                 className={`group flex min-h-[92px] flex-col items-center justify-start gap-2 rounded-xl border px-3 py-3 text-center transition ${
-                  active ? 'border-primary-200 bg-primary-50' : done ? 'border-emerald-100 bg-emerald-50/50' : 'border-gray-100 bg-white hover:border-primary-100 hover:bg-primary-50/40'
+                  active ? 'border-primary-200 bg-primary-50' : done ? 'border-emerald-100 bg-emerald-50/50' : unlocked ? 'border-gray-100 bg-white hover:border-primary-100 hover:bg-primary-50/40' : 'cursor-not-allowed border-gray-100 bg-gray-50 text-gray-400 opacity-70'
                 }`}
               >
                 <span className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full text-sm font-bold ${
-                  active ? 'bg-primary-600 text-white shadow-md' : done ? 'bg-emerald-500 text-white' : 'bg-gray-100 text-gray-500'
+                  active ? 'bg-primary-600 text-white shadow-md' : done ? 'bg-emerald-500 text-white' : unlocked ? 'bg-gray-100 text-gray-500' : 'bg-gray-200 text-gray-400'
                 }`}>
                   {done ? <i className="fa-solid fa-check" /> : index + 1}
                 </span>

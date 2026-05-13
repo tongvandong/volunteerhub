@@ -48,6 +48,66 @@ namespace BaseCore.APIService.Controllers
             catch (Exception ex) { return BadRequest(new { message = ex.Message }); }
         }
 
+        [HttpPost("api/events/{eventId}/register/cancel-request"), Authorize(Roles = "Volunteer")]
+        [EnableRateLimiting("write-sensitive")]
+        public async Task<IActionResult> RequestCancel(int eventId, [FromBody] CancelRequestDto? dto)
+        {
+            if (!int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var userId))
+                return Unauthorized();
+            try
+            {
+                var reg = await _registrationService.RequestCancelAsync(eventId, userId, dto?.Reason);
+                await RecordAuditAsync(userId, "Registration.RequestCancel", "Registration", reg.Id, $"EventId={eventId}");
+                return Ok(reg);
+            }
+            catch (Exception ex) { return BadRequest(new { message = ex.Message }); }
+        }
+
+        [HttpPost("api/events/{eventId}/walk-in"), Authorize(Roles = "Organizer")]
+        [EnableRateLimiting("write-sensitive")]
+        public async Task<IActionResult> WalkIn(int eventId, [FromBody] WalkInDto dto)
+        {
+            if (!int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var userId))
+                return Unauthorized();
+            try
+            {
+                var reg = await _registrationService.WalkInAsync(eventId, dto.VolunteerUserId, userId, dto.Note);
+                await RecordAuditAsync(userId, "Registration.WalkIn", "Registration", reg.Id, $"EventId={eventId};VolunteerId={dto.VolunteerUserId}");
+                return Ok(reg);
+            }
+            catch (Exception ex) { return BadRequest(new { message = ex.Message }); }
+        }
+
+        [HttpPost("api/events/{eventId}/registrations/{regId}/manual-attend"), Authorize(Roles = "Organizer")]
+        [EnableRateLimiting("write-sensitive")]
+        public async Task<IActionResult> ManualAttend(int eventId, int regId, [FromBody] ManualAttendDto? dto)
+        {
+            if (!int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var userId))
+                return Unauthorized();
+            try
+            {
+                var reg = await _registrationService.ManualAttendAsync(eventId, regId, userId, dto?.Hours);
+                await RecordAuditAsync(userId, "Registration.ManualAttend", "Registration", reg.Id, $"EventId={eventId};Hours={reg.VolunteerHours:0.##}");
+                return Ok(reg);
+            }
+            catch (Exception ex) { return BadRequest(new { message = ex.Message }); }
+        }
+
+        [HttpPut("api/events/{eventId}/registrations/{regId}/hours"), Authorize(Roles = "Organizer")]
+        [EnableRateLimiting("write-sensitive")]
+        public async Task<IActionResult> AdjustHours(int eventId, int regId, [FromBody] AdjustHoursDto dto)
+        {
+            if (!int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var userId))
+                return Unauthorized();
+            try
+            {
+                var reg = await _registrationService.AdjustHoursAsync(eventId, regId, userId, dto.Hours);
+                await RecordAuditAsync(userId, "Registration.AdjustHours", "Registration", reg.Id, $"EventId={eventId};Hours={dto.Hours:0.##}");
+                return Ok(reg);
+            }
+            catch (Exception ex) { return BadRequest(new { message = ex.Message }); }
+        }
+
         [HttpPut("api/events/{eventId}/registrations/{regId}/confirm"), Authorize(Roles = "Organizer")]
         [EnableRateLimiting("write-sensitive")]
         public async Task<IActionResult> Confirm(int eventId, int regId)
@@ -150,5 +210,26 @@ namespace BaseCore.APIService.Controllers
         public string? QrCode { get; set; }
         public decimal? Latitude { get; set; }
         public decimal? Longitude { get; set; }
+    }
+
+    public class CancelRequestDto
+    {
+        public string? Reason { get; set; }
+    }
+
+    public class WalkInDto
+    {
+        public int VolunteerUserId { get; set; }
+        public string? Note { get; set; }
+    }
+
+    public class ManualAttendDto
+    {
+        public decimal? Hours { get; set; }
+    }
+
+    public class AdjustHoursDto
+    {
+        public decimal Hours { get; set; }
     }
 }

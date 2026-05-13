@@ -29,6 +29,7 @@ namespace BaseCore.Entities
         public DateTime? ReportedAt { get; set; }
         public DateTime? CancelledAt { get; set; }
         public int? LegacyEventSponsorId { get; set; }
+        public decimal? ActualReceivedAmount { get; set; }
         public decimal? UsedAmount { get; set; }
         public string ReportSummary { get; set; } = "";
         public string ExpenseDetails { get; set; } = "";

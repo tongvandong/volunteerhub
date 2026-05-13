@@ -49,7 +49,41 @@ namespace BaseCore.APIService.Controllers
             user.IsActive = !user.IsActive;
             await _context.SaveChangesAsync();
             await RecordAuditAsync("Admin.User.ToggleStatus", "User", user.Id, $"IsActive={user.IsActive}");
-            return Ok(new { id = user.Id, isActive = user.IsActive });
+
+            // Impact summary when deactivating — non-destructive; the admin decides next steps.
+            object? impact = null;
+            if (!user.IsActive)
+            {
+                if (user.UserType == 1) // Organizer
+                {
+                    impact = new
+                    {
+                        role = "Organizer",
+                        activeEvents = await _context.Events.CountAsync(e => e.OrganizerId == id && (e.Status == "Pending" || e.Status == "Approved")),
+                        openCampaigns = await _context.SupportCampaigns.CountAsync(c => c.Event.OrganizerId == id && c.Status == "Open"),
+                        openProposals = await _context.SponsorshipProposals.CountAsync(p => p.OrganizerId == id && (p.Status == "Pending" || p.Status == "Accepted"))
+                    };
+                }
+                else if (user.UserType == 2) // Sponsor
+                {
+                    impact = new
+                    {
+                        role = "Sponsor",
+                        openProposals = await _context.SponsorshipProposals.CountAsync(p => p.SponsorId == id && (p.Status == "Pending" || p.Status == "Accepted"))
+                    };
+                }
+                else if (user.UserType == 0) // Volunteer
+                {
+                    impact = new
+                    {
+                        role = "Volunteer",
+                        activeRegistrations = await _context.Registrations.CountAsync(r => r.UserId == id && (r.Status == "Pending" || r.Status == "Confirmed") && !r.IsAttended),
+                        pendingDonations = await _context.IndividualDonations.CountAsync(d => d.UserId == id && d.Status == "PendingConfirmation")
+                    };
+                }
+            }
+
+            return Ok(new { id = user.Id, isActive = user.IsActive, impact });
         }
 
         [HttpGet("volunteer-kyc")]
@@ -251,7 +285,7 @@ namespace BaseCore.APIService.Controllers
                 .SumAsync(d => (decimal?)d.Amount) ?? 0;
             var sponsorshipReceivedAmount = await _context.SponsorshipProposals
                 .Where(p => p.Status == "Received" || p.Status == "Reported")
-                .SumAsync(p => p.Type == "OrganizerRequest" ? p.RequestedAmount ?? 0 : p.OfferedAmount ?? 0);
+                .SumAsync(p => p.ActualReceivedAmount ?? (p.Type == "OrganizerRequest" ? p.RequestedAmount ?? 0 : p.OfferedAmount ?? 0));
 
             return Ok(new
             {
@@ -276,9 +310,100 @@ namespace BaseCore.APIService.Controllers
                     .Include(p => p.Sponsor)
                     .OrderByDescending(p => p.CreatedAt)
                     .Take(10)
-                    .Select(p => new { p.Id, p.Title, p.Type, p.Status, sponsor = p.Sponsor.Name, eventTitle = p.Event.Title, amount = p.Type == "OrganizerRequest" ? p.RequestedAmount ?? 0 : p.OfferedAmount ?? 0, p.CreatedAt })
+                    .Select(p => new { p.Id, p.Title, p.Type, p.Status, sponsor = p.Sponsor.Name, eventTitle = p.Event.Title, amount = p.ActualReceivedAmount ?? (p.Type == "OrganizerRequest" ? p.RequestedAmount ?? 0 : p.OfferedAmount ?? 0), p.CreatedAt })
                     .ToListAsync()
             });
+        }
+
+        [HttpGet("finance/open-proposals-past-event")]
+        public async Task<IActionResult> GetOpenProposalsPastEvent()
+        {
+            var items = await _context.SponsorshipProposals
+                .AsNoTracking()
+                .Include(p => p.Event)
+                .Include(p => p.Sponsor)
+                .Include(p => p.Organizer)
+                .Where(p => (p.Status == "Pending" || p.Status == "Accepted")
+                         && (p.Event.Status == "Completed" || p.Event.Status == "Cancelled"))
+                .OrderBy(p => p.Event.EndDate)
+                .Select(p => new
+                {
+                    p.Id,
+                    p.Title,
+                    p.Type,
+                    p.Status,
+                    p.EventId,
+                    eventTitle = p.Event.Title,
+                    eventStatus = p.Event.Status,
+                    eventEndDate = p.Event.EndDate,
+                    sponsorName = p.Sponsor.Name ?? p.Sponsor.UserName,
+                    organizerName = p.Organizer.Name ?? p.Organizer.UserName,
+                    amount = p.Type == "OrganizerRequest" ? p.RequestedAmount ?? 0 : p.OfferedAmount ?? 0,
+                    daysSinceEnd = (int)(DateTime.UtcNow - p.Event.EndDate).TotalDays
+                })
+                .ToListAsync();
+            return Ok(items);
+        }
+
+        [HttpGet("finance/stale-donations")]
+        public async Task<IActionResult> GetStaleDonations([FromQuery] int days = 7)
+        {
+            if (days < 1) days = 7;
+            var cutoff = DateTime.UtcNow.AddDays(-days);
+
+            var items = await _context.IndividualDonations
+                .AsNoTracking()
+                .Include(d => d.Campaign).ThenInclude(c => c.Event).ThenInclude(e => e.Organizer)
+                .Include(d => d.User)
+                .Where(d => d.Status == "PendingConfirmation" && d.CreatedAt <= cutoff)
+                .OrderBy(d => d.CreatedAt)
+                .Select(d => new
+                {
+                    d.Id,
+                    d.CampaignId,
+                    campaignTitle = d.Campaign.Title,
+                    eventId = d.Campaign.EventId,
+                    eventTitle = d.Campaign.Event.Title,
+                    organizerId = d.Campaign.Event.OrganizerId,
+                    organizerName = d.Campaign.Event.Organizer.Name ?? d.Campaign.Event.Organizer.UserName,
+                    d.Amount,
+                    donorName = d.IsAnonymous ? "Ẩn danh" : d.DisplayName,
+                    donorUserId = d.UserId,
+                    donorUserName = d.User.UserName,
+                    d.CreatedAt,
+                    ageInDays = (int)(DateTime.UtcNow - d.CreatedAt).TotalDays
+                })
+                .ToListAsync();
+
+            return Ok(items);
+        }
+
+        [HttpGet("finance/unreported-campaigns")]
+        public async Task<IActionResult> GetUnreportedCampaigns()
+        {
+            var items = await _context.SupportCampaigns
+                .AsNoTracking()
+                .Include(c => c.Event)
+                .Where(c => c.Status != "Cancelled" && c.Status != "Reported" && c.ReportedAt == null)
+                .Where(c => c.Event.Status == "Completed" || c.Event.Status == "Cancelled")
+                .Select(c => new
+                {
+                    c.Id,
+                    c.Title,
+                    c.EventId,
+                    eventTitle = c.Event.Title,
+                    eventStatus = c.Event.Status,
+                    c.TargetAmount,
+                    confirmedAmount = c.Donations.Where(d => d.Status == "Confirmed").Sum(d => (decimal?)d.Amount) ?? 0,
+                    c.EndDate,
+                    c.Status,
+                    organizerId = c.Event.OrganizerId
+                })
+                .Where(x => x.confirmedAmount > 0)
+                .OrderBy(x => x.EndDate)
+                .ToListAsync();
+
+            return Ok(items);
         }
 
         [HttpGet("export/finance")]
@@ -313,7 +438,7 @@ namespace BaseCore.APIService.Controllers
                     p.Title,
                     Counterparty = p.Sponsor.Name,
                     p.Status,
-                    Amount = p.Type == "OrganizerRequest" ? p.RequestedAmount ?? 0 : p.OfferedAmount ?? 0,
+                    Amount = p.ActualReceivedAmount ?? (p.Type == "OrganizerRequest" ? p.RequestedAmount ?? 0 : p.OfferedAmount ?? 0),
                     p.UsedAmount,
                     p.ReportSummary,
                     p.ReportedAt,

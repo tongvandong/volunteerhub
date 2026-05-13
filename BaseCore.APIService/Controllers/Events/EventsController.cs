@@ -106,7 +106,7 @@ namespace BaseCore.APIService.Controllers
                     p.Title,
                     p.Status,
                     sponsorName = p.PublicSponsorName != "" ? p.PublicSponsorName : p.Sponsor.Name,
-                    amount = p.Type == "OrganizerRequest" ? p.RequestedAmount ?? 0 : p.OfferedAmount ?? 0,
+                    amount = p.ActualReceivedAmount ?? (p.Type == "OrganizerRequest" ? p.RequestedAmount ?? 0 : p.OfferedAmount ?? 0),
                     p.UsedAmount,
                     p.ReportSummary,
                     p.ReportedAt
@@ -127,6 +127,8 @@ namespace BaseCore.APIService.Controllers
                 totalRegistrations = registrations.Count,
                 confirmedRegistrations = registrations.Count(r => r.Status == "Confirmed"),
                 attendedVolunteers = registrations.Count(r => r.IsAttended),
+                noShowVolunteers = registrations.Count(r => r.Status == "Confirmed" && !r.IsAttended),
+                cancelRequestedCount = registrations.Count(r => r.CancelRequested),
                 totalVolunteerHours = registrations.Where(r => r.IsAttended).Sum(r => r.VolunteerHours),
                 certificatesIssued = certificates,
                 sponsorCount = sponsors.Count,
@@ -191,6 +193,8 @@ namespace BaseCore.APIService.Controllers
             var ev = await _eventService.GetByIdAsync(id);
             if (ev == null) return NotFound(new { message = "Event not found" });
             if (ev.OrganizerId != userId) return Forbid();
+            if (ev.Status == "Cancelled" || ev.Status == "Completed")
+                return BadRequest(new { message = "Cannot edit cancelled or completed events" });
             if (dto.Title != null && string.IsNullOrWhiteSpace(dto.Title))
                 return BadRequest(new { message = "Event title cannot be empty" });
             var nextLatitude = dto.Latitude ?? ev.Latitude;
@@ -203,6 +207,12 @@ namespace BaseCore.APIService.Controllers
             var participantError = ValidateParticipants(nextMinParticipants, nextMaxParticipants);
             if (participantError != null)
                 return BadRequest(new { message = participantError });
+
+            var oldStart = ev.StartDate;
+            var oldEnd = ev.EndDate;
+            var oldLocation = ev.Location;
+            var oldLatitude = ev.Latitude;
+            var oldLongitude = ev.Longitude;
 
             ev.Title = dto.Title?.Trim() ?? ev.Title;
             ev.Description = dto.Description ?? ev.Description;
@@ -220,6 +230,23 @@ namespace BaseCore.APIService.Controllers
 
             await _eventService.UpdateAsync(ev);
             await RecordAuditAsync(userId, "Event.Update", "Event", ev.Id, $"Status={ev.Status}");
+
+            // Notify confirmed volunteers and active sponsors if the event is Approved and key fields changed
+            if (ev.Status == "Approved")
+            {
+                var changes = new List<string>();
+                if (ev.StartDate != oldStart || ev.EndDate != oldEnd)
+                    changes.Add($"thời gian ({ev.StartDate:dd/MM/yyyy HH:mm} - {ev.EndDate:dd/MM/yyyy HH:mm})");
+                if (!string.Equals(ev.Location ?? "", oldLocation ?? "", StringComparison.Ordinal))
+                    changes.Add($"địa điểm ({ev.Location})");
+                if (ev.Latitude != oldLatitude || ev.Longitude != oldLongitude)
+                    changes.Add("tọa độ bản đồ");
+                if (changes.Count > 0)
+                {
+                    await _eventService.NotifyEventChangeAsync(ev.Id, string.Join(", ", changes));
+                }
+            }
+
             return Ok(ev);
         }
 
@@ -284,6 +311,93 @@ namespace BaseCore.APIService.Controllers
                 return Ok(ev);
             }
             catch (Exception ex) { return BadRequest(new { message = ex.Message }); }
+        }
+
+        [HttpPost("{id}/resubmit"), Authorize(Roles = "Organizer")]
+        [EnableRateLimiting("write-sensitive")]
+        public async Task<IActionResult> Resubmit(int id)
+        {
+            if (!int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var userId))
+                return Unauthorized();
+            try
+            {
+                var ev = await _eventService.ResubmitAsync(id, userId);
+                await RecordAuditAsync(userId, "Event.Resubmit", "Event", ev.Id);
+                return Ok(ev);
+            }
+            catch (Exception ex) { return BadRequest(new { message = ex.Message }); }
+        }
+
+        [HttpPut("{id}/cancel"), Authorize(Roles = "Organizer,Admin")]
+        [EnableRateLimiting("write-sensitive")]
+        public async Task<IActionResult> Cancel(int id, [FromBody] EventCancelDto? dto)
+        {
+            if (!int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var userId))
+                return Unauthorized();
+            var role = User.FindFirst(ClaimTypes.Role)?.Value;
+            try
+            {
+                var ev = await _eventService.CancelAsync(id, role == "Admin" ? null : userId, dto?.Reason);
+                await RecordAuditAsync(userId, "Event.Cancel", "Event", ev.Id, $"Reason={dto?.Reason}");
+                return Ok(ev);
+            }
+            catch (Exception ex) { return BadRequest(new { message = ex.Message }); }
+        }
+
+        [HttpPost("{id}/uncomplete"), Authorize(Roles = "Admin")]
+        [EnableRateLimiting("write-sensitive")]
+        public async Task<IActionResult> Uncomplete(int id)
+        {
+            if (!int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var userId))
+                return Unauthorized();
+            try
+            {
+                var ev = await _eventService.UncompleteAsync(id);
+                await RecordAuditAsync(userId, "Event.Uncomplete", "Event", ev.Id);
+                return Ok(ev);
+            }
+            catch (Exception ex) { return BadRequest(new { message = ex.Message }); }
+        }
+
+        [HttpPost("auto-complete-overdue"), Authorize(Roles = "Admin")]
+        [EnableRateLimiting("write-sensitive")]
+        public async Task<IActionResult> AutoCompleteOverdue()
+        {
+            if (!int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var userId))
+                return Unauthorized();
+            var completed = await _eventService.AutoCompleteOverdueAsync();
+            await RecordAuditAsync(userId, "Event.AutoCompleteOverdue", "Event", null, $"Completed={completed}");
+            return Ok(new { completed });
+        }
+
+        [HttpPut("{id}/transfer"), Authorize(Roles = "Admin")]
+        [EnableRateLimiting("write-sensitive")]
+        public async Task<IActionResult> Transfer(int id, [FromBody] EventTransferDto dto)
+        {
+            if (!int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var userId))
+                return Unauthorized();
+
+            var ev = await _eventService.GetByIdAsync(id);
+            if (ev == null) return NotFound(new { message = "Event not found" });
+            if (ev.Status == "Completed" || ev.Status == "Cancelled")
+                return BadRequest(new { message = "Cannot transfer completed or cancelled events" });
+
+            var newOrganizer = await _context.Users.FindAsync(dto.NewOrganizerId);
+            if (newOrganizer == null || newOrganizer.UserType != 1 || !newOrganizer.IsActive)
+                return BadRequest(new { message = "New organizer must be an active Organizer account" });
+
+            var verified = await _context.OrganizerVerifications
+                .Where(v => v.OrganizerId == dto.NewOrganizerId)
+                .Select(v => v.Status)
+                .FirstOrDefaultAsync();
+            if (verified != "Verified")
+                return BadRequest(new { message = "New organizer must be verified" });
+
+            var oldOrganizerId = ev.OrganizerId;
+            ev.OrganizerId = dto.NewOrganizerId;
+            await _eventService.UpdateAsync(ev);
+            await RecordAuditAsync(userId, "Event.Transfer", "Event", ev.Id, $"From={oldOrganizerId};To={dto.NewOrganizerId}");
+            return Ok(ev);
         }
 
         [HttpGet("{id}/registrations"), Authorize]
@@ -371,5 +485,15 @@ namespace BaseCore.APIService.Controllers
         public int? CategoryId { get; set; }
         public string? ImageUrl { get; set; }
         public string? RequiredSkillIds { get; set; }
+    }
+
+    public class EventCancelDto
+    {
+        public string? Reason { get; set; }
+    }
+
+    public class EventTransferDto
+    {
+        public int NewOrganizerId { get; set; }
     }
 }

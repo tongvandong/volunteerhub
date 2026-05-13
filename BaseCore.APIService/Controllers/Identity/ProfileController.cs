@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.EntityFrameworkCore;
 using BaseCore.Entities;
 using BaseCore.Repository.EFCore;
 using BaseCore.Services.VolunteerHub;
@@ -17,19 +18,22 @@ namespace BaseCore.APIService.Controllers
         private readonly IRegistrationRepositoryEF _registrationRepo;
         private readonly ICertificateRepositoryEF _certificateRepo;
         private readonly IAuditLogService _auditLogService;
+        private readonly BaseCore.Repository.MySqlDbContext _context;
 
         public ProfileController(
             IVolunteerProfileRepositoryEF profileRepo,
             ISkillRepositoryEF skillRepo,
             IRegistrationRepositoryEF registrationRepo,
             ICertificateRepositoryEF certificateRepo,
-            IAuditLogService auditLogService)
+            IAuditLogService auditLogService,
+            BaseCore.Repository.MySqlDbContext context)
         {
             _profileRepo = profileRepo;
             _skillRepo = skillRepo;
             _registrationRepo = registrationRepo;
             _certificateRepo = certificateRepo;
             _auditLogService = auditLogService;
+            _context = context;
         }
 
         [HttpGet("api/profile")]
@@ -176,7 +180,32 @@ namespace BaseCore.APIService.Controllers
         {
             var skill = await _skillRepo.GetByIdAsync(id);
             if (skill == null) return NotFound();
-            await _skillRepo.DeleteAsync(skill);
+            try
+            {
+                // Cleanup Event.RequiredSkillIds JSON arrays that reference this skill
+                var events = await _context.Events
+                    .Where(e => e.RequiredSkillIds != null && e.RequiredSkillIds != "" && e.RequiredSkillIds != "[]")
+                    .ToListAsync();
+                foreach (var ev in events)
+                {
+                    try
+                    {
+                        var ids = System.Text.Json.JsonSerializer.Deserialize<List<int>>(ev.RequiredSkillIds!) ?? new List<int>();
+                        if (ids.Remove(id))
+                        {
+                            ev.RequiredSkillIds = ids.Count == 0 ? "[]" : System.Text.Json.JsonSerializer.Serialize(ids);
+                        }
+                    }
+                    catch { /* ignore malformed JSON */ }
+                }
+
+                await _skillRepo.DeleteAsync(skill);
+                await _context.SaveChangesAsync();
+            }
+            catch (Microsoft.EntityFrameworkCore.DbUpdateException)
+            {
+                return BadRequest(new { message = "Cannot delete a skill that volunteers are still using. Ask volunteers to remove it first." });
+            }
             await RecordAuditAsync(CurrentUserId(), "Skill.Delete", "Skill", id);
             return Ok(new { message = "Deleted" });
         }

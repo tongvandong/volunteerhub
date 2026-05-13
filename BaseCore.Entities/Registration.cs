@@ -15,6 +15,9 @@ namespace BaseCore.Entities
         public bool IsAttended { get; set; } = false;
         public DateTime? AttendedAt { get; set; }
         public decimal VolunteerHours { get; set; } = 0;
+        public bool CancelRequested { get; set; } = false;
+        public DateTime? CancelRequestedAt { get; set; }
+        public string CancelReason { get; set; } = "";
 
         // Navigation
         public Event Event { get; set; }

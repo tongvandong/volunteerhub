@@ -198,6 +198,171 @@ namespace BaseCore.Services.VolunteerHub
             return ev;
         }
 
+        public async Task<Entities.Event> ResubmitAsync(int eventId, int organizerId)
+        {
+            var ev = await _context.Events.FindAsync(eventId)
+                ?? throw new Exception("Event not found");
+            if (ev.OrganizerId != organizerId) throw new Exception("Not authorized");
+            if (ev.Status != "Rejected") throw new Exception("Only rejected events can be resubmitted");
+
+            ev.Status = "Pending";
+            await _context.SaveChangesAsync();
+            return ev;
+        }
+
+        public async Task<Entities.Event> CancelAsync(int eventId, int? organizerId, string? reason)
+        {
+            var ev = await _context.Events.FindAsync(eventId)
+                ?? throw new Exception("Event not found");
+            if (organizerId.HasValue && ev.OrganizerId != organizerId.Value) throw new Exception("Not authorized");
+            if (ev.Status == "Completed") throw new Exception("Completed events cannot be cancelled");
+            if (ev.Status == "Cancelled") throw new Exception("Event is already cancelled");
+
+            ev.Status = "Cancelled";
+            ev.CancelReason = reason?.Trim() ?? "";
+            ev.CancelledAt = DateTime.UtcNow;
+
+            // Close active support campaigns (only Open). Draft/Closed/Reported stay as-is.
+            var openCampaigns = await _context.SupportCampaigns
+                .Where(c => c.EventId == eventId && c.Status == "Open")
+                .ToListAsync();
+            foreach (var c in openCampaigns)
+            {
+                c.Status = "Closed";
+                c.UpdatedAt = DateTime.UtcNow;
+            }
+
+            // Auto-cancel sponsorship proposals that are still Pending or Accepted (but not Received/Reported).
+            // Received/Reported stay intact — any money already received is handled out-of-band by organizer.
+            var activeProposals = await _context.SponsorshipProposals
+                .Include(p => p.Sponsor)
+                .Where(p => p.EventId == eventId && (p.Status == "Pending" || p.Status == "Accepted"))
+                .ToListAsync();
+            foreach (var p in activeProposals)
+            {
+                p.Status = "Cancelled";
+                p.CancelledAt = DateTime.UtcNow;
+                p.ResponseMessage = string.IsNullOrWhiteSpace(p.ResponseMessage)
+                    ? $"Sự kiện đã bị hủy: {reason}"
+                    : p.ResponseMessage;
+            }
+
+            // Notify confirmed volunteers (not attended yet — no notification for past attendees).
+            var confirmedVolunteerIds = await _context.Registrations
+                .Where(r => r.EventId == eventId && r.Status == "Confirmed" && !r.IsAttended)
+                .Select(r => r.UserId)
+                .ToListAsync();
+
+            // Collect sponsor ids that had active proposals to notify them of the cancellation too.
+            var sponsorIdsToNotify = activeProposals
+                .Select(p => p.SponsorId)
+                .Concat(_context.SponsorshipProposals
+                    .Where(p => p.EventId == eventId && (p.Status == "Received" || p.Status == "Reported"))
+                    .Select(p => p.SponsorId))
+                .Distinct()
+                .ToList();
+
+            await _context.SaveChangesAsync();
+
+            var message = string.IsNullOrWhiteSpace(reason)
+                ? $"Sự kiện '{ev.Title}' đã bị hủy."
+                : $"Sự kiện '{ev.Title}' đã bị hủy. Lý do: {reason}";
+
+            foreach (var uid in confirmedVolunteerIds)
+            {
+                await _notificationService.SendAsync(uid, "Sự kiện bị hủy", message, "EventCancelled", eventId);
+            }
+            foreach (var sid in sponsorIdsToNotify)
+            {
+                await _notificationService.SendAsync(sid, "Sự kiện bị hủy", message, "EventCancelled", eventId);
+            }
+
+            return ev;
+        }
+
+        public async Task NotifyEventChangeAsync(int eventId, string reason)
+        {
+            var ev = await _context.Events.FindAsync(eventId);
+            if (ev == null) return;
+
+            var recipients = await _context.Registrations
+                .Where(r => r.EventId == eventId && r.Status == "Confirmed")
+                .Select(r => r.UserId)
+                .ToListAsync();
+
+            var sponsorIds = await _context.SponsorshipProposals
+                .Where(p => p.EventId == eventId && (p.Status == "Accepted" || p.Status == "Received" || p.Status == "Reported"))
+                .Select(p => p.SponsorId)
+                .Distinct()
+                .ToListAsync();
+
+            var title = "Sự kiện cập nhật thông tin";
+            var message = $"Sự kiện '{ev.Title}' đã được cập nhật: {reason}";
+            foreach (var uid in recipients)
+            {
+                await _notificationService.SendAsync(uid, title, message, "EventUpdated", eventId);
+            }
+            foreach (var sid in sponsorIds)
+            {
+                await _notificationService.SendAsync(sid, title, message, "EventUpdated", eventId);
+            }
+        }
+
+        public async Task<Entities.Event> UncompleteAsync(int eventId)
+        {
+            var ev = await _context.Events.FindAsync(eventId)
+                ?? throw new Exception("Event not found");
+            if (ev.Status != "Completed") throw new Exception("Only completed events can be uncompleted");
+
+            ev.Status = "Approved";
+            // Revoke certificates issued for this event. Legacy data lives out-of-band (email/PDF copies already sent).
+            var certs = await _context.Certificates.Where(c => c.EventId == eventId).ToListAsync();
+            if (certs.Count > 0)
+            {
+                _context.Certificates.RemoveRange(certs);
+            }
+            await _context.SaveChangesAsync();
+
+            await _notificationService.SendAsync(ev.OrganizerId,
+                "Sự kiện được mở lại",
+                $"Admin đã rollback sự kiện '{ev.Title}' về trạng thái Approved. Các chứng chỉ trước đó đã bị thu hồi.",
+                "EventUncompleted", eventId);
+
+            return ev;
+        }
+
+        public async Task<int> AutoCompleteOverdueAsync()
+        {
+            var cutoff = DateTime.UtcNow.AddDays(-1); // Complete only if EndDate passed more than 1 day ago
+            var candidates = await _context.Events
+                .Where(e => e.Status == "Approved" && e.EndDate <= cutoff)
+                .ToListAsync();
+
+            var completed = 0;
+            foreach (var ev in candidates)
+            {
+                ev.Status = "Completed";
+                completed++;
+            }
+            await _context.SaveChangesAsync();
+
+            // Issue certificates and notify after save to avoid holding a txn open
+            foreach (var ev in candidates)
+            {
+                try { await _certificateService.IssueCertificatesForEventAsync(ev.Id); } catch { }
+                try
+                {
+                    await _notificationService.SendAsync(ev.OrganizerId,
+                        "Sự kiện đã tự động hoàn thành",
+                        $"Sự kiện '{ev.Title}' đã được hệ thống đánh dấu hoàn thành do đã quá hạn EndDate hơn 24 giờ.",
+                        "EventAutoCompleted", ev.Id);
+                }
+                catch { }
+            }
+
+            return completed;
+        }
+
         private static bool RequiredSkillsContain(string? requiredSkillIds, int skillId)
         {
             if (string.IsNullOrWhiteSpace(requiredSkillIds)) return false;

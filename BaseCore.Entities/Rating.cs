@@ -11,6 +11,10 @@ namespace BaseCore.Entities
         public int Score { get; set; }     // 1-5
         public string Comment { get; set; }
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        public bool IsHidden { get; set; } = false;
+        public string HiddenReason { get; set; } = "";
+        public DateTime? HiddenAt { get; set; }
+        public int? HiddenBy { get; set; }
 
         // Navigation
         public Event Event { get; set; }
