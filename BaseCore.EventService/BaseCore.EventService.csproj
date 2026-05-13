@@ -2,16 +2,16 @@
 
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
-    <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.26" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="8.0.26" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.26">
-      <PrivateAssets>all</PrivateAssets>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="8.0.26">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
     </PackageReference>
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.5.0" />
   </ItemGroup>
@@ -24,12 +24,11 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Compile Include="..\BaseCore.APIService\Controllers\Identity\**\*.cs" Link="Controllers\Identity\%(RecursiveDir)%(Filename)%(Extension)" />
-    <Compile Include="..\BaseCore.APIService\Controllers\Shared\UploadsController.cs" Link="Controllers\Shared\UploadsController.cs" />
-    <Compile Include="..\BaseCore.APIService\Controllers\Shared\NotificationsController.cs" Link="Controllers\Shared\NotificationsController.cs" />
+    <Compile Include="..\BaseCore.APIService\Controllers\Events\**\*.cs" Link="Controllers\Events\%(RecursiveDir)%(Filename)%(Extension)" />
+    <Compile Include="..\BaseCore.APIService\Controllers\Shared\RatingsController.cs" Link="Controllers\Shared\RatingsController.cs" />
+    <Compile Include="..\BaseCore.APIService\Controllers\Shared\ChannelsController.cs" Link="Controllers\Shared\ChannelsController.cs" />
+    <Compile Include="..\BaseCore.APIService\Controllers\Admin\DashboardController.cs" Link="Controllers\Admin\DashboardController.cs" />
     <Compile Include="..\BaseCore.APIService\Controllers\Admin\AdminController.cs" Link="Controllers\Admin\AdminController.cs" />
-    <Compile Include="..\BaseCore.APIService\Controllers\Admin\MonitoringController.cs" Link="Controllers\Admin\MonitoringController.cs" />
-    <Compile Include="..\BaseCore.APIService\Controllers\Admin\BadgesController.cs" Link="Controllers\Admin\BadgesController.cs" />
   </ItemGroup>
 
 </Project>

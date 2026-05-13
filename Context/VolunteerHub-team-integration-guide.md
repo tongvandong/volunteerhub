@@ -4,6 +4,22 @@ Tài liệu này dùng để chia công việc cho nhóm 3 người khi phát tr
 
 Lưu ý về Admin: admin không nên tách thành một service độc lập nếu nhóm chỉ có 3 người, vì admin chủ yếu là lớp kiểm duyệt/quản trị nằm trên từng nghiệp vụ. Thay vào đó, mỗi người phụ trách luôn phần admin tương ứng với service của mình. Các màn admin tổng hợp như monitoring/export/dashboard sẽ được thống nhất ở cuối tài liệu.
 
+## 0. Trạng thái tách service giai đoạn 1
+
+Hiện tại hệ thống đã được tách vật lý theo hướng "3 service + gateway", nhưng vẫn dùng chung database để giảm rủi ro tích hợp:
+
+- `BaseCore.AuthService` chạy cổng `5002`: Identity / Profile / KYC / Organizer verification.
+- `BaseCore.EventService` chạy cổng `5003`: Event / Registration / Check-in / Certificate.
+- `BaseCore.FinanceService` chạy cổng `5004`: Donation / Sponsorship / Finance reporting.
+- `BaseCore.ApiGateway` chạy cổng `5000`: route thống nhất cho frontend.
+- `BaseCore.APIService` cổng `5001`: giữ lại như legacy core/fallback trong giai đoạn chuyển tiếp.
+
+Nguyên tắc giai đoạn này:
+
+- Frontend vẫn gọi qua gateway như cũ.
+- Các service mới chia theo domain, nhưng chưa tách database riêng.
+- Khi cả nhóm làm ổn định rồi mới chuyển sang giai đoạn 2 nếu muốn tách DB hoặc message queue.
+
 ## 1. Chia nội dung làm việc
 
 ### Phần 1 - Identity / Profile / KYC

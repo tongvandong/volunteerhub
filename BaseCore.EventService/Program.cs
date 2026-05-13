@@ -1,18 +1,13 @@
-using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
-using Microsoft.IdentityModel.Tokens;
-using Microsoft.OpenApi.Models;
-using Microsoft.AspNetCore.RateLimiting;
+using BaseCore.Common.Infrastructure;
 using BaseCore.Repository;
 using BaseCore.Repository.EFCore;
 using BaseCore.Repository.Infrastructure;
-using BaseCore.Repository.Authen;
-using BaseCore.Common.Infrastructure;
-using BaseCore.Services.Authen;
 using BaseCore.Services.VolunteerHub;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi.Models;
 using System.Text;
 using System.Threading.RateLimiting;
 
@@ -25,6 +20,7 @@ builder.Services.AddControllers()
         options.JsonSerializerOptions.PropertyNameCaseInsensitive = true;
         options.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
     });
+
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddHealthChecks();
 builder.Services.AddRateLimiter(options =>
@@ -40,20 +36,7 @@ builder.Services.AddRateLimiter(options =>
             partitionKey,
             _ => new FixedWindowRateLimiterOptions
             {
-                PermitLimit = 240,
-                Window = TimeSpan.FromMinutes(1),
-                QueueLimit = 0
-            });
-    });
-    options.AddPolicy("auth-sensitive", context =>
-    {
-        var partitionKey = context.Connection.RemoteIpAddress?.ToString() ?? "anonymous";
-
-        return RateLimitPartition.GetFixedWindowLimiter(
-            partitionKey,
-            _ => new FixedWindowRateLimiterOptions
-            {
-                PermitLimit = 8,
+                PermitLimit = 300,
                 Window = TimeSpan.FromMinutes(1),
                 QueueLimit = 0
             });
@@ -90,23 +73,13 @@ builder.Services.AddRateLimiter(options =>
     });
 });
 
-builder.Services.AddCors(options =>
-{
-    options.AddPolicy("AllowAll", policy =>
-    {
-        policy.AllowAnyOrigin()
-              .AllowAnyMethod()
-              .AllowAnyHeader();
-    });
-});
-
 builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new OpenApiInfo
     {
-        Title = "BaseCore Auth Service API",
+        Title = "VolunteerHub Event Service",
         Version = "v1",
-        Description = "Authentication Microservice - Login, Register, User Management"
+        Description = "Event, registration, operation, certificate and event analytics service"
     });
     c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
@@ -122,14 +95,18 @@ builder.Services.AddSwaggerGen(c =>
         {
             new OpenApiSecurityScheme
             {
-                Reference = new OpenApiReference
-                {
-                    Type = ReferenceType.SecurityScheme,
-                    Id = "Bearer"
-                }
+                Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "Bearer" }
             },
             Array.Empty<string>()
         }
+    });
+});
+
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowAll", policy =>
+    {
+        policy.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader();
     });
 });
 
@@ -155,9 +132,6 @@ builder.Services.AddScoped<ICertificateRepositoryEF, CertificateRepositoryEF>();
 builder.Services.AddScoped<IRatingRepositoryEF, RatingRepositoryEF>();
 builder.Services.AddScoped<IEventSponsorRepositoryEF, EventSponsorRepositoryEF>();
 
-builder.Services.AddScoped<IUserService, UserService>();
-builder.Services.AddScoped<IUserRepository, UserRepository>();
-builder.Services.AddScoped<IRefreshTokenService, RefreshTokenService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddScoped<IBadgeService, BadgeService>();
 builder.Services.AddScoped<ICertificateService, CertificateService>();
@@ -166,9 +140,7 @@ builder.Services.AddScoped<IRegistrationService, RegistrationService>();
 builder.Services.AddScoped<IChannelService, ChannelService>();
 builder.Services.AddScoped<IAuditLogService, AuditLogService>();
 
-var key = Encoding.ASCII.GetBytes(
-    builder.Configuration["Jwt:SecretKey"] ?? "YourSecretKeyForAuthenticationShouldBeLongEnough");
-
+var key = Encoding.ASCII.GetBytes(builder.Configuration["Jwt:SecretKey"] ?? "YourSecretKeyForAuthenticationShouldBeLongEnough");
 builder.Services.AddAuthentication(x =>
 {
     x.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
@@ -208,6 +180,6 @@ app.UseAuthorization();
 app.MapControllers();
 app.MapHealthChecks("/health");
 
-Console.WriteLine("VolunteerHub Identity Service running on port 5002");
-Console.WriteLine("Endpoints: /api/auth, /api/users, /api/profile, /api/skills, /api/organizer/verification, /api/admin/users");
+Console.WriteLine("VolunteerHub Event Service running on port 5003");
+Console.WriteLine("Endpoints: /api/events, /api/event-categories, /api/certificates, /api/channels, /api/dashboard");
 app.Run();

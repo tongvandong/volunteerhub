@@ -18,6 +18,10 @@ out/
 # Node / frontend
 node_modules/
 npm-debug.log*
+
+# Service logs
+*.err.log
+*.out.log
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*

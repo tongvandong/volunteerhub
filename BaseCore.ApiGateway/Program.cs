@@ -36,12 +36,15 @@ await app.UseOcelot();
 Console.WriteLine(@"
 ==============================================
  BaseCore API Gateway
- Gateway:      http://localhost:5000
- Auth Service: http://localhost:5002
- Core Service: http://localhost:5001
- Routes:       /api/auth/* -> Auth Service
-               /api/users/* -> Auth Service
-               /api/* -> Core Service
+ Gateway:          http://localhost:5000
+ Identity Service: http://localhost:5002
+ Event Service:    http://localhost:5003
+ Finance Service:  http://localhost:5004
+ Legacy Core:      http://localhost:5001
+ Routes:           /api/auth, /api/profile, /api/admin/users -> Identity
+                   /api/events, /api/event-categories, /api/certificates -> Event
+                   /api/support-campaigns, /api/donations, /api/sponsorship-proposals -> Finance
+                   /api/* fallback -> Legacy Core
 ==============================================
 ");
 
