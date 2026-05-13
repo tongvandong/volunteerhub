@@ -4,18 +4,22 @@ File này là living document để lần sau đọc project nhanh, không cần
 
 ## 1. Project Là Gì
 
-Đây là hệ thống VolunteerHub trên `.NET 8`, backend chia theo hướng:
+Đây là hệ thống VolunteerHub trên `.NET 8`, backend chia theo hướng microservice:
 
-- `BaseCore.ApiGateway`: gateway public, dùng Ocelot.
-- `BaseCore.AuthService`: đăng ký, đăng nhập, JWT, refresh token.
-- `BaseCore.APIService`: nghiệp vụ chính của VolunteerHub.
-- `BaseCore.Repository`: EF Core, DbContext, repository, migration.
-- `BaseCore.Services`: business logic.
-- `BaseCore.Entities`: domain entities.
-- `BaseCore.WebClient`: frontend cũ, hiện là frontend chính đang dùng.
+- `BaseCore.ApiGateway`: gateway public, dùng Ocelot, port `5000`.
+- `BaseCore.AuthService`: đăng ký, đăng nhập, JWT, refresh token, profile, KYC, organizer verification, port `5002`.
+- `BaseCore.EventService`: sự kiện, đăng ký, điểm danh, certificate, channel, dashboard, port `5003`.
+- `BaseCore.FinanceService`: donation, sponsorship, campaign, financial report, port `5004`.
+- `BaseCore.APIService`: legacy fallback, vẫn chứa toàn bộ controller gốc, port `5001`.
+- `BaseCore.Repository`: EF Core, DbContext, repository, migration (shared).
+- `BaseCore.Services`: business logic (shared).
+- `BaseCore.Entities`: domain entities (shared).
+- `BaseCore.WebClient`: frontend chính đang dùng.
 - `volunteerhub-frontend`: frontend khác, không phải source chính hiện tại.
 
 Repo vẫn còn dấu vết domain cũ `Product/Category/Order`, nhưng hướng chính hiện tại là VolunteerHub.
+
+Cách tách service: `BaseCore.EventService` và `BaseCore.FinanceService` dùng `<Compile Include="...">` link controller từ `BaseCore.APIService/Controllers/Events/` và `Controllers/Finance/` — không duplicate code, chỉ tạo host riêng.
 
 ## 2. Cách Đọc Project Nhanh
 
@@ -43,14 +47,17 @@ Khi debug một feature cụ thể, đi theo chuỗi:
 Các service chính:
 
 - Gateway: `http://localhost:5000`
-- Core API service: `http://localhost:5001`
-- Auth service: `http://localhost:5002`
+- Legacy Core API (fallback): `http://localhost:5001`
+- Auth / Identity service: `http://localhost:5002`
+- Event service: `http://localhost:5003`
+- Finance service: `http://localhost:5004`
 
-Gateway route:
+Gateway route (Ocelot, priority-based):
 
-- `/api/auth` và `/api/auth/*` -> `AuthService`
-- `/api/users` và `/api/users/*` -> `AuthService`
-- `/api/*` còn lại -> `APIService`
+- `/api/auth/*`, `/api/profile/*`, `/api/users/*`, `/api/skills/*`, `/api/Roles/*`, `/api/organizer/verification/*`, `/api/uploads/*`, `/api/notifications/*`, `/api/badges`, `/api/my-badges`, `/api/admin/users/*`, `/api/admin/volunteer-kyc/*`, `/api/admin/volunteer-skill-verifications/*`, `/api/admin/organizer-verifications/*`, `/api/admin/monitoring/*`, `/api/admin/audit-logs`, `/api/admin/export/users` -> **AuthService** `5002`
+- `/api/events/{eventId}/support-campaigns/*`, `/api/events/{eventId}/sponsors/*`, `/api/events/{eventId}/sponsor-milestones/*`, `/api/events/{eventId}/sponsorship-proposals/*`, `/api/support-campaigns/*`, `/api/donations/*`, `/api/sponsors/*`, `/api/sponsorship-proposals/*`, `/api/admin/finance/*`, `/api/admin/export/finance` -> **FinanceService** `5004`
+- `/api/events/*`, `/api/event-categories/*`, `/api/my-registrations`, `/api/certificates/*`, `/api/channels/*`, `/api/dashboard/*`, `/api/admin/export/events` -> **EventService** `5003`
+- `/api/*` còn lại -> **Legacy APIService** `5001` (fallback, priority thấp nhất)
 
 Frontend cũ tạo axios client với:
 
@@ -67,9 +74,11 @@ Database hiện tại:
 - DB: `VolunteerHub`
 - SQL Server instance: `LAPTOP-70RJA2GI\SQLSERVER2022DEV`
 
-Cả `AuthService` và `APIService` có chạy migration lúc startup qua:
+Cả `AuthService`, `APIService`, `EventService` và `FinanceService` đều chạy migration lúc startup qua:
 
-- `DatabaseMigrationRunner.RunWithProcessLock(db)`
+- `DatabaseMigrationRunner.RunWithProcessLock(db)` (dùng named Mutex, serialize nếu start đồng thời)
+
+Tất cả service dùng chung 1 database. Đây là thiết kế có chủ đích cho giai đoạn đồ án.
 
 ## 5. Domain Chính
 
@@ -449,7 +458,77 @@ Events mobile layout note:
 - `EventCard` cần `display:block;width:100%;max-width:100%` ở link/card root để không làm vỡ ngang khi nằm trong mobile grid.
 - Header public ẩn nút `Đăng ký` trên mobile; người dùng vẫn mở được đăng ký từ menu hoặc CTA trong hero.
 
-## 16. Khi Nào Cập Nhật File Này
+## 16. Service Split 2026-05-12
+
+Hệ thống đã được tách thành 4 service backend riêng biệt (+ 1 legacy fallback):
+
+| Service | Project | Port | Phạm vi |
+|---|---|---:|---|
+| Gateway | `BaseCore.ApiGateway` | `5000` | Ocelot routing, CORS |
+| Identity | `BaseCore.AuthService` | `5002` | Auth, profile, KYC, organizer verification, user management, notifications, badges, skills, uploads, monitoring |
+| Event | `BaseCore.EventService` | `5003` | Event CRUD, registration, attendance, certificate, channel, dashboard, event export |
+| Finance | `BaseCore.FinanceService` | `5004` | Support campaign, donation, sponsorship proposal, sponsor milestones, finance export |
+| Legacy | `BaseCore.APIService` | `5001` | Fallback cho mọi route chưa được tách (Product, Order, etc.) |
+
+Cách tách:
+
+- `BaseCore.EventService` và `BaseCore.FinanceService` là project Web riêng, dùng `<Compile Include="...">` link controller từ `BaseCore.APIService/Controllers/Events/` và `Controllers/Finance/`.
+- Không duplicate code — sửa controller ở `BaseCore.APIService` thì cả 3 service đều nhận.
+- Shared layers: `BaseCore.Entities`, `BaseCore.Repository`, `BaseCore.Services`, `BaseCore.Common`.
+- Shared database: cùng `MySqlDbContext`, cùng connection string, cùng migration.
+- JWT key giống nhau giữa các service → token từ AuthService validate được ở Event/Finance.
+
+Chạy local sau khi tách (5 terminal):
+
+```powershell
+dotnet run --project BaseCore.AuthService --urls http://localhost:5002
+dotnet run --project BaseCore.EventService --urls http://localhost:5003
+dotnet run --project BaseCore.FinanceService --urls http://localhost:5004
+dotnet run --project BaseCore.ApiGateway --urls http://localhost:5000
+cd BaseCore.WebClient && npm run dev -- --host 127.0.0.1
+```
+
+Lưu ý:
+
+- `BaseCore.APIService` (port 5001) vẫn chạy được độc lập nếu muốn test monolith cũ.
+- Nếu chỉ chạy 3 service mới + gateway, legacy fallback sẽ trả 502 cho route chưa tách.
+- `AdminController.cs` hiện được link vào cả EventService và FinanceService. Ocelot priority đã route đúng, nhưng nếu gọi trực tiếp service sẽ thấy endpoint thừa. Cần tách `AdminController` thành file riêng nếu muốn sạch hơn.
+
+## 17. Tình Huống Thực Tế A-G (2026-05-12)
+
+Đã triển khai xử lý cho các tình huống thực tế trong vòng đời sự kiện. Chi tiết đầy đủ ở `Context/VolunteerHub-real-world-scenarios.md`.
+
+Tóm tắt endpoint mới:
+
+- `POST /api/events/{id}/resubmit` — organizer gửi lại event bị reject.
+- `PUT /api/events/{id}/cancel` — hủy event + cascade (campaign, proposal, notify).
+- `PUT /api/events/{id}/transfer` — admin chuyển quyền sở hữu event.
+- `POST /api/events/{id}/uncomplete` — admin rollback completed → approved.
+- `POST /api/events/auto-complete-overdue` — admin trigger complete event quá hạn.
+- `POST /api/events/{eventId}/register/cancel-request` — volunteer xin hủy sau confirm.
+- `POST /api/events/{eventId}/walk-in` — organizer đăng ký + check-in tại chỗ.
+- `POST /api/events/{eventId}/registrations/{regId}/manual-attend` — bổ sung điểm danh.
+- `PUT /api/events/{eventId}/registrations/{regId}/hours` — chỉnh giờ tình nguyện.
+- `PUT /api/ratings/{id}/hide|unhide`, `DELETE /api/ratings/{id}` — admin moderation.
+- `PUT /api/sponsorship-proposals/{id}/received` nhận `actualReceivedAmount`.
+- `PUT /api/sponsorship-proposals/{id}/admin-revert-to-pending` — admin rollback proposal.
+- `GET /api/admin/finance/stale-donations`, `unreported-campaigns`, `open-proposals-past-event` — admin monitoring.
+
+Entity changes (3 migrations):
+
+- `Event`: thêm `CancelReason`, `CancelledAt`.
+- `Registration`: thêm `CancelRequested`, `CancelRequestedAt`, `CancelReason`.
+- `Rating`: thêm `IsHidden`, `HiddenReason`, `HiddenAt`, `HiddenBy`.
+- `SponsorshipProposal`: thêm `ActualReceivedAmount`.
+
+Nguyên tắc xuyên suốt:
+
+- Mọi giao dịch tiền đều ngoài hệ thống. Khi event hủy, tiền đã Confirmed/Received giữ nguyên.
+- Admin không auto-action khi deactivate user — chỉ trả impact summary.
+- Notification tự động khi cancel event, thay đổi time/location, volunteer request-cancel.
+- Grace window 7 ngày cho bổ sung điểm danh sau event.
+
+## 18. Khi Nào Cập Nhật File Này
 
 Cập nhật file này khi có thay đổi thuộc một trong các nhóm:
 
@@ -460,3 +539,4 @@ Cập nhật file này khi có thay đổi thuộc một trong các nhóm:
 - Đổi auth flow hoặc token storage.
 - Đổi API contract giữa frontend và backend.
 - Sửa một flow lớn như volunteer/organizer/admin.
+- Tách hoặc gộp service.
