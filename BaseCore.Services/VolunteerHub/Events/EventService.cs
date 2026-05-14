@@ -188,6 +188,8 @@ namespace BaseCore.Services.VolunteerHub
                 ?? throw new Exception("Event not found");
             if (organizerId.HasValue && ev.OrganizerId != organizerId.Value) throw new Exception("Not authorized");
             if (ev.Status != "Approved") throw new Exception("Only approved events can be completed");
+            if (ev.CurrentParticipants < ev.MinParticipants)
+                throw new Exception($"Event has {ev.CurrentParticipants}/{ev.MinParticipants} confirmed participants. Adjust the minimum participant count before completing the event.");
 
             ev.Status = "Completed";
             await _context.SaveChangesAsync();

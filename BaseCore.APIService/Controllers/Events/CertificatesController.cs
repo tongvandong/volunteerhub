@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using BaseCore.Repository;
 using BaseCore.Services.VolunteerHub;
 using System.Security.Claims;
 
@@ -9,10 +10,12 @@ namespace BaseCore.APIService.Controllers
     public class CertificatesController : ControllerBase
     {
         private readonly ICertificateService _certificateService;
+        private readonly MySqlDbContext _context;
 
-        public CertificatesController(ICertificateService certificateService)
+        public CertificatesController(ICertificateService certificateService, MySqlDbContext context)
         {
             _certificateService = certificateService;
+            _context = context;
         }
 
         [HttpGet("api/certificates"), Authorize]
@@ -43,14 +46,28 @@ namespace BaseCore.APIService.Controllers
                 return PhysicalFile(pdfPath, "application/pdf", $"VolunteerHub-{code}.pdf");
             }
 
-            if (string.IsNullOrWhiteSpace(cert.PdfUrl))
-            {
-                return Accepted(new { message = "Certificate PDF is being generated" });
-            }
-
             var verifyUrl = $"{Request.Scheme}://{Request.Host}/verify/{Uri.EscapeDataString(code)}";
             var pdf = _certificateService.BuildCertificatePdf(cert, verifyUrl);
+            var generatedPath = SaveFallbackPdf(code, pdf);
+            if (generatedPath != null)
+            {
+                cert.PdfUrl = $"/certificates/{Path.GetFileName(generatedPath)}";
+                await _context.SaveChangesAsync();
+            }
             return File(pdf, "application/pdf", $"VolunteerHub-{code}.pdf");
+        }
+
+        private static string? SaveFallbackPdf(string code, byte[] pdf)
+        {
+            var safeCode = Path.GetFileName(code);
+            if (string.IsNullOrWhiteSpace(safeCode)) return null;
+
+            var dir = Path.Combine(AppContext.BaseDirectory, "wwwroot", "certificates");
+            Directory.CreateDirectory(dir);
+
+            var path = Path.Combine(dir, $"{safeCode}.pdf");
+            System.IO.File.WriteAllBytes(path, pdf);
+            return path;
         }
 
         private static string? ResolveGeneratedPdfPath(string? pdfUrl)

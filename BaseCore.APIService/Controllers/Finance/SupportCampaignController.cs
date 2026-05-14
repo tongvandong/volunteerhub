@@ -147,8 +147,8 @@ namespace BaseCore.APIService.Controllers
                 Description = dto.Description.Trim(),
                 TargetAmount = dto.TargetAmount,
                 MinimumAmount = dto.MinimumAmount,
-                StartDate = dto.StartDate,
-                EndDate = dto.EndDate,
+                StartDate = NormalizeToUtc(dto.StartDate),
+                EndDate = NormalizeToUtc(dto.EndDate),
                 ReceiveInfo = dto.ReceiveInfo?.Trim() ?? "",
                 TransparencyNote = dto.TransparencyNote?.Trim() ?? "",
                 Status = NormalizeCampaignStatus(dto.Status, fallback: "Draft"),
@@ -188,8 +188,8 @@ namespace BaseCore.APIService.Controllers
             campaign.Description = dto.Description.Trim();
             campaign.TargetAmount = dto.TargetAmount;
             campaign.MinimumAmount = dto.MinimumAmount;
-            campaign.StartDate = dto.StartDate;
-            campaign.EndDate = dto.EndDate;
+            campaign.StartDate = NormalizeToUtc(dto.StartDate);
+            campaign.EndDate = NormalizeToUtc(dto.EndDate);
             campaign.ReceiveInfo = dto.ReceiveInfo?.Trim() ?? "";
             campaign.TransparencyNote = dto.TransparencyNote?.Trim() ?? "";
             campaign.UpdatedAt = DateTime.UtcNow;
@@ -291,7 +291,7 @@ namespace BaseCore.APIService.Controllers
             return Ok(donations);
         }
 
-        [HttpPost("api/support-campaigns/{campaignId}/donations"), Authorize]
+        [HttpPost("api/support-campaigns/{campaignId}/donations"), Authorize(Roles = "Volunteer")]
         [EnableRateLimiting("write-sensitive")]
         public async Task<IActionResult> Donate(int campaignId, [FromBody] IndividualDonationDto dto)
         {
@@ -303,7 +303,8 @@ namespace BaseCore.APIService.Controllers
             if (campaign == null) return NotFound(new { message = "Campaign not found" });
             if (campaign.Status != "Open") return BadRequest(new { message = "Campaign is not open" });
             if (campaign.Event.Status != "Approved") return BadRequest(new { message = "Only approved events can receive donations" });
-            if (DateTime.UtcNow < campaign.StartDate || DateTime.UtcNow > campaign.EndDate)
+            var nowUtc = DateTime.UtcNow;
+            if (nowUtc < NormalizeToUtc(campaign.StartDate) || nowUtc > NormalizeToUtc(campaign.EndDate))
                 return BadRequest(new { message = "Campaign is outside its donation window" });
 
             var validation = ValidateDonation(dto);
@@ -372,7 +373,7 @@ namespace BaseCore.APIService.Controllers
         [EnableRateLimiting("write-sensitive")]
         public Task<IActionResult> RejectDonation(int donationId, [FromBody] DonationStatusDto dto) => ChangeDonationStatus(donationId, "Rejected", dto?.Reason);
 
-        [HttpPut("api/donations/{donationId}/cancel"), Authorize]
+        [HttpPut("api/donations/{donationId}/cancel"), Authorize(Roles = "Volunteer")]
         [EnableRateLimiting("write-sensitive")]
         public async Task<IActionResult> CancelDonation(int donationId)
         {
@@ -506,7 +507,7 @@ namespace BaseCore.APIService.Controllers
                 return "Target amount must be greater than zero";
             if (dto.MinimumAmount.HasValue && (dto.MinimumAmount < 0 || dto.MinimumAmount > dto.TargetAmount))
                 return "Minimum amount must be between zero and target amount";
-            if (dto.EndDate <= dto.StartDate)
+            if (NormalizeToUtc(dto.EndDate) <= NormalizeToUtc(dto.StartDate))
                 return "End date must be after start date";
             if (requireReceiveInfo && string.IsNullOrWhiteSpace(dto.ReceiveInfo))
                 return "Receive info is required to open a campaign";
@@ -523,9 +524,19 @@ namespace BaseCore.APIService.Controllers
                 return "Receive info is required to open a campaign";
             if (campaign.TargetAmount <= 0)
                 return "Target amount must be greater than zero";
-            if (campaign.EndDate <= campaign.StartDate)
+            if (NormalizeToUtc(campaign.EndDate) <= NormalizeToUtc(campaign.StartDate))
                 return "End date must be after start date";
             return null;
+        }
+
+        private static DateTime NormalizeToUtc(DateTime value)
+        {
+            return value.Kind switch
+            {
+                DateTimeKind.Utc => value,
+                DateTimeKind.Local => value.ToUniversalTime(),
+                _ => value
+            };
         }
 
         private static string? ValidateDonation(IndividualDonationDto dto)

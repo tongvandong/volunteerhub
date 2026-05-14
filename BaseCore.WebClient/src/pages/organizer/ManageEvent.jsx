@@ -693,6 +693,7 @@ export default function ManageEvent() {
   const capacity = event?.maxParticipants || 0;
   const minimumParticipants = event?.minParticipants || 1;
   const hasMinimumParticipants = confirmed.length >= minimumParticipants;
+  const canCompleteEvent = event?.status === 'Approved' && hasMinimumParticipants;
   const fillRate = capacity > 0 ? Math.round((registrations.length / capacity) * 100) : 0;
   const attendanceRate = confirmed.length > 0 ? Math.round((attended.length / confirmed.length) * 100) : 0;
   const checkinParts = checkinMsg.split(':');
@@ -715,7 +716,7 @@ export default function ManageEvent() {
           </Link>
         )}
         {event?.status === 'Approved' && (
-          <button onClick={handleComplete} disabled={completing} className="btn-primary btn-sm flex items-center justify-center gap-1 shrink-0 basis-full sm:basis-auto">
+          <button onClick={handleComplete} disabled={completing || !canCompleteEvent} className="btn-primary btn-sm flex items-center justify-center gap-1 shrink-0 basis-full sm:basis-auto disabled:opacity-60 disabled:cursor-not-allowed" title={!hasMinimumParticipants ? 'Can du so tinh nguyen vien toi thieu truoc khi hoan thanh' : undefined}>
             {completing ? <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <i className="fa-solid fa-flag-checkered" />}
             Hoàn thành
           </button>

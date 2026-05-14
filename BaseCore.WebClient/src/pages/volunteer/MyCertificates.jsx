@@ -75,7 +75,7 @@ export default function MyCertificates() {
                   className="flex items-center justify-center gap-1.5 text-xs text-primary-600 hover:underline">
                   <i className="fa-solid fa-external-link" /> Xem trang xác thực
                 </a>
-                {c.pdfUrl ? (
+                {true ? (
                   <a href={certificateApi.getPdfUrl(c.certificateCode)} target="_blank" rel="noreferrer"
                     className="flex items-center justify-center gap-1.5 text-xs text-primary-600 hover:underline">
                     <i className="fa-solid fa-file-pdf" /> Tải PDF

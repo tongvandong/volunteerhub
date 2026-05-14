@@ -22,6 +22,32 @@ function money(value) {
   return new Intl.NumberFormat('vi-VN').format(Number(value) || 0) + 'đ';
 }
 
+function EventImage({ src, title }) {
+  const [failed, setFailed] = useState(false);
+
+  if (src && !failed) {
+    return (
+      <img
+        src={src}
+        alt={title}
+        className="w-full h-full object-cover"
+        onError={() => setFailed(true)}
+      />
+    );
+  }
+
+  return (
+    <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary-50 via-white to-emerald-50">
+      <div className="text-center px-6">
+        <div className="w-16 h-16 rounded-2xl bg-white shadow-sm border border-primary-100 flex items-center justify-center mx-auto mb-3">
+          <i className="fa-solid fa-calendar-days text-3xl text-primary-500" />
+        </div>
+        <p className="text-sm font-semibold text-gray-700 line-clamp-2">{title || 'Sự kiện tình nguyện'}</p>
+      </div>
+    </div>
+  );
+}
+
 export default function EventDetail() {
   const { id } = useParams();
   const { isAuthenticated, isVolunteer } = useAuth();
@@ -256,13 +282,7 @@ export default function EventDetail() {
         <div className="lg:col-span-2 space-y-5">
           <div className="card overflow-hidden">
             <div className="h-56 bg-primary-100">
-              {event.imageUrl ? (
-                <img src={event.imageUrl} alt={event.title} className="w-full h-full object-cover" />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center">
-                  <i className="fa-solid fa-calendar-days text-6xl text-primary-300" />
-                </div>
-              )}
+              <EventImage src={event.imageUrl} title={event.title} />
             </div>
             <div className="p-5">
               <div className="flex flex-wrap gap-2 items-center mb-3">

@@ -30,7 +30,23 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseCors("AllowAll");
+app.MapWhen(
+    context => context.Request.Path == "/health" || context.Request.Path == "/api/health",
+    branch =>
+    {
+        branch.Run(async context =>
+        {
+            context.Response.ContentType = "application/json";
+            await context.Response.WriteAsJsonAsync(new
+            {
+                status = "Healthy",
+                service = "ApiGateway",
+                utc = DateTime.UtcNow
+            });
+        });
+    });
 app.MapHealthChecks("/health");
+app.MapHealthChecks("/api/health");
 await app.UseOcelot();
 
 Console.WriteLine(@"
