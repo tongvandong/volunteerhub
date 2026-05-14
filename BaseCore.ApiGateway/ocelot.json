@@ -289,22 +289,6 @@
       "Priority": 175
     },
     {
-      "DownstreamPathTemplate": "/api/events/{eventId}/sponsor-milestones/{everything}",
-      "DownstreamScheme": "http",
-      "DownstreamHostAndPorts": [{ "Host": "localhost", "Port": 5004 }],
-      "UpstreamPathTemplate": "/api/events/{eventId}/sponsor-milestones/{everything}",
-      "UpstreamHttpMethod": [ "GET", "POST", "PUT", "DELETE", "OPTIONS" ],
-      "Priority": 175
-    },
-    {
-      "DownstreamPathTemplate": "/api/events/{eventId}/sponsor-milestones",
-      "DownstreamScheme": "http",
-      "DownstreamHostAndPorts": [{ "Host": "localhost", "Port": 5004 }],
-      "UpstreamPathTemplate": "/api/events/{eventId}/sponsor-milestones",
-      "UpstreamHttpMethod": [ "GET", "POST", "PUT", "DELETE", "OPTIONS" ],
-      "Priority": 175
-    },
-    {
       "DownstreamPathTemplate": "/api/events/{eventId}/sponsorship-proposals/{everything}",
       "DownstreamScheme": "http",
       "DownstreamHostAndPorts": [{ "Host": "localhost", "Port": 5004 }],

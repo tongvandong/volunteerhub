@@ -173,15 +173,19 @@ namespace BaseCore.Services.VolunteerHub
             return ev;
         }
 
-        public async Task<Entities.Event> RejectAsync(int eventId)
+        public async Task<Entities.Event> RejectAsync(int eventId, string? reason)
         {
             var ev = await _context.Events.FindAsync(eventId)
                 ?? throw new Exception("Event not found");
             ev.Status = "Rejected";
+            ev.RejectReason = reason?.Trim() ?? "";
             await _context.SaveChangesAsync();
+
+            var message = string.IsNullOrWhiteSpace(reason)
+                ? $"Sự kiện '{ev.Title}' đã bị từ chối."
+                : $"Sự kiện '{ev.Title}' đã bị từ chối. Lý do: {reason}";
             await _notificationService.SendAsync(ev.OrganizerId,
-                "Sự kiện bị từ chối", $"Sự kiện '{ev.Title}' đã bị từ chối.",
-                "EventApproved", eventId);
+                "Sự kiện bị từ chối", message, "EventRejected", eventId);
             return ev;
         }
 

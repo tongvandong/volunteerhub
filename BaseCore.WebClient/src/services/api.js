@@ -153,6 +153,7 @@ export const eventApi = {
   resubmit: (id) => api.post(`/events/${id}/resubmit`),
   uncomplete: (id) => api.post(`/events/${id}/uncomplete`),
   getRegistrations: (id) => api.get(`/events/${id}/registrations`),
+  getEventHistory: (id) => api.get(`/events/${id}/history`),
   getShifts: (id) => api.get(`/events/${id}/shifts`),
   createShift: (id, data) => api.post(`/events/${id}/shifts`, data),
 };
@@ -249,10 +250,6 @@ export const sponsorApi = {
   addSponsor: (eventId, data) => api.post(`/events/${eventId}/sponsors`, data),
   getMySponsorships: () => api.get('/sponsors/my'),
   getMySponsorshipTracking: (id) => api.get(`/sponsors/my/${id}/tracking`),
-  getMilestones: (eventId) => api.get(`/events/${eventId}/sponsor-milestones`),
-  createMilestone: (eventId, data) => api.post(`/events/${eventId}/sponsor-milestones`, data),
-  updateMilestone: (eventId, milestoneId, data) => api.put(`/events/${eventId}/sponsor-milestones/${milestoneId}`, data),
-  deleteMilestone: (eventId, milestoneId) => api.delete(`/events/${eventId}/sponsor-milestones/${milestoneId}`),
 };
 
 export const supportCampaignApi = {

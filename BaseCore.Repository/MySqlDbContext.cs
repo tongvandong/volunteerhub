@@ -47,7 +47,6 @@ namespace BaseCore.Repository
 
         // --- VolunteerHub: Sponsor & Notification ---
         public DbSet<EventSponsor> EventSponsors { get; set; }
-        public DbSet<SponsorProjectMilestone> SponsorProjectMilestones { get; set; }
         public DbSet<SupportCampaign> SupportCampaigns { get; set; }
         public DbSet<IndividualDonation> IndividualDonations { get; set; }
         public DbSet<SponsorshipProposal> SponsorshipProposals { get; set; }
@@ -225,6 +224,7 @@ namespace BaseCore.Repository
                 entity.Property(e => e.ImageUrl).HasMaxLength(500).IsRequired(false);
                 entity.Property(e => e.QrCode).HasMaxLength(500).IsRequired(false);
                 entity.Property(e => e.CancelReason).HasMaxLength(1000).IsRequired(false);
+                entity.Property(e => e.RejectReason).HasMaxLength(1000).IsRequired(false);
                 entity.HasOne(e => e.Category)
                       .WithMany()
                       .HasForeignKey(e => e.CategoryId)
@@ -536,19 +536,6 @@ namespace BaseCore.Repository
                       .WithMany()
                       .HasForeignKey(e => e.SponsorId)
                       .OnDelete(DeleteBehavior.Restrict);
-            });
-
-            modelBuilder.Entity<SponsorProjectMilestone>(entity =>
-            {
-                entity.HasKey(e => e.Id);
-                entity.Property(e => e.Title).HasMaxLength(200).IsRequired();
-                entity.Property(e => e.Description).HasMaxLength(1000).IsRequired(false);
-                entity.Property(e => e.Status).HasMaxLength(50).IsRequired();
-                entity.HasOne(e => e.Event)
-                      .WithMany()
-                      .HasForeignKey(e => e.EventId)
-                      .OnDelete(DeleteBehavior.Cascade);
-                entity.HasIndex(e => new { e.EventId, e.SortOrder });
             });
 
             modelBuilder.Entity<SupportCampaign>(entity =>

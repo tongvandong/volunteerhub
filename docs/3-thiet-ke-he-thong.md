@@ -36,7 +36,7 @@
 | Gateway | `BaseCore.ApiGateway` | 5000 | Routing, CORS, load balancing |
 | Identity | `BaseCore.AuthService` | 5002 | Auth, JWT, profile, KYC, organizer verification, user management, notifications, badges, skills, monitoring |
 | Event | `BaseCore.EventService` | 5003 | Event CRUD, registration, attendance, certificate, channel, dashboard, ratings, event export |
-| Finance | `BaseCore.FinanceService` | 5004 | Support campaign, donation, sponsorship proposal, milestones, finance export |
+| Finance | `BaseCore.FinanceService` | 5004 | Support campaign, donation, sponsorship proposal, finance export |
 | Legacy | `BaseCore.APIService` | 5001 | Fallback (Product, Order — domain cũ) |
 
 ### Shared layers (dùng chung giữa các service)
@@ -65,7 +65,7 @@ Frontend gọi `/api/*` → Vite proxy về Gateway (5000) → Ocelot route theo
 | 190 | `/api/profile/*` | Identity 5002 |
 | 185 | `/api/users/{userId}/ratings` | Event 5003 |
 | 180 | `/api/users/*`, `/api/skills/*`, `/api/Roles/*`, `/api/organizer/verification/*`, `/api/uploads/*` | Identity 5002 |
-| 175 | `/api/events/{id}/support-campaigns/*`, `/api/events/{id}/sponsors/*`, `/api/events/{id}/sponsorship-proposals/*`, `/api/events/{id}/sponsor-milestones/*` | Finance 5004 |
+| 175 | `/api/events/{id}/support-campaigns/*`, `/api/events/{id}/sponsors/*`, `/api/events/{id}/sponsorship-proposals/*` | Finance 5004 |
 | 170 | `/api/notifications/*`, `/api/badges`, `/api/admin/users/*`, `/api/admin/volunteer-kyc/*`, `/api/admin/organizer-verifications/*`, `/api/admin/monitoring/*`, `/api/admin/audit-logs` | Identity 5002 |
 | 160 | `/api/events/*`, `/api/event-categories/*`, `/api/my-registrations`, `/api/certificates/*`, `/api/channels/*`, `/api/ratings/*` | Event 5003 |
 | 150 | `/api/dashboard/*` | Event 5003 |
@@ -189,7 +189,6 @@ Frontend gọi `/api/*` → Vite proxy về Gateway (5000) → Ocelot route theo
 - **VolunteerProfile**: hồ sơ volunteer (id, userId [unique], bloodType, languages, interests, bio, avatarUrl, totalVolunteerHours, kycStatus, identityFrontImageUrl, identityBackImageUrl, portraitImageUrl, kycSubmittedAt, kycReviewedAt)
 - **VolunteerSkill**: kỹ năng volunteer (id, userId, skillId [unique cùng userId], level, verificationStatus, evidenceUrl, verificationNote, adminNote)
 - **AuditLog**: log thao tác (id, userId, action, entityType, entityId, metadata, ipAddress, createdAtUtc)
-- **SponsorProjectMilestone**: milestone tiến độ (id, eventId, title, description, dueDate, status, progressPercent, sortOrder, completedAtUtc)
 - **EventSponsor**: tài trợ legacy (id, eventId, sponsorId, contributionType, amount, note, sponsoredAt)
 
 ## 4. API Endpoint chính
@@ -338,10 +337,6 @@ POST   /api/events/{id}/sponsors            [Sponsor]  Tài trợ nhanh (legacy)
 GET    /api/sponsors/my                     [Sponsor]  Tài trợ của tôi
 GET    /api/sponsors/users                  [Organizer/Admin] DS tài khoản sponsor
 
-GET    /api/events/{id}/sponsor-milestones  [Organizer/Sponsor/Admin]
-POST   /api/events/{id}/sponsor-milestones  [Organizer/Admin] Tạo milestone
-PUT    /api/events/{id}/sponsor-milestones/{mid} [Organizer/Admin]
-DELETE /api/events/{id}/sponsor-milestones/{mid} [Organizer/Admin]
 GET    /api/sponsors/my/{id}/tracking       [Sponsor]  Tracking tiến độ
 
 GET    /api/admin/finance/overview          [Admin]    Tổng quan tài chính

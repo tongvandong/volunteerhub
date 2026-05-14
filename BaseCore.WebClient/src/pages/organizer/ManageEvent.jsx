@@ -14,6 +14,40 @@ function fmtTime(dt) {
   return dt ? new Date(dt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : '';
 }
 
+function translateAction(action) {
+  const map = {
+    'Event.Create': 'tạo sự kiện',
+    'Event.Update': 'cập nhật sự kiện',
+    'Event.Approve': 'duyệt sự kiện',
+    'Event.Reject': 'từ chối sự kiện',
+    'Event.Complete': 'hoàn thành sự kiện',
+    'Event.Cancel': 'hủy sự kiện',
+    'Event.Resubmit': 'gửi duyệt lại',
+    'Event.Uncomplete': 'mở lại sự kiện',
+    'Event.Transfer': 'chuyển quyền sở hữu',
+    'Event.Delete': 'xóa sự kiện',
+    'Registration.Register': 'có volunteer đăng ký',
+    'Registration.Confirm': 'xác nhận volunteer',
+    'Registration.Cancel': 'hủy đăng ký volunteer',
+    'Registration.CheckIn': 'điểm danh',
+    'Registration.SelfCheckIn': 'volunteer tự điểm danh',
+    'Registration.WalkIn': 'đăng ký tại chỗ',
+    'Registration.ManualAttend': 'bổ sung điểm danh',
+    'Registration.AdjustHours': 'chỉnh giờ tình nguyện',
+    'Registration.Withdraw': 'volunteer rút đăng ký',
+    'Registration.RequestCancel': 'volunteer xin hủy',
+  };
+  return map[action] || action;
+}
+
+function toDateTimeLocal(dt) {
+  if (!dt) return '';
+  const date = new Date(dt);
+  if (!Number.isFinite(date.getTime())) return '';
+  const offsetDate = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+  return offsetDate.toISOString().slice(0, 16);
+}
+
 function money(value) {
   return new Intl.NumberFormat('vi-VN').format(Number(value) || 0) + 'đ';
 }
@@ -37,19 +71,8 @@ export default function ManageEvent() {
   const [selectedCheckinRegId, setSelectedCheckinRegId] = useState('');
   const [usingGps, setUsingGps] = useState(false);
   const [ratingForms, setRatingForms] = useState({});
-  const [milestones, setMilestones] = useState([]);
-  const [milestoneModal, setMilestoneModal] = useState(false);
-  const [editingMilestone, setEditingMilestone] = useState(null);
-  const [milestoneSaving, setMilestoneSaving] = useState(false);
-  const [milestoneForm, setMilestoneForm] = useState({
-    title: '',
-    description: '',
-    dueDate: '',
-    status: 'Planned',
-    progressPercent: 0,
-    sortOrder: 0,
-  });
   const [campaigns, setCampaigns] = useState([]);
+  const [history, setHistory] = useState([]);
   const [campaignModal, setCampaignModal] = useState(false);
   const [campaignSaving, setCampaignSaving] = useState(false);
   const [campaignForm, setCampaignForm] = useState({
@@ -106,19 +129,19 @@ export default function ManageEvent() {
       eventApi.getById(id),
       eventApi.getRegistrations(id),
       eventApi.getShifts(id),
-      sponsorApi.getMilestones(id),
       supportCampaignApi.getByEvent(id).catch(() => ({ data: [] })),
       sponsorshipProposalApi.getByEvent(id).catch(() => ({ data: [] })),
       sponsorshipProposalApi.getSponsorUsers().catch(() => ({ data: [] })),
+      eventApi.getEventHistory(id).catch(() => ({ data: [] })),
     ])
-      .then(([evRes, regRes, shiftRes, milestoneRes, campaignRes, proposalRes, sponsorUserRes]) => {
+      .then(([evRes, regRes, shiftRes, campaignRes, proposalRes, sponsorUserRes, historyRes]) => {
         setEvent(evRes.data);
         setRegistrations(regRes.data || []);
         setShifts(shiftRes.data || []);
-        setMilestones(milestoneRes.data || []);
         setCampaigns(campaignRes.data || []);
         setProposals(proposalRes.data || []);
         setSponsorUsers(sponsorUserRes.data || []);
+        setHistory(historyRes.data || []);
       })
       .catch(() => navigate('/my-events'))
       .finally(() => setLoading(false));
@@ -354,6 +377,14 @@ export default function ManageEvent() {
       alert('Thời gian kết thúc phải sau thời gian bắt đầu.');
       return;
     }
+    if (event?.startDate && event?.endDate) {
+      const eventStart = new Date(event.startDate);
+      const eventEnd = new Date(event.endDate);
+      if (startTime < eventStart || endTime > eventEnd) {
+        alert(`Ca làm việc phải nằm trong thời gian sự kiện: ${eventStart.toLocaleString('vi-VN')} - ${eventEnd.toLocaleString('vi-VN')}.`);
+        return;
+      }
+    }
     if (!Number.isInteger(maxVolunteers) || maxVolunteers < 1 || maxVolunteers > 1000) {
       alert('Số lượng tối đa phải từ 1 đến 1000.');
       return;
@@ -379,101 +410,6 @@ export default function ManageEvent() {
       alert(err.response?.data?.message || 'Tạo ca thất bại');
     } finally {
       setShiftSaving(false);
-    }
-  };
-
-  const resetMilestoneForm = () => {
-    setEditingMilestone(null);
-    setMilestoneForm({
-      title: '',
-      description: '',
-      dueDate: '',
-      status: 'Planned',
-      progressPercent: 0,
-      sortOrder: milestones.length + 1,
-    });
-  };
-
-  const openCreateMilestone = () => {
-    resetMilestoneForm();
-    setMilestoneModal(true);
-  };
-
-  const openEditMilestone = (milestone) => {
-    setEditingMilestone(milestone);
-    setMilestoneForm({
-      title: milestone.title || '',
-      description: milestone.description || '',
-      dueDate: milestone.dueDate ? new Date(milestone.dueDate).toISOString().slice(0, 16) : '',
-      status: milestone.status || 'Planned',
-      progressPercent: milestone.progressPercent || 0,
-      sortOrder: milestone.sortOrder || 0,
-    });
-    setMilestoneModal(true);
-  };
-
-  const reloadMilestones = async () => {
-    const r = await sponsorApi.getMilestones(id);
-    setMilestones(r.data || []);
-  };
-
-  const submitMilestone = async (e) => {
-    e.preventDefault();
-    const progressPercent = Number(milestoneForm.progressPercent);
-    const sortOrder = Number(milestoneForm.sortOrder);
-
-    if (!milestoneForm.title.trim()) {
-      alert('Vui lòng nhập tiêu đề mốc tiến độ.');
-      return;
-    }
-    if (milestoneForm.title.trim().length > 200 || milestoneForm.description.length > 1000) {
-      alert('Tiêu đề tối đa 200 ký tự, mô tả tối đa 1000 ký tự.');
-      return;
-    }
-    if (!Number.isInteger(progressPercent) || progressPercent < 0 || progressPercent > 100) {
-      alert('Tiến độ phải từ 0 đến 100.');
-      return;
-    }
-    if (!Number.isInteger(sortOrder) || sortOrder < 0) {
-      alert('Thứ tự phải là số nguyên không âm.');
-      return;
-    }
-
-    setMilestoneSaving(true);
-
-    const payload = {
-      ...milestoneForm,
-      title: milestoneForm.title.trim(),
-      description: milestoneForm.description.trim(),
-      dueDate: milestoneForm.dueDate ? new Date(milestoneForm.dueDate).toISOString() : null,
-      progressPercent,
-      sortOrder,
-    };
-
-    try {
-      if (editingMilestone) {
-        await sponsorApi.updateMilestone(id, editingMilestone.id, payload);
-      } else {
-        await sponsorApi.createMilestone(id, payload);
-      }
-      await reloadMilestones();
-      setMilestoneModal(false);
-      resetMilestoneForm();
-    } catch (err) {
-      alert(err.response?.data?.message || 'Save milestone failed');
-    } finally {
-      setMilestoneSaving(false);
-    }
-  };
-
-  const deleteMilestone = async (milestone) => {
-    if (!confirm('Delete this milestone?')) return;
-
-    try {
-      await sponsorApi.deleteMilestone(id, milestone.id);
-      setMilestones((prev) => prev.filter((m) => m.id !== milestone.id));
-    } catch (err) {
-      alert(err.response?.data?.message || 'Delete milestone failed');
     }
   };
 
@@ -687,10 +623,6 @@ export default function ManageEvent() {
   const cancelled = registrations.filter((r) => r.status === 'Cancelled');
   const attended = registrations.filter((r) => r.isAttended);
   const totalHours = attended.reduce((sum, r) => sum + (Number(r.volunteerHours) || 0), 0);
-  const completedMilestones = milestones.filter((m) => m.status === 'Completed' || Number(m.progressPercent) >= 100).length;
-  const projectProgress = milestones.length > 0
-    ? Math.round(milestones.reduce((sum, m) => sum + (Number(m.progressPercent) || 0), 0) / milestones.length)
-    : 0;
   const capacity = event?.maxParticipants || 0;
   const minimumParticipants = event?.minParticipants || 1;
   const hasMinimumParticipants = confirmed.length >= minimumParticipants;
@@ -700,6 +632,20 @@ export default function ManageEvent() {
   const checkinParts = checkinMsg.split(':');
   const checkinType = checkinParts[0];
   const checkinText = checkinParts.slice(1).join(':');
+  const campaignTarget = campaigns.reduce((sum, campaign) => sum + (Number(campaign.targetAmount) || 0), 0);
+  const campaignConfirmed = campaigns.reduce((sum, campaign) => sum + (Number(campaign.confirmedAmount) || 0), 0);
+  const campaignPending = campaigns.reduce((sum, campaign) => sum + (Number(campaign.pendingAmount) || 0), 0);
+  const campaignProgress = campaignTarget > 0 ? Math.min(100, Math.round((campaignConfirmed / campaignTarget) * 100)) : 0;
+  const proposalPendingCount = proposals.filter((proposal) => proposal.status === 'Pending').length;
+  const proposalAcceptedCount = proposals.filter((proposal) => proposal.status === 'Accepted').length;
+  const proposalReceived = proposals.filter((proposal) => proposal.status === 'Received' || proposal.status === 'Reported');
+  const proposalReceivedAmount = proposalReceived.reduce((sum, proposal) => sum + (Number(proposal.actualReceivedAmount ?? proposal.amount) || 0), 0);
+  const proposalActiveTarget = proposals
+    .filter((proposal) => proposal.status !== 'Rejected' && proposal.status !== 'Cancelled')
+    .reduce((sum, proposal) => sum + (Number(proposal.amount) || 0), 0);
+  const financialReceived = campaignConfirmed + proposalReceivedAmount;
+  const financialTarget = campaignTarget + proposalActiveTarget;
+  const financialProgress = financialTarget > 0 ? Math.min(100, Math.round((financialReceived / financialTarget) * 100)) : 0;
 
   return (
     <div className="space-y-5">
@@ -771,7 +717,6 @@ export default function ManageEvent() {
           { key: 'checkin', label: 'Điểm danh', icon: 'fa-qrcode' },
           { key: 'campaigns', label: 'Kêu gọi ủng hộ', icon: 'fa-hand-holding-heart' },
           { key: 'corporate', label: 'Tài trợ doanh nghiệp', icon: 'fa-handshake' },
-          { key: 'milestones', label: 'Tiến độ tài trợ', icon: 'fa-timeline' },
           { key: 'report', label: 'Báo cáo', icon: 'fa-chart-column' },
         ].map((t) => (
           <button
@@ -817,6 +762,10 @@ export default function ManageEvent() {
                     <tr key={r.id} className="odd:bg-gray-50/50 hover:bg-gray-50">
                       <td className="px-4 py-3">
                         <div className="font-medium text-gray-900">{r.user?.name || r.user?.userName || `User #${r.userId}`}</div>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <a href={`/profile/${r.userId}`} target="_blank" rel="noopener noreferrer" className="text-xs text-primary-600 hover:underline">Xem hồ sơ</a>
+                          {r.cancelRequested && <span className="text-xs bg-red-100 text-red-700 px-1.5 py-0.5 rounded font-medium">Xin hủy{r.cancelReason ? `: ${r.cancelReason}` : ''}</span>}
+                        </div>
                         {r.note && <p className="text-xs text-gray-400 italic mt-0.5">"{r.note}"</p>}
                         {r.shift?.name && <p className="text-xs text-primary-600 mt-0.5">Ca: {r.shift.name}</p>}
                         {r.cancelRequested && r.status !== 'Cancelled' && (
@@ -965,6 +914,11 @@ export default function ManageEvent() {
 
           <Modal isOpen={shiftModal} onClose={() => setShiftModal(false)} title="Thêm ca làm việc" size="md">
             <form onSubmit={handleCreateShift} className="space-y-4">
+              {event?.startDate && event?.endDate && (
+                <div className="rounded-lg border border-primary-100 bg-primary-50 p-3 text-sm text-primary-700">
+                  Ca phải nằm trong thời gian sự kiện: {new Date(event.startDate).toLocaleString('vi-VN')} - {new Date(event.endDate).toLocaleString('vi-VN')}.
+                </div>
+              )}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Tên ca *</label>
                 <input type="text" value={shiftForm.name} onInput={(e) => setShiftForm((f) => ({ ...f, name: e.target.value }))} onChange={(e) => setShiftForm((f) => ({ ...f, name: e.target.value }))} required className="input-field" placeholder="VD: Ca sáng" />
@@ -972,11 +926,11 @@ export default function ManageEvent() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Bắt đầu *</label>
-                  <input type="datetime-local" value={shiftForm.startTime} onInput={(e) => setShiftForm((f) => ({ ...f, startTime: e.target.value }))} onChange={(e) => setShiftForm((f) => ({ ...f, startTime: e.target.value }))} required className="input-field" />
+                  <input type="datetime-local" min={toDateTimeLocal(event?.startDate)} max={toDateTimeLocal(event?.endDate)} value={shiftForm.startTime} onInput={(e) => setShiftForm((f) => ({ ...f, startTime: e.target.value }))} onChange={(e) => setShiftForm((f) => ({ ...f, startTime: e.target.value }))} required className="input-field" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Kết thúc *</label>
-                  <input type="datetime-local" value={shiftForm.endTime} onInput={(e) => setShiftForm((f) => ({ ...f, endTime: e.target.value }))} onChange={(e) => setShiftForm((f) => ({ ...f, endTime: e.target.value }))} required className="input-field" />
+                  <input type="datetime-local" min={shiftForm.startTime || toDateTimeLocal(event?.startDate)} max={toDateTimeLocal(event?.endDate)} value={shiftForm.endTime} onInput={(e) => setShiftForm((f) => ({ ...f, endTime: e.target.value }))} onChange={(e) => setShiftForm((f) => ({ ...f, endTime: e.target.value }))} required className="input-field" />
                 </div>
               </div>
               <div>
@@ -1196,6 +1150,28 @@ export default function ManageEvent() {
             </button>
           </div>
 
+          <div className="card grid grid-cols-1 gap-4 p-4 sm:grid-cols-4">
+            <div>
+              <p className="text-xs text-gray-500">Tổng mục tiêu</p>
+              <p className="text-xl font-bold text-gray-900">{money(campaignTarget)}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500">Đã xác nhận</p>
+              <p className="text-xl font-bold text-green-700">{money(campaignConfirmed)}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500">Đang chờ</p>
+              <p className="text-xl font-bold text-yellow-600">{money(campaignPending)}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500">Tiến độ chung</p>
+              <div className="mt-2 h-3 overflow-hidden rounded-full bg-gray-100">
+                <div className="h-full rounded-full bg-green-500" style={{ width: `${campaignProgress}%` }} />
+              </div>
+              <p className="mt-1 text-xs text-gray-500">{campaignProgress}%</p>
+            </div>
+          </div>
+
           {campaigns.length === 0 ? (
             <div className="card p-12 text-center">
               <i className="fa-solid fa-hand-holding-heart text-4xl text-gray-300 mb-3 block" />
@@ -1360,6 +1336,25 @@ export default function ManageEvent() {
             </button>
           </div>
 
+          <div className="card grid grid-cols-1 gap-4 p-4 sm:grid-cols-4">
+            <div>
+              <p className="text-xs text-gray-500">Đang chờ</p>
+              <p className="text-xl font-bold text-yellow-600">{proposalPendingCount}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500">Đã đồng ý</p>
+              <p className="text-xl font-bold text-blue-600">{proposalAcceptedCount}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500">Đã nhận</p>
+              <p className="text-xl font-bold text-green-700">{proposalReceived.length}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500">Tổng đã nhận</p>
+              <p className="text-xl font-bold text-green-700">{money(proposalReceivedAmount)}</p>
+            </div>
+          </div>
+
           {proposals.length === 0 ? (
             <div className="card p-12 text-center">
               <i className="fa-solid fa-handshake text-4xl text-gray-300 mb-3 block" />
@@ -1456,136 +1451,6 @@ export default function ManageEvent() {
         </div>
       )}
 
-      {tab === 'milestones' && (
-        <div className="space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <div className="card p-4">
-              <p className="text-xs text-gray-500">Tiến độ dự án</p>
-              <p className="text-2xl font-bold text-primary-700 mt-1">{projectProgress}%</p>
-              <div className="mt-3 h-2 rounded-full bg-gray-100 overflow-hidden">
-                <div className="h-full bg-primary-500" style={{ width: `${Math.min(projectProgress, 100)}%` }} />
-              </div>
-            </div>
-            <div className="card p-4">
-              <p className="text-xs text-gray-500">Mốc hoàn thành</p>
-              <p className="text-2xl font-bold text-green-700 mt-1">{completedMilestones}/{milestones.length}</p>
-            </div>
-            <div className="card p-4 flex items-center justify-between gap-3">
-              <div>
-                <p className="text-xs text-gray-500">Timeline tài trợ</p>
-                <p className="text-sm text-gray-600 mt-1">Cập nhật cho sponsor theo từng mốc.</p>
-              </div>
-              <button onClick={openCreateMilestone} className="btn-primary btn-sm flex items-center gap-1">
-                <i className="fa-solid fa-plus" /> Thêm
-              </button>
-            </div>
-          </div>
-
-          {milestones.length === 0 ? (
-            <div className="card p-12 text-center">
-              <i className="fa-solid fa-timeline text-4xl text-gray-300 mb-3 block" />
-              <p className="text-gray-500">Chưa có mốc tiến độ tài trợ</p>
-              <button onClick={openCreateMilestone} className="btn-primary mt-4 inline-flex items-center gap-2">
-                <i className="fa-solid fa-plus" /> Thêm mốc đầu tiên
-              </button>
-            </div>
-          ) : (
-            <div className="card overflow-x-auto">
-              <table className="min-w-[620px] w-full text-sm">
-                <thead>
-                  <tr className="table-header">
-                    <th className="text-left px-4 py-3">Mốc tiến độ</th>
-                    <th className="text-left px-4 py-3">Hạn dự kiến</th>
-                    <th className="text-left px-4 py-3">Trạng thái</th>
-                    <th className="text-left px-4 py-3">Tiến độ</th>
-                    <th className="px-4 py-3"></th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {milestones.map((m) => (
-                    <tr key={m.id} className="odd:bg-gray-50/50 hover:bg-gray-50">
-                      <td className="px-4 py-3">
-                        <p className="font-medium text-gray-900">{m.title}</p>
-                        {m.description && <p className="text-xs text-gray-500 mt-0.5">{m.description}</p>}
-                      </td>
-                      <td className="px-4 py-3 text-gray-600">{fmt(m.dueDate)}</td>
-                      <td className="px-4 py-3">
-                        <span className="text-xs font-medium rounded-full border border-gray-200 bg-white px-2 py-0.5">
-                          {m.status}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-2 min-w-32">
-                          <div className="h-2 flex-1 rounded-full bg-gray-100 overflow-hidden">
-                            <div className="h-full bg-primary-500" style={{ width: `${Math.min(Number(m.progressPercent) || 0, 100)}%` }} />
-                          </div>
-                          <span className="text-xs font-medium text-gray-700">{m.progressPercent || 0}%</span>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-1.5 justify-end">
-                          <button onClick={() => openEditMilestone(m)} className="btn-secondary btn-sm text-xs">
-                            <i className="fa-solid fa-pen" />
-                          </button>
-                          <button onClick={() => deleteMilestone(m)} className="btn-danger btn-sm text-xs">
-                            <i className="fa-solid fa-trash" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-
-          <Modal isOpen={milestoneModal} onClose={() => setMilestoneModal(false)} title={editingMilestone ? 'Cập nhật mốc tiến độ' : 'Thêm mốc tiến độ'} size="md">
-            <form onSubmit={submitMilestone} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Tiêu đề *</label>
-                <input value={milestoneForm.title} onInput={(e) => setMilestoneForm((f) => ({ ...f, title: e.target.value }))} onChange={(e) => setMilestoneForm((f) => ({ ...f, title: e.target.value }))} required className="input-field" placeholder="VD: Hoàn tất mua vật tư" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Mô tả</label>
-                <textarea rows={3} value={milestoneForm.description} onInput={(e) => setMilestoneForm((f) => ({ ...f, description: e.target.value }))} onChange={(e) => setMilestoneForm((f) => ({ ...f, description: e.target.value }))} className="input-field resize-none" />
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Hạn dự kiến</label>
-                  <input type="datetime-local" value={milestoneForm.dueDate} onInput={(e) => setMilestoneForm((f) => ({ ...f, dueDate: e.target.value }))} onChange={(e) => setMilestoneForm((f) => ({ ...f, dueDate: e.target.value }))} className="input-field" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Thứ tự</label>
-                  <input type="number" value={milestoneForm.sortOrder} onInput={(e) => setMilestoneForm((f) => ({ ...f, sortOrder: e.target.value }))} onChange={(e) => setMilestoneForm((f) => ({ ...f, sortOrder: e.target.value }))} className="input-field" />
-                </div>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Trạng thái</label>
-                  <select value={milestoneForm.status} onInput={(e) => setMilestoneForm((f) => ({ ...f, status: e.target.value }))} onChange={(e) => setMilestoneForm((f) => ({ ...f, status: e.target.value }))} className="input-field">
-                    <option value="Planned">Planned</option>
-                    <option value="InProgress">InProgress</option>
-                    <option value="Completed">Completed</option>
-                    <option value="Blocked">Blocked</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Tiến độ (%)</label>
-                  <input type="number" min={0} max={100} value={milestoneForm.progressPercent} onInput={(e) => setMilestoneForm((f) => ({ ...f, progressPercent: e.target.value }))} onChange={(e) => setMilestoneForm((f) => ({ ...f, progressPercent: e.target.value }))} className="input-field" />
-                </div>
-              </div>
-              <div className="flex gap-3 justify-end pt-2">
-                <button type="button" onClick={() => setMilestoneModal(false)} className="btn-secondary">Hủy</button>
-                <button type="submit" disabled={milestoneSaving} className="btn-primary flex items-center gap-2">
-                  {milestoneSaving && <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />}
-                  Lưu
-                </button>
-              </div>
-            </form>
-          </Modal>
-        </div>
-      )}
-
       {tab === 'report' && (
         <div className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
@@ -1634,6 +1499,23 @@ export default function ManageEvent() {
             </div>
           </div>
 
+          <div className="card p-5">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h3 className="font-semibold text-gray-900">Tiến độ tài chính</h3>
+                <p className="mt-1 text-sm text-gray-500">Tính từ ủng hộ cá nhân đã xác nhận và tài trợ doanh nghiệp đã nhận.</p>
+              </div>
+              <p className="text-2xl font-bold text-green-700">{financialProgress}%</p>
+            </div>
+            <div className="mt-3 h-3 overflow-hidden rounded-full bg-gray-100">
+              <div className="h-full rounded-full bg-green-500" style={{ width: `${financialProgress}%` }} />
+            </div>
+            <div className="mt-2 flex flex-wrap gap-3 text-xs text-gray-500">
+              <span>Đã ghi nhận: {money(financialReceived)}</span>
+              <span>Mục tiêu/đề xuất: {money(financialTarget)}</span>
+            </div>
+          </div>
+
           {shifts.length > 0 && (
             <div className="card p-5">
               <h3 className="font-semibold text-gray-900 mb-4">Báo cáo theo ca</h3>
@@ -1663,6 +1545,27 @@ export default function ManageEvent() {
               </div>
             </div>
           )}
+
+          {/* Lịch sử thao tác */}
+          <div className="card p-5">
+            <h3 className="font-semibold text-gray-900 mb-3">Lịch sử thao tác</h3>
+            {history.length === 0 ? (
+              <p className="text-sm text-gray-400">Chưa có lịch sử.</p>
+            ) : (
+              <div className="space-y-2 max-h-64 overflow-y-auto">
+                {history.map((h) => (
+                  <div key={h.id} className="flex items-start gap-3 text-sm border-l-2 border-gray-200 pl-3 py-1">
+                    <span className="text-xs text-gray-400 w-28 flex-shrink-0">{new Date(h.createdAtUtc).toLocaleString('vi-VN')}</span>
+                    <span className="font-medium text-gray-700">{h.actorName || 'Hệ thống'}</span>
+                    <span className="text-gray-500">{translateAction(h.action)}</span>
+                    {h.metadata && h.metadata.includes('Reason=') && (
+                      <span className="text-xs text-red-500 ml-1">({h.metadata.split('Reason=')[1]})</span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       )}
 

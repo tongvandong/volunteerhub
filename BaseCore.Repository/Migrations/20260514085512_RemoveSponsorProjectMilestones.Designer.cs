@@ -4,6 +4,7 @@ using BaseCore.Repository;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace BaseCore.Repository.Migrations
 {
     [DbContext(typeof(MySqlDbContext))]
-    partial class MySqlDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260514085512_RemoveSponsorProjectMilestones")]
+    partial class RemoveSponsorProjectMilestones
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -467,10 +470,6 @@ namespace BaseCore.Repository.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
 
-                    b.Property<string>("RejectReason")
-                        .HasMaxLength(1000)
-                        .HasColumnType("nvarchar(1000)");
-
                     b.Property<string>("RequiredSkillIds")
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
@@ -516,7 +515,6 @@ namespace BaseCore.Repository.Migrations
                             MinParticipants = 10,
                             OrganizerId = 2,
                             QrCode = "",
-                            RejectReason = "",
                             RequiredSkillIds = "[4]",
                             RequiresKyc = false,
                             StartDate = new DateTime(2025, 8, 15, 7, 0, 0, 0, DateTimeKind.Unspecified),
@@ -540,7 +538,6 @@ namespace BaseCore.Repository.Migrations
                             MinParticipants = 20,
                             OrganizerId = 2,
                             QrCode = "EVT-2025-0002",
-                            RejectReason = "",
                             RequiredSkillIds = "[]",
                             RequiresKyc = false,
                             StartDate = new DateTime(2025, 9, 5, 6, 0, 0, 0, DateTimeKind.Unspecified),
@@ -564,7 +561,6 @@ namespace BaseCore.Repository.Migrations
                             MinParticipants = 5,
                             OrganizerId = 2,
                             QrCode = "EVT-2025-0003",
-                            RejectReason = "",
                             RequiredSkillIds = "[3,6]",
                             RequiresKyc = false,
                             StartDate = new DateTime(2025, 6, 1, 8, 0, 0, 0, DateTimeKind.Unspecified),

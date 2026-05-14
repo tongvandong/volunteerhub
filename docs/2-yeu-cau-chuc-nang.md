@@ -1,6 +1,6 @@
 # Yêu cầu chức năng — VolunteerHub
 
-## 1. Danh sách yêu cầu chức năng (28 FR)
+## 1. Danh sách yêu cầu chức năng (27 FR)
 
 ### FR-01. Đăng ký, đăng nhập và phân quyền người dùng
 - Đăng ký tài khoản theo vai trò (Volunteer, Organizer, Sponsor).
@@ -143,11 +143,6 @@
 ### FR-26. Hiển thị tác động công khai (Impact)
 - Event đã `Completed` hiển thị public: số volunteer đăng ký, đã xác nhận, đã điểm danh, giờ tình nguyện, chứng chỉ đã cấp, tổng ủng hộ đã xác nhận, tổng tài trợ đã nhận, no-show count.
 - Thông tin tài trợ chỉ hiển thị khoản đã `Confirmed`/`Received`.
-
-### FR-27. Quản lý milestone tiến độ tài trợ
-- Organizer tạo/sửa/xóa milestone cho event: tiêu đề, mô tả, hạn dự kiến, trạng thái (Planned/InProgress/Completed/Blocked), phần trăm tiến độ, thứ tự.
-- Sponsor xem milestone của event mình tài trợ.
-- Milestone tự đánh dấu Completed khi progress = 100%.
 
 ### FR-28. Upload file và ảnh
 - Người dùng upload ảnh (event cover, KYC, minh chứng kỹ năng, minh chứng donation).

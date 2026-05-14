@@ -27,6 +27,7 @@ namespace BaseCore.Entities
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public string CancelReason { get; set; } = "";
         public DateTime? CancelledAt { get; set; }
+        public string RejectReason { get; set; } = "";
 
         // Navigation
         public EventCategory Category { get; set; }

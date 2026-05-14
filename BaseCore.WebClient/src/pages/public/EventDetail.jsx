@@ -278,6 +278,35 @@ export default function EventDetail() {
         <i className="fa-solid fa-arrow-left" /> Quay lại danh sách
       </Link>
 
+      {event.status === 'Pending' && (
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-4 text-sm text-yellow-800 flex items-center gap-2">
+          <i className="fa-solid fa-clock" />
+          <span>Sự kiện đang chờ duyệt. Đây là bản xem trước.</span>
+        </div>
+      )}
+      {event.status === 'Rejected' && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4 text-sm text-red-800">
+          <div className="flex items-center gap-2">
+            <i className="fa-solid fa-circle-xmark" />
+            <span className="font-medium">Sự kiện đã bị từ chối.</span>
+          </div>
+          {event.rejectReason && (
+            <p className="mt-1 ml-6 text-red-700">Lý do: {event.rejectReason}</p>
+          )}
+        </div>
+      )}
+      {event.status === 'Cancelled' && (
+        <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 mb-4 text-sm text-gray-700">
+          <div className="flex items-center gap-2">
+            <i className="fa-solid fa-ban" />
+            <span className="font-medium">Sự kiện đã bị hủy.</span>
+          </div>
+          {event.cancelReason && (
+            <p className="mt-1 ml-6">Lý do: {event.cancelReason}</p>
+          )}
+        </div>
+      )}
+
       <div className="grid lg:grid-cols-3 gap-6 mt-4">
         <div className="lg:col-span-2 space-y-5">
           <div className="card overflow-hidden">

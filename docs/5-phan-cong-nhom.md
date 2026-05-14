@@ -96,14 +96,13 @@
 - `BaseCore.WebClient/src/pages/sponsor/MySponsorships.jsx`
 - `BaseCore.WebClient/src/pages/admin/AdminExport.jsx`
 - Phần finance trong `EventDetail.jsx` (campaign, tiến độ, danh sách donor, sponsor public)
-- Phần campaign/sponsorship/milestone trong `ManageEvent.jsx`
+- Phần campaign/sponsorship trong `ManageEvent.jsx`
 - Phần sponsor tracking trong `MySponsorships.jsx`
 
 **Chức năng phụ trách**:
 - Support campaign (tạo, sửa, mở, đóng, hủy, báo cáo sử dụng tiền)
 - Individual donation (gửi, confirm, reject, cancel, overspend guard)
 - Sponsorship proposal (offer, request, accept, reject, cancel, received với ActualReceivedAmount, report, admin revert)
-- Milestone tiến độ tài trợ (CRUD)
 - Sponsor tracking (timeline, impact per sponsorship)
 - EventSponsor legacy (tài trợ nhanh)
 - Báo cáo tài chính công khai (impact endpoint phần finance)

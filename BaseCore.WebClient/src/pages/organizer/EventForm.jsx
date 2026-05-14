@@ -61,6 +61,14 @@ function CharacterCount({ value, max }) {
   return <span className="text-xs text-gray-400">{String(value || '').length}/{max}</span>;
 }
 
+function toDateTimeLocal(dt) {
+  if (!dt) return '';
+  const date = new Date(dt);
+  if (!Number.isFinite(date.getTime())) return '';
+  const offsetDate = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+  return offsetDate.toISOString().slice(0, 16);
+}
+
 export default function EventForm() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -85,6 +93,14 @@ export default function EventForm() {
   const [currentStep, setCurrentStep] = useState(0);
   const [maxUnlockedStep, setMaxUnlockedStep] = useState(0);
   const [draftSaved, setDraftSaved] = useState(false);
+  const [draftShifts, setDraftShifts] = useState([]);
+  const [shiftDraft, setShiftDraft] = useState({
+    name: '',
+    startTime: '',
+    endTime: '',
+    maxVolunteers: 10,
+    createChannel: true,
+  });
 
   const selectedSkillIds = useMemo(() => {
     try {
@@ -131,6 +147,62 @@ export default function EventForm() {
     setDraftSaved(false);
   };
 
+  const setEventStartDate = (value) => {
+    set('startDate', value);
+    if (!form.endDate && value) {
+      const end = new Date(value);
+      end.setHours(end.getHours() + 2);
+      setForm((previous) => ({ ...previous, startDate: value, endDate: toDateTimeLocal(end) }));
+    }
+  };
+
+  const setQuickDuration = (hours) => {
+    if (!form.startDate) return;
+    const end = new Date(form.startDate);
+    end.setHours(end.getHours() + hours);
+    set('endDate', toDateTimeLocal(end));
+  };
+
+  const validateShiftDraft = (shift = shiftDraft) => {
+    const eventStart = new Date(form.startDate);
+    const eventEnd = new Date(form.endDate);
+    const shiftStart = new Date(shift.startTime);
+    const shiftEnd = new Date(shift.endTime);
+    const maxVolunteers = Number(shift.maxVolunteers);
+
+    if (!form.startDate || !form.endDate || dateInvalid) return 'Vui lòng nhập thời gian sự kiện hợp lệ trước khi thêm ca.';
+    if (!shift.name.trim()) return 'Vui lòng nhập tên ca.';
+    if (!Number.isFinite(shiftStart.getTime()) || !Number.isFinite(shiftEnd.getTime())) return 'Vui lòng nhập thời gian bắt đầu và kết thúc ca.';
+    if (shiftEnd <= shiftStart) return 'Thời gian kết thúc ca phải sau thời gian bắt đầu.';
+    if (shiftStart < eventStart || shiftEnd > eventEnd) return 'Ca làm việc phải nằm trong thời gian sự kiện.';
+    if (!Number.isInteger(maxVolunteers) || maxVolunteers < 1 || maxVolunteers > 1000) return 'Số lượng tối đa của ca phải từ 1 đến 1000.';
+
+    return '';
+  };
+
+  const addDraftShift = () => {
+    const message = validateShiftDraft();
+    if (message) {
+      setStepError(message);
+      return;
+    }
+
+    setDraftShifts((previous) => [...previous, {
+      ...shiftDraft,
+      id: Date.now(),
+      name: shiftDraft.name.trim(),
+      maxVolunteers: Number(shiftDraft.maxVolunteers),
+    }]);
+    setShiftDraft({ name: '', startTime: '', endTime: '', maxVolunteers: 10, createChannel: true });
+    setStepError('');
+    setDraftSaved(false);
+  };
+
+  const removeDraftShift = (shiftId) => {
+    setDraftShifts((previous) => previous.filter((shift) => shift.id !== shiftId));
+    setDraftSaved(false);
+  };
+
   const validateAll = useCallback(() => {
     const latitude = form.latitude ? parseFloat(form.latitude) : null;
     const longitude = form.longitude ? parseFloat(form.longitude) : null;
@@ -158,8 +230,13 @@ export default function EventForm() {
       return 'Số tối thiểu không được lớn hơn số tối đa.';
     }
 
+    const invalidShift = draftShifts.find((shift) => validateShiftDraft(shift));
+    if (!isEdit && invalidShift) {
+      return `Ca "${invalidShift.name || 'chưa đặt tên'}" không hợp lệ hoặc nằm ngoài thời gian sự kiện.`;
+    }
+
     return '';
-  }, [form]);
+  }, [draftShifts, form, isEdit, validateShiftDraft]);
 
   const validateCurrentStep = useCallback((stepIndex = currentStep) => {
     if (stepIndex === 0) {
@@ -289,7 +366,9 @@ export default function EventForm() {
       const rawDraft = localStorage.getItem(draftKey);
       if (rawDraft) {
         try {
-          setForm({ ...INIT, ...JSON.parse(rawDraft) });
+          const parsedDraft = JSON.parse(rawDraft);
+          setForm({ ...INIT, ...(parsedDraft.form || parsedDraft) });
+          setDraftShifts(Array.isArray(parsedDraft.shifts) ? parsedDraft.shifts : []);
           setDraftSaved(true);
         } catch {
           localStorage.removeItem(draftKey);
@@ -366,7 +445,7 @@ export default function EventForm() {
   };
 
   const saveDraft = () => {
-    localStorage.setItem(draftKey, JSON.stringify(form));
+    localStorage.setItem(draftKey, JSON.stringify({ form, shifts: draftShifts }));
     setDraftSaved(true);
     setError('');
     setStepError('');
@@ -448,8 +527,23 @@ export default function EventForm() {
     };
 
     try {
-      if (isEdit) await eventApi.update(id, payload);
-      else await eventApi.create(payload);
+      if (isEdit) {
+        await eventApi.update(id, payload);
+      } else {
+        const response = await eventApi.create(payload);
+        const createdEventId = response.data?.id;
+        if (createdEventId && draftShifts.length > 0) {
+          for (const shift of draftShifts) {
+            await eventApi.createShift(createdEventId, {
+              name: shift.name,
+              startTime: new Date(shift.startTime).toISOString(),
+              endTime: new Date(shift.endTime).toISOString(),
+              maxVolunteers: Number(shift.maxVolunteers),
+              createChannel: Boolean(shift.createChannel),
+            });
+          }
+        }
+      }
       localStorage.removeItem(draftKey);
       navigate('/my-events');
     } catch (err) {
@@ -583,6 +677,7 @@ export default function EventForm() {
               </div>
             </div>
           )}
+
         </section>
       );
     }
@@ -683,12 +778,23 @@ export default function EventForm() {
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
               <label className="mb-1 block text-sm font-medium text-gray-700">Bắt đầu *</label>
-              <input type="datetime-local" value={form.startDate} onInput={(event) => set('startDate', event.target.value)} onChange={(event) => set('startDate', event.target.value)} className="input-field" />
+              <input type="datetime-local" value={form.startDate} onInput={(event) => setEventStartDate(event.target.value)} onChange={(event) => setEventStartDate(event.target.value)} className="input-field" />
             </div>
             <div>
               <label className="mb-1 block text-sm font-medium text-gray-700">Kết thúc *</label>
-              <input type="datetime-local" value={form.endDate} onInput={(event) => set('endDate', event.target.value)} onChange={(event) => set('endDate', event.target.value)} className="input-field" />
+              <input type="datetime-local" min={form.startDate || undefined} value={form.endDate} onInput={(event) => set('endDate', event.target.value)} onChange={(event) => set('endDate', event.target.value)} className="input-field" />
             </div>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs font-semibold uppercase text-gray-500">Gợi ý thời lượng</span>
+            {[2, 4, 8].map((hours) => (
+              <button key={hours} type="button" onClick={() => setQuickDuration(hours)} disabled={!form.startDate} className="btn-secondary btn-sm disabled:opacity-50">
+                {hours} giờ
+              </button>
+            ))}
+            <button type="button" onClick={() => setQuickDuration(24)} disabled={!form.startDate} className="btn-secondary btn-sm disabled:opacity-50">
+              Cả ngày
+            </button>
           </div>
           {dateInvalid && <Notice type="error">Thời gian kết thúc phải sau thời gian bắt đầu.</Notice>}
 
@@ -707,6 +813,53 @@ export default function EventForm() {
             <Notice type="error">Số tối thiểu không được lớn hơn số tối đa.</Notice>
           ) : (
             <Notice type="warn">Nếu chưa đủ số người tối thiểu, sự kiện vẫn có thể bắt đầu nhưng hệ thống sẽ cảnh báo organizer trên màn quản lý.</Notice>
+          )}
+          {!isEdit && (
+            <div className="rounded-2xl border border-gray-200 bg-white p-4">
+              <div className="mb-3 flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-900">Ca làm việc dự kiến</h3>
+                  <p className="text-xs text-gray-500">Có thể thêm ngay khi tạo sự kiện. Mỗi ca phải nằm trong thời gian sự kiện.</p>
+                </div>
+                {form.startDate && form.endDate && !dateInvalid && (
+                  <span className="text-xs text-gray-500">{new Date(form.startDate).toLocaleString('vi-VN')} - {new Date(form.endDate).toLocaleString('vi-VN')}</span>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 gap-3 lg:grid-cols-[1.2fr_1fr_1fr_110px]">
+                <input type="text" value={shiftDraft.name} onChange={(event) => setShiftDraft((previous) => ({ ...previous, name: event.target.value }))} className="input-field" placeholder="VD: Ca sáng, Hậu cần..." />
+                <input type="datetime-local" min={form.startDate || undefined} max={form.endDate || undefined} value={shiftDraft.startTime} onChange={(event) => setShiftDraft((previous) => ({ ...previous, startTime: event.target.value }))} className="input-field" />
+                <input type="datetime-local" min={shiftDraft.startTime || form.startDate || undefined} max={form.endDate || undefined} value={shiftDraft.endTime} onChange={(event) => setShiftDraft((previous) => ({ ...previous, endTime: event.target.value }))} className="input-field" />
+                <input type="number" min={1} value={shiftDraft.maxVolunteers} onChange={(event) => setShiftDraft((previous) => ({ ...previous, maxVolunteers: event.target.value }))} className="input-field" placeholder="Số người" />
+              </div>
+
+              <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <label className="inline-flex items-center gap-2 text-sm text-gray-600">
+                  <input type="checkbox" checked={Boolean(shiftDraft.createChannel)} onChange={(event) => setShiftDraft((previous) => ({ ...previous, createChannel: event.target.checked }))} />
+                  Tạo kênh riêng cho ca
+                </label>
+                <button type="button" onClick={addDraftShift} className="btn-secondary btn-sm">
+                  <i className="fa-solid fa-plus mr-1.5" /> Thêm ca
+                </button>
+              </div>
+
+              {draftShifts.length > 0 && (
+                <div className="mt-4 space-y-2">
+                  {draftShifts.map((shift) => (
+                    <div key={shift.id} className="flex flex-col gap-2 rounded-xl border border-gray-100 bg-gray-50 p-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div>
+                        <p className="font-semibold text-gray-900">{shift.name}</p>
+                        <p className="text-xs text-gray-500">
+                          {new Date(shift.startTime).toLocaleString('vi-VN')} - {new Date(shift.endTime).toLocaleString('vi-VN')} · tối đa {shift.maxVolunteers} người
+                          {shift.createChannel ? ' · có kênh riêng' : ''}
+                        </p>
+                      </div>
+                      <button type="button" onClick={() => removeDraftShift(shift.id)} className="text-sm font-semibold text-red-500 hover:text-red-600">Xóa</button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           )}
         </section>
       );

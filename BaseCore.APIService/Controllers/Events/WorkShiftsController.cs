@@ -54,7 +54,7 @@ namespace BaseCore.APIService.Controllers
             var ev = await _eventRepo.GetByIdAsync(eventId);
             if (ev == null) return NotFound(new { message = "Event not found" });
             if (ev.OrganizerId != userId) return Forbid();
-            var validation = ValidateShift(dto.Name, dto.StartTime, dto.EndTime, dto.MaxVolunteers);
+            var validation = ValidateShift(dto.Name, dto.StartTime, dto.EndTime, dto.MaxVolunteers, ev.StartDate, ev.EndDate);
             if (validation != null) return BadRequest(new { message = validation });
 
             var shift = new WorkShift
@@ -91,7 +91,7 @@ namespace BaseCore.APIService.Controllers
             var nextStart = dto.StartTime != default ? dto.StartTime : shift.StartTime;
             var nextEnd = dto.EndTime != default ? dto.EndTime : shift.EndTime;
             var nextMax = dto.MaxVolunteers > 0 ? dto.MaxVolunteers : shift.MaxVolunteers;
-            var validation = ValidateShift(nextName, nextStart, nextEnd, nextMax);
+            var validation = ValidateShift(nextName, nextStart, nextEnd, nextMax, ev.StartDate, ev.EndDate);
             if (validation != null) return BadRequest(new { message = validation });
 
             shift.Name = nextName.Trim();
@@ -147,7 +147,7 @@ namespace BaseCore.APIService.Controllers
                 HttpContext.Connection.RemoteIpAddress?.ToString());
         }
 
-        private static string? ValidateShift(string? name, DateTime startTime, DateTime endTime, int maxVolunteers)
+        private static string? ValidateShift(string? name, DateTime startTime, DateTime endTime, int maxVolunteers, DateTime eventStart, DateTime eventEnd)
         {
             if (string.IsNullOrWhiteSpace(name))
                 return "Shift name is required";
@@ -159,6 +159,8 @@ namespace BaseCore.APIService.Controllers
                 return "Shift end time must be after start time";
             if (maxVolunteers < 1 || maxVolunteers > 1000)
                 return "Shift max volunteers must be between 1 and 1000";
+            if (startTime < eventStart || endTime > eventEnd)
+                return $"Shift time must be within the event time window ({eventStart:dd/MM/yyyy HH:mm} - {eventEnd:dd/MM/yyyy HH:mm}).";
 
             return null;
         }

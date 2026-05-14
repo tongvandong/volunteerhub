@@ -14,7 +14,7 @@ namespace BaseCore.Services.VolunteerHub
         Task UpdateAsync(Entities.Event ev);
         Task DeleteAsync(int id);
         Task<Entities.Event> ApproveAsync(int eventId); // Admin: Approved + create Channel
-        Task<Entities.Event> RejectAsync(int eventId);  // Admin: Rejected
+        Task<Entities.Event> RejectAsync(int eventId, string? reason);  // Admin: Rejected + reason
         Task<Entities.Event> CompleteAsync(int eventId, int? organizerId = null); // Organizer/Admin: Completed + issue certs
         Task<Entities.Event> ResubmitAsync(int eventId, int organizerId); // Organizer: Rejected -> Pending
         Task<Entities.Event> CancelAsync(int eventId, int? organizerId, string? reason); // Organizer/Admin: -> Cancelled + cascade

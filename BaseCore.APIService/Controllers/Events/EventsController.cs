@@ -168,6 +168,9 @@ namespace BaseCore.APIService.Controllers
             var participantError = ValidateParticipants(dto.MinParticipants, dto.MaxParticipants);
             if (participantError != null)
                 return BadRequest(new { message = participantError });
+            var dateError = ValidateEventDates(dto.StartDate, dto.EndDate);
+            if (dateError != null)
+                return BadRequest(new { message = dateError });
 
             var ev = new Entities.Event
             {
@@ -207,6 +210,20 @@ namespace BaseCore.APIService.Controllers
             var participantError = ValidateParticipants(nextMinParticipants, nextMaxParticipants);
             if (participantError != null)
                 return BadRequest(new { message = participantError });
+            var nextStartDate = dto.StartDate ?? ev.StartDate;
+            var nextEndDate = dto.EndDate ?? ev.EndDate;
+            var dateError = ValidateEventDates(nextStartDate, nextEndDate);
+            if (dateError != null)
+                return BadRequest(new { message = dateError });
+
+            var outsideShift = await _context.WorkShifts
+                .Where(s => s.EventId == id)
+                .Where(s => s.StartTime < nextStartDate || s.EndTime > nextEndDate)
+                .OrderBy(s => s.StartTime)
+                .Select(s => s.Name)
+                .FirstOrDefaultAsync();
+            if (outsideShift != null)
+                return BadRequest(new { message = $"Cannot change event time because shift \"{outsideShift}\" would be outside the new event time window." });
 
             var oldStart = ev.StartDate;
             var oldEnd = ev.EndDate;
@@ -219,8 +236,8 @@ namespace BaseCore.APIService.Controllers
             ev.Location = dto.Location ?? ev.Location;
             ev.Latitude = nextLatitude;
             ev.Longitude = nextLongitude;
-            ev.StartDate = dto.StartDate ?? ev.StartDate;
-            ev.EndDate = dto.EndDate ?? ev.EndDate;
+            ev.StartDate = nextStartDate;
+            ev.EndDate = nextEndDate;
             ev.MinParticipants = nextMinParticipants;
             ev.MaxParticipants = nextMaxParticipants;
             ev.RequiresKyc = dto.RequiresKyc ?? ev.RequiresKyc;
@@ -284,14 +301,14 @@ namespace BaseCore.APIService.Controllers
 
         [HttpPut("{id}/reject"), Authorize(Roles = "Admin")]
         [EnableRateLimiting("write-sensitive")]
-        public async Task<IActionResult> Reject(int id)
+        public async Task<IActionResult> Reject(int id, [FromBody] EventRejectDto? dto)
         {
             if (!int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var userId))
                 return Unauthorized();
             try
             {
-                var ev = await _eventService.RejectAsync(id);
-                await RecordAuditAsync(userId, "Event.Reject", "Event", ev.Id);
+                var ev = await _eventService.RejectAsync(id, dto?.Reason);
+                await RecordAuditAsync(userId, "Event.Reject", "Event", ev.Id, $"Reason={dto?.Reason}");
                 return Ok(ev);
             }
             catch (Exception ex) { return BadRequest(new { message = ex.Message }); }
@@ -415,6 +432,36 @@ namespace BaseCore.APIService.Controllers
             return Ok(regs);
         }
 
+        [HttpGet("{id}/history"), Authorize]
+        public async Task<IActionResult> GetEventHistory(int id)
+        {
+            if (!int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var userId))
+                return Unauthorized();
+
+            var role = User.FindFirst(ClaimTypes.Role)?.Value;
+            var ev = await _eventService.GetByIdAsync(id);
+            if (ev == null) return NotFound(new { message = "Event not found" });
+            if (role != "Admin" && ev.OrganizerId != userId) return Forbid();
+
+            var logs = await _context.AuditLogs
+                .Include(a => a.User)
+                .Where(a => a.EntityType == "Event" && a.EntityId == id)
+                .OrderByDescending(a => a.CreatedAtUtc)
+                .Take(50)
+                .Select(a => new
+                {
+                    a.Id,
+                    a.Action,
+                    a.Metadata,
+                    a.CreatedAtUtc,
+                    actorId = a.UserId,
+                    actorName = a.User != null ? a.User.Name : null
+                })
+                .ToListAsync();
+
+            return Ok(logs);
+        }
+
         private Task RecordAuditAsync(int? userId, string action, string entityType, int? entityId = null, string? metadata = null)
         {
             return _auditLogService.RecordAsync(
@@ -448,6 +495,16 @@ namespace BaseCore.APIService.Controllers
                 return "Minimum participants cannot be greater than maximum participants.";
             if (maxParticipants > 10000)
                 return "Maximum participants cannot exceed 10000.";
+
+            return null;
+        }
+
+        private static string? ValidateEventDates(DateTime startDate, DateTime endDate)
+        {
+            if (startDate == default || endDate == default)
+                return "Event start and end time are required.";
+            if (endDate <= startDate)
+                return "Event end time must be after start time.";
 
             return null;
         }
@@ -488,6 +545,11 @@ namespace BaseCore.APIService.Controllers
     }
 
     public class EventCancelDto
+    {
+        public string? Reason { get; set; }
+    }
+
+    public class EventRejectDto
     {
         public string? Reason { get; set; }
     }

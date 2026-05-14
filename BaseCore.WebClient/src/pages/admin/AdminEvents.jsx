@@ -212,6 +212,10 @@ export default function AdminEvents() {
                   <td className="px-4 py-3"><StatusBadge status={event.status} /></td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-1.5 justify-end flex-wrap">
+                      <a href={`/events/${event.id}`} target="_blank" rel="noopener noreferrer" className="btn-secondary btn-sm text-xs flex items-center gap-1" title="Xem chi tiết sự kiện">
+                        <i className="fa-solid fa-eye" /> Xem
+                      </a>
+
                       {event.status === 'Pending' && (
                         <>
                           <button type="button" onClick={() => approve(event.id)} disabled={!!actionLoading[event.id]} className="btn-primary btn-sm text-xs flex items-center gap-1">
