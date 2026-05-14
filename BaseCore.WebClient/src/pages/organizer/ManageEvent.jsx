@@ -1374,6 +1374,7 @@ export default function ManageEvent() {
                       <p className="mt-1 text-sm text-gray-600">{proposal.message}</p>
                       <div className="mt-2 flex flex-wrap gap-3 text-xs text-gray-500">
                         <span>Sponsor: {proposal.sponsorName}</span>
+                        {proposal.sponsorEmail && <span><i className="fa-solid fa-envelope mr-0.5" />{proposal.sponsorEmail}</span>}
                         <span>Số tiền: {money(proposal.amount)}</span>
                         {proposal.purpose && <span>Mục đích: {proposal.purpose}</span>}
                       </div>

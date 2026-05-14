@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { adminApi } from '../../services/api';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
+import ImageLightbox from '../../components/ui/ImageLightbox';
 
 const STATUS = {
   PendingVerification: { label: 'Chờ xác minh', className: 'bg-amber-100 text-amber-700' },
@@ -120,10 +121,13 @@ export default function AdminVolunteerVerifications() {
                     <Pill value={item.kycStatus} />
                   </div>
                   <p className="mt-1 text-sm text-gray-500">{item.volunteerEmail}</p>
+                  <a href={`/profile/${item.userId}`} target="_blank" rel="noopener noreferrer" className="text-xs text-primary-600 hover:underline mt-1 inline-block">
+                    <i className="fa-solid fa-user mr-1" />Xem hồ sơ volunteer
+                  </a>
                   <div className="mt-3 flex flex-wrap gap-3">
-                    <EvidenceLink href={item.identityFrontImageUrl} label="CCCD mặt trước" />
-                    <EvidenceLink href={item.identityBackImageUrl} label="CCCD mặt sau" />
-                    <EvidenceLink href={item.portraitImageUrl} label="Ảnh chân dung" />
+                    <ImageLightbox src={item.identityFrontImageUrl} alt="CCCD mặt trước" label="CCCD trước" className="w-24 h-16" />
+                    <ImageLightbox src={item.identityBackImageUrl} alt="CCCD mặt sau" label="CCCD sau" className="w-24 h-16" />
+                    <ImageLightbox src={item.portraitImageUrl} alt="Ảnh chân dung" label="Chân dung" className="w-16 h-20" />
                   </div>
                   {item.kycAdminNote && <p className="mt-3 text-sm text-gray-600">Ghi chú: {item.kycAdminNote}</p>}
                 </div>

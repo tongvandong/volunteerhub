@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { adminApi } from '../../services/api';
 import Modal from '../../components/ui/Modal';
+import ImageLightbox from '../../components/ui/ImageLightbox';
 
 const STATUS = {
   PendingVerification: { label: 'Chờ duyệt', className: 'bg-amber-50 text-amber-700 border-amber-200' },
@@ -188,6 +189,10 @@ export default function AdminOrganizerVerifications() {
                     </div>
                     <p className="text-sm text-gray-500 mt-1">
                       Organizer: {item.organizerName || item.organizerUserName || `#${item.organizerId}`}
+                      {' · '}
+                      <a href={`/profile/${item.organizerId}`} target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:underline">
+                        Xem hồ sơ
+                      </a>
                     </p>
                   </div>
                   <div className="text-xs text-gray-400 sm:text-right">
@@ -205,7 +210,13 @@ export default function AdminOrganizerVerifications() {
                   </div>
                   <div className="space-y-2">
                     <p><span className="font-medium text-gray-700">Website:</span> {item.websiteUrl ? <a className="text-primary-600 underline" href={item.websiteUrl} target="_blank" rel="noreferrer">{item.websiteUrl}</a> : '-'}</p>
-                    <p><span className="font-medium text-gray-700">Tài liệu:</span> {item.documentUrl ? <a className="text-primary-600 underline" href={item.documentUrl} target="_blank" rel="noreferrer">{item.documentUrl}</a> : '-'}</p>
+                    <p><span className="font-medium text-gray-700">Tài liệu:</span>{' '}
+                      {item.documentUrl ? (
+                        /\.(jpg|jpeg|png|gif|webp)$/i.test(item.documentUrl)
+                          ? <ImageLightbox src={item.documentUrl} alt="Giấy tờ pháp lý" label="Xem ảnh giấy tờ" className="w-24 h-16 inline-block ml-2" />
+                          : <a className="text-primary-600 underline" href={item.documentUrl} target="_blank" rel="noreferrer">{item.documentUrl}</a>
+                      ) : '-'}
+                    </p>
                     <p><span className="font-medium text-gray-700">Admin:</span> {item.verifierName || '-'}</p>
                   </div>
                 </div>
