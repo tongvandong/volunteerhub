@@ -32,7 +32,7 @@ export default function ManageEvent() {
   const [qrModal, setQrModal] = useState(false);
   const [completing, setCompleting] = useState(false);
   const [shiftModal, setShiftModal] = useState(false);
-  const [shiftForm, setShiftForm] = useState({ name: '', startTime: '', endTime: '', maxVolunteers: 10 });
+  const [shiftForm, setShiftForm] = useState({ name: '', startTime: '', endTime: '', maxVolunteers: 10, createChannel: true });
   const [shiftSaving, setShiftSaving] = useState(false);
   const [selectedCheckinRegId, setSelectedCheckinRegId] = useState('');
   const [usingGps, setUsingGps] = useState(false);
@@ -367,13 +367,14 @@ export default function ManageEvent() {
         name: shiftForm.name.trim(),
         eventId: parseInt(id),
         maxVolunteers,
+        createChannel: Boolean(shiftForm.createChannel),
         startTime: startTime.toISOString(),
         endTime: endTime.toISOString(),
       });
       const r = await eventApi.getShifts(id);
       setShifts(r.data || []);
       setShiftModal(false);
-      setShiftForm({ name: '', startTime: '', endTime: '', maxVolunteers: 10 });
+      setShiftForm({ name: '', startTime: '', endTime: '', maxVolunteers: 10, createChannel: true });
     } catch (err) {
       alert(err.response?.data?.message || 'Tạo ca thất bại');
     } finally {
@@ -982,6 +983,18 @@ export default function ManageEvent() {
                 <label className="block text-sm font-medium text-gray-700 mb-1">Số lượng tối đa *</label>
                 <input type="number" min={1} value={shiftForm.maxVolunteers} onInput={(e) => setShiftForm((f) => ({ ...f, maxVolunteers: e.target.value }))} onChange={(e) => setShiftForm((f) => ({ ...f, maxVolunteers: e.target.value }))} required className="input-field" />
               </div>
+              <label className="flex items-start gap-3 rounded-lg border border-primary-100 bg-primary-50/60 p-3">
+                <input
+                  type="checkbox"
+                  checked={Boolean(shiftForm.createChannel)}
+                  onChange={(e) => setShiftForm((f) => ({ ...f, createChannel: e.target.checked }))}
+                  className="mt-1 h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                />
+                <span>
+                  <span className="block text-sm font-semibold text-gray-800">Tạo kênh riêng cho ca này</span>
+                  <span className="block text-xs text-gray-500">Volunteer được xác nhận trong ca sẽ có không gian trao đổi riêng, tách khỏi kênh chung của sự kiện.</span>
+                </span>
+              </label>
               <div className="flex gap-3 justify-end pt-2">
                 <button type="button" onClick={() => setShiftModal(false)} className="btn-secondary">Hủy</button>
                 <button type="submit" disabled={shiftSaving} className="btn-primary flex items-center gap-2">

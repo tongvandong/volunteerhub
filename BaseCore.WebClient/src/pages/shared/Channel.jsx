@@ -8,16 +8,16 @@ import ImageUploadField from '../../components/ui/ImageUploadField';
 import FileUploadField from '../../components/ui/FileUploadField';
 
 const typeMap = {
-  announcement: { label: 'Thong bao', icon: 'fa-bullhorn', color: 'bg-orange-100 text-orange-700' },
-  question: { label: 'Cau hoi', icon: 'fa-circle-question', color: 'bg-blue-100 text-blue-700' },
+  announcement: { label: 'Thông báo', icon: 'fa-bullhorn', color: 'bg-orange-100 text-orange-700' },
+  question: { label: 'Câu hỏi', icon: 'fa-circle-question', color: 'bg-blue-100 text-blue-700' },
   discussion: null,
 };
 
 const filterTabs = [
-  { value: 'all', label: 'Tat ca', icon: 'fa-list' },
-  { value: 'announcement', label: 'Thong bao', icon: 'fa-bullhorn' },
-  { value: 'discussion', label: 'Thao luan', icon: 'fa-comments' },
-  { value: 'question', label: 'Cau hoi', icon: 'fa-circle-question' },
+  { value: 'all', label: 'Tất cả', icon: 'fa-list' },
+  { value: 'announcement', label: 'Thông báo', icon: 'fa-bullhorn' },
+  { value: 'discussion', label: 'Thảo luận', icon: 'fa-comments' },
+  { value: 'question', label: 'Câu hỏi', icon: 'fa-circle-question' },
 ];
 
 function fmt(dt) {
@@ -115,7 +115,7 @@ function MentionTextarea({ channelId, value, onChange, rows = 3, placeholder, cl
               </span>
               <span className="min-w-0">
                 <span className="block truncate font-medium text-gray-800">@{member.userName}</span>
-                <span className="block truncate text-xs text-gray-500">{member.name || 'Thanh vien kenh'}</span>
+                <span className="block truncate text-xs text-gray-500">{member.name || 'Thành viên kênh'}</span>
               </span>
             </button>
           ))}
@@ -177,7 +177,7 @@ function CommentSection({ channelId, postId, incomingComments = [] }) {
         setText('');
       }
     } catch (err) {
-      alert(err.response?.data?.message || 'Binh luan that bai');
+      alert(err.response?.data?.message || 'Bình luận thất bại');
     } finally {
       setSubmitting(false);
     }
@@ -188,7 +188,7 @@ function CommentSection({ channelId, postId, incomingComments = [] }) {
       await channelApi.deleteComment(channelId, postId, commentId);
       setComments((prev) => prev.filter((c) => c.id !== commentId && c.parentCommentId !== commentId));
     } catch (err) {
-      alert(err.response?.data?.message || 'Xoa that bai');
+      alert(err.response?.data?.message || 'Xóa thất bại');
     }
   };
 
@@ -209,10 +209,10 @@ function CommentSection({ channelId, postId, incomingComments = [] }) {
         </div>
         <div className="mt-1 flex items-center gap-2 pl-1">
           <span className="text-xs text-gray-400">{fmt(comment.createdAt)}</span>
-          {!isReply && <button type="button" onClick={() => setReplyTo(comment.id)} className="text-xs text-primary-500 hover:text-primary-700">Tra loi</button>}
+          {!isReply && <button type="button" onClick={() => setReplyTo(comment.id)} className="text-xs text-primary-500 hover:text-primary-700">Trả lời</button>}
           {(comment.authorId === user?.id || user?.role === 'Admin') && (
             <button onClick={() => deleteComment(comment.id)} className="text-xs text-red-400 opacity-0 transition-opacity hover:text-red-600 group-hover:opacity-100">
-              Xoa
+              Xóa
             </button>
           )}
         </div>
@@ -232,7 +232,7 @@ function CommentSection({ channelId, postId, incomingComments = [] }) {
                 type="text"
                 value={replyText}
                 onChange={(event) => setReplyText(event.target.value)}
-                placeholder="Tra loi..."
+                placeholder="Trả lời..."
                 className="flex-1 rounded-full border border-gray-200 bg-white px-3 py-1.5 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
               />
               <button type="submit" disabled={submitting || !replyText.trim()} className="text-primary-600 disabled:text-gray-300">
@@ -275,7 +275,7 @@ function PollBox({ channelId, poll, onVote }) {
     <div className="mt-3 rounded-lg border border-gray-200 bg-gray-50 p-3">
       <div className="flex items-start justify-between gap-3">
         <p className="font-medium text-gray-900">{poll.question}</p>
-        {expired && <span className="rounded bg-gray-200 px-2 py-0.5 text-xs text-gray-600">Da dong</span>}
+        {expired && <span className="rounded bg-gray-200 px-2 py-0.5 text-xs text-gray-600">Đã đóng</span>}
       </div>
       <div className="mt-2 space-y-2">
         {(poll.options || []).map((option) => {
@@ -344,7 +344,7 @@ function PostCard({ channelId, channel, post, onDelete, onTogglePin, onPollVote,
     <div className="card overflow-hidden">
       {post.isPinned && (
         <div className="flex items-center gap-1.5 border-b border-yellow-100 bg-yellow-50 px-4 py-1.5 text-xs font-medium text-yellow-700">
-          <i className="fa-solid fa-thumbtack" /> Bai ghim
+          <i className="fa-solid fa-thumbtack" /> Bài ghim
         </div>
       )}
 
@@ -358,7 +358,7 @@ function PostCard({ channelId, channel, post, onDelete, onTogglePin, onPollVote,
             <div className="flex items-center gap-2">
               <span className="text-xs text-gray-400">{fmt(post.createdAt)}</span>
               {canManage && (
-                <button onClick={() => onTogglePin(post.id)} className="text-gray-400 transition-colors hover:text-yellow-500" title={post.isPinned ? 'Bo ghim' : 'Ghim'}>
+                <button onClick={() => onTogglePin(post.id)} className="text-gray-400 transition-colors hover:text-yellow-500" title={post.isPinned ? 'Bỏ ghim' : 'Ghim'}>
                   <i className={`fa-solid fa-thumbtack text-xs ${post.isPinned ? 'text-yellow-500' : ''}`} />
                 </button>
               )}
@@ -383,7 +383,7 @@ function PostCard({ channelId, channel, post, onDelete, onTogglePin, onPollVote,
         {post.attachmentUrl && (
           <a href={post.attachmentUrl} target="_blank" rel="noreferrer" className="mt-3 flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 p-2 hover:bg-gray-100">
             <i className={`fa-solid ${attachmentIcon}`} />
-            <span className="min-w-0 flex-1 truncate text-sm text-gray-700">{post.attachmentName || 'File dinh kem'}</span>
+            <span className="min-w-0 flex-1 truncate text-sm text-gray-700">{post.attachmentName || 'File đính kèm'}</span>
             <span className="text-xs text-gray-400">{Math.max(1, Math.round((post.attachmentSize || 0) / 1024))} KB</span>
             <i className="fa-solid fa-download text-gray-400" />
           </a>
@@ -560,19 +560,19 @@ export default function Channel() {
       upsertPost(createdPost);
       resetForm();
     } catch (err) {
-      alert(err.response?.data?.message || 'Dang bai that bai');
+      alert(err.response?.data?.message || 'Đăng bài thất bại');
     } finally {
       setSubmitting(false);
     }
   };
 
   const handleDelete = async (postId) => {
-    if (!confirm('Xoa bai dang nay?')) return;
+    if (!confirm('Xóa bài đăng này?')) return;
     try {
       await channelApi.deletePost(id, postId);
       setPosts((prev) => prev.filter((post) => post.id !== postId));
     } catch (err) {
-      alert(err.response?.data?.message || 'Xoa that bai');
+      alert(err.response?.data?.message || 'Xóa thất bại');
     }
   };
 
@@ -581,7 +581,7 @@ export default function Channel() {
       const response = await channelApi.togglePin(id, postId);
       setPosts((prev) => sortPosts(prev.map((post) => post.id === postId ? response.data : post)));
     } catch (err) {
-      alert(err.response?.data?.message || 'Ghim bai that bai');
+      alert(err.response?.data?.message || 'Ghim bài thất bại');
     }
   };
 
@@ -590,7 +590,7 @@ export default function Channel() {
       const response = await channelApi.votePoll(id, pollId, optionId);
       setPosts((prev) => prev.map((post) => post.poll?.id === pollId ? { ...post, poll: response.data } : post));
     } catch (err) {
-      alert(err.response?.data?.message || 'Vote that bai');
+      alert(err.response?.data?.message || 'Bình chọn thất bại');
     }
   };
 
@@ -604,9 +604,9 @@ export default function Channel() {
     <div className="mx-auto grid max-w-5xl grid-cols-1 gap-5 lg:grid-cols-[220px_minmax(0,1fr)]">
       <aside className="space-y-3">
         <div className="card p-3">
-          <p className="mb-2 text-xs font-semibold uppercase text-gray-500">Kenh</p>
+          <p className="mb-2 text-xs font-semibold uppercase text-gray-500">Kênh</p>
           <Link to={`/channels/${channel?.parentChannelId || channel?.id || id}`} className="flex items-center gap-2 rounded-lg px-2 py-2 text-sm hover:bg-gray-100">
-            <i className="fa-solid fa-hashtag text-primary-600" /> Chinh
+            <i className="fa-solid fa-hashtag text-primary-600" /> Chính
           </Link>
           {(channel?.subChannels || []).map((sub) => (
             <Link key={sub.id} to={`/channels/${sub.id}`} className={`mt-1 flex items-center gap-2 rounded-lg px-2 py-2 text-sm hover:bg-gray-100 ${Number(id) === sub.id ? 'bg-primary-50 text-primary-700' : ''}`}>
@@ -623,8 +623,8 @@ export default function Channel() {
               <i className="fa-solid fa-hashtag text-lg text-primary-600" />
             </div>
             <div className="min-w-0">
-              <h1 className="truncate text-lg font-bold text-gray-900">{channel?.name || `Kenh #${id}`}</h1>
-              {channel?.shift && <p className="mt-0.5 text-sm text-gray-500">Kenh rieng cho ca: {channel.shift.name}</p>}
+              <h1 className="truncate text-lg font-bold text-gray-900">{channel?.name || `Kênh #${id}`}</h1>
+              {channel?.shift && <p className="mt-0.5 text-sm text-gray-500">Kênh riêng cho ca: {channel.shift.name}</p>}
             </div>
           </div>
         </div>
@@ -637,7 +637,7 @@ export default function Channel() {
                   <i className="fa-solid fa-user text-primary-500" />
                 </div>
                 <div className="flex-1 rounded-full bg-gray-100 px-4 py-2 text-sm text-gray-400 transition-colors hover:bg-gray-200">
-                  Chia se dieu gi do...
+                  Chia sẻ điều gì đó...
                 </div>
               </button>
             ) : (
@@ -649,13 +649,13 @@ export default function Channel() {
                   <div className="flex-1 space-y-3">
                     <div className="flex flex-wrap items-center gap-2">
                       <select value={postType} onChange={(event) => setPostType(event.target.value)} className="rounded-lg border border-gray-200 px-2 py-1 text-sm">
-                        <option value="discussion">Thao luan</option>
-                        <option value="question">Cau hoi</option>
-                        {canManage && <option value="announcement">Thong bao</option>}
+                        <option value="discussion">Thảo luận</option>
+                        <option value="question">Câu hỏi</option>
+                        {canManage && <option value="announcement">Thông báo</option>}
                       </select>
                       {canManage && (
                         <button type="button" onClick={() => setShowPollForm((v) => !v)} className="btn-secondary btn-sm">
-                          <i className="fa-solid fa-square-poll-vertical" /> Khao sat
+                          <i className="fa-solid fa-square-poll-vertical" /> Khảo sát
                         </button>
                       )}
                     </div>
@@ -663,31 +663,31 @@ export default function Channel() {
                       channelId={id}
                       value={newPost}
                       onChange={setNewPost}
-                      placeholder="Chia se dieu gi do voi cong dong..."
+                      placeholder="Chia sẻ điều gì đó với cộng đồng..."
                       rows={3}
                       autoFocus
                       className="w-full resize-none border-0 text-sm text-gray-800 placeholder-gray-400 focus:outline-none"
                     />
-                    <ImageUploadField label="Anh bai viet" value={imageUrl} onChange={setImageUrl} helper="Tuy chon, upload anh tu may." compact />
+                    <ImageUploadField label="Ảnh bài viết" value={imageUrl} onChange={setImageUrl} helper="Tùy chọn, upload ảnh từ máy." compact />
                     <FileUploadField value={attachment} onChange={setAttachment} />
                     {showPollForm && (
                       <div className="space-y-2 rounded-lg border border-gray-200 bg-gray-50 p-3">
-                        <input value={pollQuestion} onChange={(event) => setPollQuestion(event.target.value)} placeholder="Cau hoi khao sat" className="input-field" />
+                        <input value={pollQuestion} onChange={(event) => setPollQuestion(event.target.value)} placeholder="Câu hỏi khảo sát" className="input-field" />
                         {pollOptions.map((option, index) => (
-                          <input key={index} value={option} onChange={(event) => updatePollOption(index, event.target.value)} placeholder={`Lua chon ${index + 1}`} className="input-field" />
+                          <input key={index} value={option} onChange={(event) => updatePollOption(index, event.target.value)} placeholder={`Lựa chọn ${index + 1}`} className="input-field" />
                         ))}
                         {pollOptions.length < 5 && (
-                          <button type="button" onClick={() => setPollOptions((prev) => [...prev, ''])} className="btn-secondary btn-sm">+ Them lua chon</button>
+                          <button type="button" onClick={() => setPollOptions((prev) => [...prev, ''])} className="btn-secondary btn-sm">+ Thêm lựa chọn</button>
                         )}
                       </div>
                     )}
                   </div>
                 </div>
                 <div className="flex justify-end gap-2 border-t border-gray-100 pt-1">
-                  <button type="button" onClick={resetForm} className="btn-secondary btn-sm">Huy</button>
+                  <button type="button" onClick={resetForm} className="btn-secondary btn-sm">Hủy</button>
                   <button type="submit" disabled={submitting || !newPost.trim()} className="btn-primary btn-sm flex items-center gap-1.5">
                     {submitting && <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent" />}
-                    <i className="fa-solid fa-paper-plane" /> Dang
+                    <i className="fa-solid fa-paper-plane" /> Đăng
                   </button>
                 </div>
               </form>
@@ -710,7 +710,7 @@ export default function Channel() {
         {posts.length === 0 ? (
           <div className="card p-12 text-center">
             <i className="fa-solid fa-comments mb-3 block text-4xl text-gray-300" />
-            <p className="text-gray-500">Chua co bai dang nao.</p>
+            <p className="text-gray-500">Chưa có bài đăng nào.</p>
           </div>
         ) : (
           <div className="space-y-4">
@@ -730,7 +730,7 @@ export default function Channel() {
             {page < totalPages && (
               <div className="text-center">
                 <button onClick={() => loadPosts(page + 1)} disabled={loadingMore} className="btn-secondary mx-auto flex items-center gap-2">
-                  {loadingMore ? <><div className="h-4 w-4 animate-spin rounded-full border-2 border-gray-400 border-t-transparent" /> Dang tai...</> : 'Xem them bai dang'}
+                  {loadingMore ? <><div className="h-4 w-4 animate-spin rounded-full border-2 border-gray-400 border-t-transparent" /> Đang tải...</> : 'Xem thêm bài đăng'}
                 </button>
               </div>
             )}

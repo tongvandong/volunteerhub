@@ -1,7 +1,9 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.EntityFrameworkCore;
 using BaseCore.Entities;
+using BaseCore.Repository;
 using BaseCore.Repository.EFCore;
 using BaseCore.Services.VolunteerHub;
 using System.Security.Claims;
@@ -16,13 +18,15 @@ namespace BaseCore.APIService.Controllers
         private readonly IEventRepositoryEF _eventRepo;
         private readonly IAuditLogService _auditLogService;
         private readonly IChannelService _channelService;
+        private readonly MySqlDbContext _context;
 
-        public WorkShiftsController(IWorkShiftRepositoryEF repo, IEventRepositoryEF eventRepo, IAuditLogService auditLogService, IChannelService channelService)
+        public WorkShiftsController(IWorkShiftRepositoryEF repo, IEventRepositoryEF eventRepo, IAuditLogService auditLogService, IChannelService channelService, MySqlDbContext context)
         {
             _repo = repo;
             _eventRepo = eventRepo;
             _auditLogService = auditLogService;
             _channelService = channelService;
+            _context = context;
         }
 
         [HttpGet]
@@ -114,6 +118,18 @@ namespace BaseCore.APIService.Controllers
 
             var shift = await _repo.GetByIdAsync(id);
             if (shift == null || shift.EventId != eventId) return NotFound();
+
+            var subChannel = await _context.Channels
+                .Include(c => c.Posts)
+                .FirstOrDefaultAsync(c => c.ShiftId == id);
+            if (subChannel != null)
+            {
+                if (subChannel.Posts.Any())
+                    return BadRequest(new { message = "Cannot delete this shift because its sub-channel already has posts" });
+
+                _context.Channels.Remove(subChannel);
+                await _context.SaveChangesAsync();
+            }
 
             await _repo.DeleteAsync(shift);
             await RecordAuditAsync(userId, "WorkShift.Delete", "WorkShift", id, $"EventId={eventId}");
