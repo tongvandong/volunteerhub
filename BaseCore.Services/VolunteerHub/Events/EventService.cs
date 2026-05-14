@@ -110,12 +110,15 @@ namespace BaseCore.Services.VolunteerHub
 
         public async Task<Entities.Event?> GetByIdAsync(int id)
         {
-            return await _context.Events
+            var ev = await _context.Events
                 .Include(e => e.Category)
                 .Include(e => e.Organizer)
                 .Include(e => e.WorkShifts)
-                .Include(e => e.Channel)
+                .Include(e => e.Channels)
                 .FirstOrDefaultAsync(e => e.Id == id);
+            if (ev != null)
+                ev.Channel = ev.Channels?.FirstOrDefault(c => c.ParentChannelId == null);
+            return ev;
         }
 
         public async Task<Entities.Event> CreateAsync(Entities.Event ev)
@@ -148,7 +151,7 @@ namespace BaseCore.Services.VolunteerHub
             ev.QrCode = $"EVT-{DateTime.UtcNow.Year}-{eventId:D4}";
 
             // Auto-create channel
-            var exists = await _context.Channels.AnyAsync(c => c.EventId == eventId);
+            var exists = await _context.Channels.AnyAsync(c => c.EventId == eventId && c.ParentChannelId == null);
             if (!exists)
             {
                 _context.Channels.Add(new Channel

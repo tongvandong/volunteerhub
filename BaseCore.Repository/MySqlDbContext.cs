@@ -34,6 +34,10 @@ namespace BaseCore.Repository
         public DbSet<Post> Posts { get; set; }
         public DbSet<Comment> Comments { get; set; }
         public DbSet<Like> Likes { get; set; }
+        public DbSet<Mention> Mentions { get; set; }
+        public DbSet<Poll> Polls { get; set; }
+        public DbSet<PollOption> PollOptions { get; set; }
+        public DbSet<PollVote> PollVotes { get; set; }
 
         // --- VolunteerHub: Recognition ---
         public DbSet<Certificate> Certificates { get; set; }
@@ -282,10 +286,21 @@ namespace BaseCore.Repository
                 entity.HasKey(e => e.Id);
                 entity.Property(e => e.Name).HasMaxLength(200).IsRequired(false);
                 entity.HasOne(e => e.Event)
-                      .WithOne(ev => ev.Channel)
-                      .HasForeignKey<Channel>(e => e.EventId)
+                      .WithMany(ev => ev.Channels)
+                      .HasForeignKey(e => e.EventId)
                       .OnDelete(DeleteBehavior.Cascade);
-                entity.HasIndex(e => e.EventId).IsUnique();
+                entity.HasOne(e => e.ParentChannel)
+                      .WithMany(c => c.SubChannels)
+                      .HasForeignKey(e => e.ParentChannelId)
+                      .OnDelete(DeleteBehavior.Restrict)
+                      .IsRequired(false);
+                entity.HasOne(e => e.Shift)
+                      .WithMany()
+                      .HasForeignKey(e => e.ShiftId)
+                      .OnDelete(DeleteBehavior.Restrict)
+                      .IsRequired(false);
+                entity.HasIndex(e => new { e.EventId, e.ParentChannelId });
+                entity.HasIndex(e => e.ShiftId).IsUnique().HasFilter("[ShiftId] IS NOT NULL");
             });
 
             modelBuilder.Entity<Post>(entity =>
@@ -293,6 +308,10 @@ namespace BaseCore.Repository
                 entity.HasKey(e => e.Id);
                 entity.Property(e => e.Content).IsRequired();
                 entity.Property(e => e.ImageUrl).HasMaxLength(500).IsRequired(false);
+                entity.Property(e => e.PostType).HasMaxLength(30).HasDefaultValue("discussion").IsRequired();
+                entity.Property(e => e.AttachmentUrl).HasMaxLength(500).IsRequired(false);
+                entity.Property(e => e.AttachmentName).HasMaxLength(255).IsRequired(false);
+                entity.Property(e => e.AttachmentType).HasMaxLength(50).IsRequired(false);
                 entity.HasOne(e => e.Channel)
                       .WithMany(c => c.Posts)
                       .HasForeignKey(e => e.ChannelId)
@@ -315,6 +334,11 @@ namespace BaseCore.Repository
                       .WithMany()
                       .HasForeignKey(e => e.AuthorId)
                       .OnDelete(DeleteBehavior.Restrict);
+                entity.HasOne(e => e.ParentComment)
+                      .WithMany()
+                      .HasForeignKey(e => e.ParentCommentId)
+                      .OnDelete(DeleteBehavior.Restrict)
+                      .IsRequired(false);
             });
 
             modelBuilder.Entity<Like>(entity =>
@@ -329,6 +353,63 @@ namespace BaseCore.Repository
                       .HasForeignKey(e => e.UserId)
                       .OnDelete(DeleteBehavior.Restrict);
                 entity.HasIndex(e => new { e.PostId, e.UserId }).IsUnique();
+            });
+
+            modelBuilder.Entity<Mention>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.EntityType).HasMaxLength(20).IsRequired();
+                entity.HasOne(e => e.MentionedUser)
+                      .WithMany()
+                      .HasForeignKey(e => e.MentionedUserId)
+                      .OnDelete(DeleteBehavior.Restrict);
+                entity.HasOne(e => e.Mentioner)
+                      .WithMany()
+                      .HasForeignKey(e => e.MentionerUserId)
+                      .OnDelete(DeleteBehavior.Restrict);
+                entity.HasIndex(e => new { e.EntityType, e.EntityId });
+                entity.HasIndex(e => e.MentionedUserId);
+            });
+
+            modelBuilder.Entity<Poll>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Question).HasMaxLength(500).IsRequired();
+                entity.HasOne(e => e.Post)
+                      .WithOne(p => p.Poll)
+                      .HasForeignKey<Poll>(e => e.PostId)
+                      .OnDelete(DeleteBehavior.Cascade);
+                entity.HasIndex(e => e.PostId).IsUnique();
+            });
+
+            modelBuilder.Entity<PollOption>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Text).HasMaxLength(200).IsRequired();
+                entity.HasOne(e => e.Poll)
+                      .WithMany(p => p.Options)
+                      .HasForeignKey(e => e.PollId)
+                      .OnDelete(DeleteBehavior.Cascade);
+                entity.HasIndex(e => new { e.PollId, e.SortOrder });
+            });
+
+            modelBuilder.Entity<PollVote>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.HasOne(e => e.Poll)
+                      .WithMany(p => p.Votes)
+                      .HasForeignKey(e => e.PollId)
+                      .OnDelete(DeleteBehavior.Cascade);
+                entity.HasOne(e => e.Option)
+                      .WithMany()
+                      .HasForeignKey(e => e.OptionId)
+                      .OnDelete(DeleteBehavior.Restrict);
+                entity.HasOne(e => e.User)
+                      .WithMany()
+                      .HasForeignKey(e => e.UserId)
+                      .OnDelete(DeleteBehavior.Restrict);
+                entity.HasIndex(e => new { e.PollId, e.UserId, e.OptionId }).IsUnique();
+                entity.HasIndex(e => new { e.PollId, e.UserId });
             });
 
             // =============================================

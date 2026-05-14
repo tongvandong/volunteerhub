@@ -64,12 +64,15 @@ namespace BaseCore.Repository.EFCore
 
         public async Task<Entities.Event?> GetWithDetailsAsync(int id)
         {
-            return await _dbSet
+            var ev = await _dbSet
                 .Include(e => e.Category)
                 .Include(e => e.Organizer)
                 .Include(e => e.WorkShifts)
-                .Include(e => e.Channel)
+                .Include(e => e.Channels)
                 .FirstOrDefaultAsync(e => e.Id == id);
+            if (ev != null)
+                ev.Channel = ev.Channels?.FirstOrDefault(c => c.ParentChannelId == null);
+            return ev;
         }
     }
 }

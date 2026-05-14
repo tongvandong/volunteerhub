@@ -15,12 +15,14 @@ namespace BaseCore.APIService.Controllers
         private readonly IWorkShiftRepositoryEF _repo;
         private readonly IEventRepositoryEF _eventRepo;
         private readonly IAuditLogService _auditLogService;
+        private readonly IChannelService _channelService;
 
-        public WorkShiftsController(IWorkShiftRepositoryEF repo, IEventRepositoryEF eventRepo, IAuditLogService auditLogService)
+        public WorkShiftsController(IWorkShiftRepositoryEF repo, IEventRepositoryEF eventRepo, IAuditLogService auditLogService, IChannelService channelService)
         {
             _repo = repo;
             _eventRepo = eventRepo;
             _auditLogService = auditLogService;
+            _channelService = channelService;
         }
 
         [HttpGet]
@@ -61,6 +63,8 @@ namespace BaseCore.APIService.Controllers
                 RequiredSkillId = dto.RequiredSkillId
             };
             await _repo.AddAsync(shift);
+            if (dto.CreateChannel)
+                await _channelService.CreateShiftChannelAsync(shift.Id, userId);
             await RecordAuditAsync(userId, "WorkShift.Create", "WorkShift", shift.Id, $"EventId={eventId}");
             return CreatedAtAction(nameof(GetById), new { eventId, id = shift.Id }, shift);
         }
@@ -151,5 +155,6 @@ namespace BaseCore.APIService.Controllers
         public DateTime EndTime { get; set; }
         public int MaxVolunteers { get; set; }
         public int? RequiredSkillId { get; set; }
+        public bool CreateChannel { get; set; }
     }
 }

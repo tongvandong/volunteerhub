@@ -187,9 +187,14 @@ export const channelApi = {
   updatePost: (id, postId, data) => api.put(`/channels/${id}/posts/${postId}`, data),
   deletePost: (id, postId) => api.delete(`/channels/${id}/posts/${postId}`),
   toggleLike: (id, postId) => api.post(`/channels/${id}/posts/${postId}/like`),
+  togglePin: (id, postId) => api.post(`/channels/${id}/posts/${postId}/toggle-pin`),
+  getMembers: (id, query) => api.get(`/channels/${id}/members`, { params: { query } }),
   getComments: (id, postId) => api.get(`/channels/${id}/posts/${postId}/comments`),
   addComment: (id, postId, data) => api.post(`/channels/${id}/posts/${postId}/comments`, data),
   deleteComment: (id, postId, commentId) => api.delete(`/channels/${id}/posts/${postId}/comments/${commentId}`),
+  createPoll: (id, postId, data) => api.post(`/channels/${id}/posts/${postId}/poll`, data),
+  votePoll: (id, pollId, optionId) => api.post(`/channels/${id}/polls/${pollId}/vote`, { optionId }),
+  getPollResults: (id, pollId) => api.get(`/channels/${id}/polls/${pollId}/results`),
 };
 
 export const notificationApi = {
@@ -285,6 +290,13 @@ export const uploadApi = {
     const formData = new FormData();
     formData.append('file', file);
     return api.post('/uploads/images', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  },
+  uploadFile: (file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return api.post('/uploads/file', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
   },

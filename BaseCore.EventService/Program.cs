@@ -3,6 +3,7 @@ using BaseCore.Repository;
 using BaseCore.Repository.EFCore;
 using BaseCore.Repository.Infrastructure;
 using BaseCore.Services.VolunteerHub;
+using BaseCore.EventService.Hubs;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
@@ -23,6 +24,7 @@ builder.Services.AddControllers()
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddHealthChecks();
+builder.Services.AddSignalR();
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
@@ -106,7 +108,10 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAll", policy =>
     {
-        policy.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader();
+        policy.WithOrigins("http://localhost:3000", "http://127.0.0.1:3000")
+              .AllowAnyMethod()
+              .AllowAnyHeader()
+              .AllowCredentials();
     });
 });
 
@@ -138,6 +143,7 @@ builder.Services.AddScoped<ICertificateService, CertificateService>();
 builder.Services.AddScoped<IEventService, EventService>();
 builder.Services.AddScoped<IRegistrationService, RegistrationService>();
 builder.Services.AddScoped<IChannelService, ChannelService>();
+builder.Services.AddScoped<IChannelRealtimeNotifier, SignalRChannelRealtimeNotifier>();
 builder.Services.AddScoped<IAuditLogService, AuditLogService>();
 
 var key = Encoding.ASCII.GetBytes(builder.Configuration["Jwt:SecretKey"] ?? "YourSecretKeyForAuthenticationShouldBeLongEnough");
@@ -156,6 +162,17 @@ builder.Services.AddAuthentication(x =>
         IssuerSigningKey = new SymmetricSecurityKey(key),
         ValidateIssuer = false,
         ValidateAudience = false
+    };
+    x.Events = new JwtBearerEvents
+    {
+        OnMessageReceived = context =>
+        {
+            var accessToken = context.Request.Query["access_token"];
+            var path = context.HttpContext.Request.Path;
+            if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs"))
+                context.Token = accessToken;
+            return Task.CompletedTask;
+        }
     };
 });
 
@@ -178,6 +195,7 @@ app.UseAuthentication();
 app.UseRateLimiter();
 app.UseAuthorization();
 app.MapControllers();
+app.MapHub<ChannelHub>("/hubs/channel");
 app.MapHealthChecks("/health");
 
 Console.WriteLine("VolunteerHub Event Service running on port 5003");

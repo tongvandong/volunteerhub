@@ -164,6 +164,7 @@ builder.Services.AddScoped<ICertificateService, CertificateService>();
 builder.Services.AddScoped<IEventService, EventService>();
 builder.Services.AddScoped<IRegistrationService, RegistrationService>();
 builder.Services.AddScoped<IChannelService, ChannelService>();
+builder.Services.AddScoped<IChannelRealtimeNotifier, NullChannelRealtimeNotifier>();
 builder.Services.AddScoped<IAuditLogService, AuditLogService>();
 
 var key = Encoding.ASCII.GetBytes(

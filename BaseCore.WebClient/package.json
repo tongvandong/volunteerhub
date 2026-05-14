@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@microsoft/signalr": "^10.0.0",
     "axios": "^1.13.4",
     "html5-qrcode": "^2.3.8",
     "leaflet": "^1.9.4",

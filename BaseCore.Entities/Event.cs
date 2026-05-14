@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace BaseCore.Entities
 {
@@ -32,6 +33,8 @@ namespace BaseCore.Entities
         public User Organizer { get; set; }
         public List<Registration> Registrations { get; set; }
         public List<WorkShift> WorkShifts { get; set; }
+        [NotMapped]
         public Channel Channel { get; set; }
+        public List<Channel> Channels { get; set; }
     }
 }
