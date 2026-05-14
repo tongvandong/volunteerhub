@@ -733,6 +733,18 @@ export default function ManageEvent() {
 
       {tab === 'registrations' && (
         <div className="space-y-3">
+          {shifts.length > 0 && registrations.some((r) => r.status !== 'Cancelled' && !r.shiftId) && (
+            <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+              <p className="font-semibold flex items-center gap-2">
+                <i className="fa-solid fa-triangle-exclamation" />
+                Có {registrations.filter((r) => r.status !== 'Cancelled' && !r.shiftId).length} đăng ký chưa chọn ca cụ thể
+              </p>
+              <p className="mt-1">
+                Sự kiện đã có ca làm việc. Bạn nên liên hệ những volunteer này để gán họ vào ca, hoặc xác định trước họ làm cả ngày.
+              </p>
+            </div>
+          )}
+
           <div className="flex justify-end">
             <button type="button" onClick={openWalkInModal} className="btn-secondary btn-sm flex items-center gap-2">
               <i className="fa-solid fa-person-walking" /> Đăng ký tại chỗ
@@ -874,6 +886,20 @@ export default function ManageEvent() {
 
       {tab === 'shifts' && (
         <div className="space-y-4">
+          {(() => {
+            const totalShiftCapacity = shifts.reduce((sum, s) => sum + (s.maxVolunteers || 0), 0);
+            const minNeeded = event?.minParticipants || 0;
+            if (shifts.length > 0 && minNeeded > 0 && totalShiftCapacity < minNeeded) {
+              return (
+                <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+                  <i className="fa-solid fa-triangle-exclamation mr-2" />
+                  Tổng sức chứa các ca ({totalShiftCapacity} chỗ) đang nhỏ hơn số tình nguyện viên tối thiểu của sự kiện ({minNeeded}). Cân nhắc tăng MaxVolunteers hoặc thêm ca để đủ chỗ.
+                </div>
+              );
+            }
+            return null;
+          })()}
+
           <div className="flex justify-end">
             <button onClick={() => setShiftModal(true)} className="btn-primary flex items-center gap-2">
               <i className="fa-solid fa-plus" /> Thêm ca

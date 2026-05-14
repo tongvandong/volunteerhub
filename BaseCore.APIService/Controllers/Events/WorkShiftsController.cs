@@ -33,7 +33,29 @@ namespace BaseCore.APIService.Controllers
         public async Task<IActionResult> GetByEvent(int eventId)
         {
             var shifts = await _repo.GetByEventAsync(eventId);
-            return Ok(shifts);
+            if (shifts.Count == 0) return Ok(shifts);
+
+            var shiftIds = shifts.Select(s => s.Id).ToList();
+            var counts = await _context.Registrations
+                .Where(r => r.ShiftId != null && shiftIds.Contains(r.ShiftId.Value) && (r.Status == "Pending" || r.Status == "Confirmed"))
+                .GroupBy(r => r.ShiftId!.Value)
+                .Select(g => new { ShiftId = g.Key, Count = g.Count() })
+                .ToListAsync();
+            var countMap = counts.ToDictionary(c => c.ShiftId, c => c.Count);
+
+            var result = shifts.Select(s => new
+            {
+                s.Id,
+                s.EventId,
+                s.Name,
+                s.StartTime,
+                s.EndTime,
+                s.MaxVolunteers,
+                s.RequiredSkillId,
+                requiredSkill = s.RequiredSkill == null ? null : new { s.RequiredSkill.Id, s.RequiredSkill.Name, s.RequiredSkill.Category },
+                currentRegistrations = countMap.TryGetValue(s.Id, out var c) ? c : 0
+            });
+            return Ok(result);
         }
 
         [HttpGet("{id}")]
@@ -119,13 +141,17 @@ namespace BaseCore.APIService.Controllers
             var shift = await _repo.GetByIdAsync(id);
             if (shift == null || shift.EventId != eventId) return NotFound();
 
+            var activeRegs = await _context.Registrations.CountAsync(r => r.ShiftId == id && (r.Status == "Pending" || r.Status == "Confirmed"));
+            if (activeRegs > 0)
+                return BadRequest(new { message = $"Không thể xóa ca này vì đang có {activeRegs} đăng ký active. Vui lòng hủy hoặc chuyển đăng ký sang ca khác trước." });
+
             var subChannel = await _context.Channels
                 .Include(c => c.Posts)
                 .FirstOrDefaultAsync(c => c.ShiftId == id);
             if (subChannel != null)
             {
                 if (subChannel.Posts.Any())
-                    return BadRequest(new { message = "Cannot delete this shift because its sub-channel already has posts" });
+                    return BadRequest(new { message = "Không thể xóa ca này vì kênh trao đổi của ca đã có bài viết." });
 
                 _context.Channels.Remove(subChannel);
                 await _context.SaveChangesAsync();

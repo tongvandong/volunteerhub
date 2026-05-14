@@ -682,17 +682,29 @@ export default function EventDetail() {
                     <label className="block text-sm font-medium text-gray-700 mb-1">Chọn ca làm việc</label>
                     <select value={selectedShiftId} onChange={(e) => setSelectedShiftId(e.target.value)} className="input-field text-sm">
                       <option value="">Không chọn ca cụ thể</option>
-                      {shifts.map((shift) => (
-                        <option key={shift.id} value={shift.id}>
-                          {shift.name} · {fmt(shift.startTime)}
-                        </option>
-                      ))}
+                      {shifts.map((shift) => {
+                        const used = shift.currentRegistrations ?? shift.confirmedRegistrations ?? 0;
+                        const max = shift.maxVolunteers || 0;
+                        const isFull = max > 0 && used >= max;
+                        const skillName = shift.requiredSkill?.name;
+                        return (
+                          <option key={shift.id} value={shift.id} disabled={isFull}>
+                            {shift.name} · {fmt(shift.startTime)}
+                            {max > 0 ? ` · ${used}/${max} chỗ` : ''}
+                            {isFull ? ' (đầy)' : ''}
+                            {skillName ? ` · cần kỹ năng: ${skillName}` : ''}
+                          </option>
+                        );
+                      })}
                     </select>
                     {selectedShift && (
                       <p className="text-xs text-gray-500 mt-1">
                         {new Date(selectedShift.startTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
                         {' - '}
                         {new Date(selectedShift.endTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+                        {selectedShift.requiredSkill?.name && (
+                          <span className="ml-2 text-amber-600">Yêu cầu kỹ năng: {selectedShift.requiredSkill.name}</span>
+                        )}
                       </p>
                     )}
                   </div>

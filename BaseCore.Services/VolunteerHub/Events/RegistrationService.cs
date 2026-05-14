@@ -38,8 +38,15 @@ namespace BaseCore.Services.VolunteerHub
                 if (shift.EventId != eventId) throw new Exception("Shift does not belong to this event");
 
                 var shiftRegistrations = await _context.Registrations.CountAsync(r =>
-                    r.ShiftId == shiftId.Value && r.Status != "Cancelled");
+                    r.ShiftId == shiftId.Value && (r.Status == "Pending" || r.Status == "Confirmed"));
                 if (shiftRegistrations >= shift.MaxVolunteers) throw new Exception("Shift is full");
+
+                if (shift.RequiredSkillId.HasValue)
+                {
+                    var hasSkill = await _context.VolunteerSkills.AnyAsync(vs =>
+                        vs.UserId == userId && vs.SkillId == shift.RequiredSkillId.Value);
+                    if (!hasSkill) throw new Exception("Ca này yêu cầu kỹ năng cụ thể mà hồ sơ của bạn chưa có. Vui lòng cập nhật kỹ năng trong hồ sơ trước khi đăng ký.");
+                }
             }
 
             var existing = await _context.Registrations
@@ -175,7 +182,7 @@ namespace BaseCore.Services.VolunteerHub
 
         public async Task<Registration> CheckInAsync(int eventId, int registrationId, int organizerId, string? qrCode, decimal? latitude = null, decimal? longitude = null)
         {
-            var reg = await _context.Registrations.Include(r => r.Event)
+            var reg = await _context.Registrations.Include(r => r.Event).Include(r => r.Shift)
                 .FirstOrDefaultAsync(r => r.Id == registrationId)
                 ?? throw new Exception("Registration not found");
             if (reg.EventId != eventId) throw new Exception("Registration not found in this event");
@@ -188,10 +195,7 @@ namespace BaseCore.Services.VolunteerHub
 
             reg.IsAttended = true;
             reg.AttendedAt = DateTime.UtcNow;
-
-            // Calculate volunteer hours
-            if (reg.Event.EndDate > reg.Event.StartDate)
-                reg.VolunteerHours = (decimal)(reg.Event.EndDate - reg.Event.StartDate).TotalHours;
+            reg.VolunteerHours = CalculateVolunteerHours(reg);
 
             await _context.SaveChangesAsync();
             return reg;
@@ -199,7 +203,7 @@ namespace BaseCore.Services.VolunteerHub
 
         public async Task<Registration> SelfCheckInAsync(int eventId, int userId, string? qrCode, decimal? latitude = null, decimal? longitude = null)
         {
-            var reg = await _context.Registrations.Include(r => r.Event)
+            var reg = await _context.Registrations.Include(r => r.Event).Include(r => r.Shift)
                 .FirstOrDefaultAsync(r => r.EventId == eventId && r.UserId == userId)
                 ?? throw new Exception("Registration not found");
 
@@ -213,12 +217,20 @@ namespace BaseCore.Services.VolunteerHub
 
             reg.IsAttended = true;
             reg.AttendedAt = DateTime.UtcNow;
-
-            if (reg.Event.EndDate > reg.Event.StartDate)
-                reg.VolunteerHours = (decimal)(reg.Event.EndDate - reg.Event.StartDate).TotalHours;
+            reg.VolunteerHours = CalculateVolunteerHours(reg);
 
             await _context.SaveChangesAsync();
             return reg;
+        }
+
+        private static decimal CalculateVolunteerHours(Registration reg)
+        {
+            // Prefer shift duration if registration is tied to a specific shift
+            if (reg.Shift != null && reg.Shift.EndTime > reg.Shift.StartTime)
+                return (decimal)(reg.Shift.EndTime - reg.Shift.StartTime).TotalHours;
+            if (reg.Event != null && reg.Event.EndDate > reg.Event.StartDate)
+                return (decimal)(reg.Event.EndDate - reg.Event.StartDate).TotalHours;
+            return 0m;
         }
 
         private static bool IsWithinEventRadius(Entities.Event ev, decimal? latitude, decimal? longitude)
@@ -305,7 +317,7 @@ namespace BaseCore.Services.VolunteerHub
 
         public async Task<Registration> ManualAttendAsync(int eventId, int registrationId, int organizerId, decimal? hoursOverride)
         {
-            var reg = await _context.Registrations.Include(r => r.Event)
+            var reg = await _context.Registrations.Include(r => r.Event).Include(r => r.Shift)
                 .FirstOrDefaultAsync(r => r.Id == registrationId)
                 ?? throw new Exception("Registration not found");
             if (reg.EventId != eventId) throw new Exception("Registration not found in this event");
@@ -322,9 +334,7 @@ namespace BaseCore.Services.VolunteerHub
 
             reg.IsAttended = true;
             reg.AttendedAt = reg.AttendedAt ?? DateTime.UtcNow;
-            var defaultHours = reg.Event.EndDate > reg.Event.StartDate
-                ? (decimal)(reg.Event.EndDate - reg.Event.StartDate).TotalHours
-                : 0m;
+            var defaultHours = CalculateVolunteerHours(reg);
             reg.VolunteerHours = hoursOverride.HasValue && hoursOverride.Value >= 0
                 ? hoursOverride.Value
                 : (reg.VolunteerHours > 0 ? reg.VolunteerHours : defaultHours);
