@@ -15,6 +15,7 @@ const VerifyCertificate = lazy(() => import('./pages/public/VerifyCertificate'))
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const Notifications = lazy(() => import('./pages/Notifications'));
 const Channel = lazy(() => import('./pages/shared/Channel'));
+const PublicProfile = lazy(() => import('./pages/shared/PublicProfile'));
 const MyProfile = lazy(() => import('./pages/volunteer/MyProfile'));
 const Passport = lazy(() => import('./pages/volunteer/Passport'));
 const MyRegistrations = lazy(() => import('./pages/volunteer/MyRegistrations'));
@@ -79,6 +80,7 @@ function AppRoutes() {
 
         <Route path="/profile" element={<AppPage roles={['Volunteer']}><MyProfile /></AppPage>} />
         <Route path="/profile/passport" element={<AppPage roles={['Volunteer']}><Passport /></AppPage>} />
+        <Route path="/profile/:userId" element={<AppPage><PublicProfile /></AppPage>} />
         <Route path="/my-registrations" element={<AppPage roles={['Volunteer']}><MyRegistrations /></AppPage>} />
         <Route path="/my-donations" element={<AppPage roles={['Volunteer']}><MyDonations /></AppPage>} />
         <Route path="/my-badges" element={<AppPage roles={['Volunteer']}><MyBadges /></AppPage>} />
