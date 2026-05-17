@@ -6,7 +6,7 @@
 |---|---|---|---|---|
 | 1 | (Tên A) | Trưởng nhóm | (username A) | Identity / Profile / Verification |
 | 2 | (Tên B) | Thành viên | (username B) | Event / Registration / Attendance |
-| 3 | (Tên C) | Thành viên | (username C) | Finance / Sponsorship / Report |
+| 3 | (Tên C) | Thành viên | (username C) | Finance / Sponsorship / SponsorProfile |
 
 ## 2. Phân công chi tiết
 
@@ -15,7 +15,7 @@
 **Backend**:
 - `BaseCore.AuthService/` — toàn bộ project
 - `BaseCore.APIService/Controllers/Identity/` — ProfileController, OrganizerVerificationController
-- `BaseCore.APIService/Controllers/Admin/` — MonitoringController, BadgesController
+- `BaseCore.APIService/Controllers/Admin/` — MonitoringController, BadgesController, AdminController (phần user management, KYC, skill verification, organizer verification, create user)
 - `BaseCore.APIService/Controllers/Shared/` — UploadsController, NotificationsController
 - `BaseCore.Services/Authen/`
 
@@ -35,25 +35,26 @@
 **Chức năng phụ trách**:
 - Đăng ký, đăng nhập, JWT, refresh token
 - Hồ sơ volunteer, kỹ năng, xác minh kỹ năng
-- KYC volunteer (gửi + admin duyệt)
-- Xác minh tổ chức organizer (gửi + admin duyệt)
-- Admin quản lý user (khóa/mở), duyệt KYC, duyệt organizer, duyệt skill
+- KYC volunteer (gửi + admin duyệt, reject reason ≥10 chars)
+- Xác minh tổ chức organizer (gửi + admin duyệt, reject reason ≥10 chars)
+- Admin quản lý user (khóa/mở + cascade, tạo user mới)
 - Admin quản lý danh sách kỹ năng
-- Notifications, badges, monitoring, audit log
+- Notifications (tất cả state changes), badges, monitoring, audit log
 - Upload file
+- IsActive middleware (AuthService)
 
 ---
 
 ### Thành viên B — Event / Registration / Attendance
 
 **Backend**:
-- `BaseCore.EventService/` — toàn bộ project
+- `BaseCore.EventService/` — toàn bộ project (bao gồm SignalR hub)
 - `BaseCore.ApiGateway/` — cấu hình Ocelot routing
 - `BaseCore.APIService/Controllers/Events/` — EventsController, RegistrationsController, WorkShiftsController, CertificatesController, EventCategoriesController
 - `BaseCore.APIService/Controllers/Shared/` — ChannelsController, RatingsController
 - `BaseCore.APIService/Controllers/Admin/` — DashboardController
 - `BaseCore.Services/VolunteerHub/Events/` — EventService, RegistrationService, CertificateService, BadgeService
-- `BaseCore.Services/VolunteerHub/Engagement/` — NotificationService, ChannelService
+- `BaseCore.Services/VolunteerHub/Engagement/` — NotificationService, ChannelService, IChannelRealtimeNotifier
 - `BaseCore.Services/VolunteerHub/Admin/` — AuditLogService
 
 **Frontend**:
@@ -67,47 +68,53 @@
 
 **Chức năng phụ trách**:
 - Tạo/sửa/xóa/duyệt/từ chối/hủy/hoàn thành/mở lại sự kiện
-- Gửi duyệt lại event bị reject, admin transfer, auto-complete
+- Gửi duyệt lại event bị reject, admin transfer (validate Verified), auto-complete, overdue preview
 - Đăng ký, rút, xin hủy sau confirm, confirm, cancel
-- Điểm danh QR/GPS, self check-in, walk-in, bổ sung điểm danh, chỉnh giờ
+- Điểm danh QR/GPS (CheckInRadiusKm configurable), self check-in, walk-in, bổ sung điểm danh, chỉnh giờ
+- Check-out (pro-rate hours), ValidateCheckInWindow
+- QR code GUID-based + rotate endpoint
 - Ca làm việc (CRUD)
 - Danh mục sự kiện (CRUD)
 - Chứng chỉ (cấp tự động, verify, PDF)
 - Huy hiệu (trao tự động)
-- Đánh giá hai chiều + moderation (ẩn/xóa)
-- Kênh trao đổi (post, comment, like)
+- Đánh giá hai chiều + moderation (ẩn/xóa, filter raterId/rateeId, delete Admin only)
+- Kênh trao đổi (post, comment, like) + SignalR realtime
 - Gợi ý sự kiện theo kỹ năng
 - Tác động công khai (impact)
-- Dashboard
+- Dashboard (admin inbox, volunteer recommended events)
 - Gateway routing (ocelot.json)
+- Export events (maxRows + CSV injection protection)
+- Audit log ghi method/GPS/IP cho check-in
 
 ---
 
-### Thành viên C — Finance / Sponsorship / Report
+### Thành viên C — Finance / Sponsorship / SponsorProfile
 
 **Backend**:
 - `BaseCore.FinanceService/` — toàn bộ project
-- `BaseCore.APIService/Controllers/Finance/` — SupportCampaignController, SponsorshipProposalController, SponsorController
+- `BaseCore.APIService/Controllers/Finance/` — SupportCampaignController, SponsorshipProposalController, SponsorController, SponsorProfileController
 - `BaseCore.APIService/Controllers/Admin/AdminController.cs` (phần finance: overview, stale-donations, unreported-campaigns, open-proposals-past-event, export finance)
 - `BaseCore.APIService/Controllers/LegacySales/` (nếu giữ Product/Order)
 
 **Frontend**:
 - `BaseCore.WebClient/src/pages/volunteer/MyDonations.jsx`
 - `BaseCore.WebClient/src/pages/sponsor/MySponsorships.jsx`
+- `BaseCore.WebClient/src/pages/sponsor/SponsorProfile.jsx` (trang `/sponsor/profile`)
 - `BaseCore.WebClient/src/pages/admin/AdminExport.jsx`
 - Phần finance trong `EventDetail.jsx` (campaign, tiến độ, danh sách donor, sponsor public)
 - Phần campaign/sponsorship trong `ManageEvent.jsx`
 - Phần sponsor tracking trong `MySponsorships.jsx`
 
 **Chức năng phụ trách**:
-- Support campaign (tạo, sửa, mở, đóng, hủy, báo cáo sử dụng tiền)
-- Individual donation (gửi, confirm, reject, cancel, overspend guard)
-- Sponsorship proposal (offer, request, accept, reject, cancel, received với ActualReceivedAmount, report, admin revert)
+- SponsorProfile (xem, cập nhật, auto-create)
+- Support campaign (tạo, sửa, mở, đóng, hủy, báo cáo sử dụng tiền, transition guard)
+- Individual donation (gửi, confirm, reject, cancel, overspend guard, notify donor)
+- Sponsorship proposal (offer, request, accept, reject, cancel, received với ActualReceivedAmount, report, admin revert, duplicate prevention, notify cả hai bên)
 - Sponsor tracking (timeline, impact per sponsorship)
 - EventSponsor legacy (tài trợ nhanh)
 - Báo cáo tài chính công khai (impact endpoint phần finance)
 - Admin: finance overview, stale-donations, unreported-campaigns, open-proposals-past-event
-- Admin export finance (JSON/CSV)
+- Admin export finance (JSON/CSV, maxRows limit + CSV injection protection)
 
 ---
 
@@ -140,7 +147,7 @@ main (stable)
 ### Thứ tự merge
 1. A merge `feature/identity` vào main (entity + auth + profile)
 2. B pull main → merge `feature/events` (controller + service + gateway)
-3. C pull main → merge `feature/finance` (finance controller + service)
+3. C pull main → merge `feature/finance` (finance controller + service + SponsorProfile)
 
 ### Trước khi push
 ```powershell

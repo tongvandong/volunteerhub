@@ -35,8 +35,8 @@
 |---|---|---:|---|
 | Gateway | `BaseCore.ApiGateway` | 5000 | Routing, CORS, load balancing |
 | Identity | `BaseCore.AuthService` | 5002 | Auth, JWT, profile, KYC, organizer verification, user management, notifications, badges, skills, monitoring |
-| Event | `BaseCore.EventService` | 5003 | Event CRUD, registration, attendance, certificate, channel, dashboard, ratings, event export |
-| Finance | `BaseCore.FinanceService` | 5004 | Support campaign, donation, sponsorship proposal, finance export |
+| Event | `BaseCore.EventService` | 5003 | Event CRUD, registration, attendance, check-out, certificate, channel (SignalR), dashboard, ratings, event export |
+| Finance | `BaseCore.FinanceService` | 5004 | Support campaign, donation, sponsorship proposal, sponsor profile, finance export |
 | Legacy | `BaseCore.APIService` | 5001 | Fallback (Product, Order — domain cũ) |
 
 ### Shared layers (dùng chung giữa các service)
@@ -54,6 +54,9 @@
 - **Shared code via Compile Include**: EventService và FinanceService link controller từ APIService bằng `<Compile Include="...">` — không duplicate code.
 - **JWT thống nhất**: Cùng secret key → token từ Identity validate được ở Event/Finance.
 - **Migration tự động**: Mỗi service chạy `DatabaseMigrationRunner.RunWithProcessLock()` khi startup (dùng named Mutex để serialize).
+- **IsActive middleware**: Tất cả 4 service đều có middleware kiểm tra `IsActive` — user bị khóa nhận 401 ngay lập tức.
+- **SignalR hub**: EventService có SignalR hub (`/hubs/channel`) cho realtime channel (post/comment). Các service khác dùng `NullChannelRealtimeNotifier`.
+- **Rate limiting**: API nhạy cảm (write-sensitive, read-sensitive) được rate limit.
 
 ## 2. Gateway Routing
 
@@ -66,6 +69,7 @@ Frontend gọi `/api/*` → Vite proxy về Gateway (5000) → Ocelot route theo
 | 185 | `/api/users/{userId}/ratings` | Event 5003 |
 | 180 | `/api/users/*`, `/api/skills/*`, `/api/Roles/*`, `/api/organizer/verification/*`, `/api/uploads/*` | Identity 5002 |
 | 175 | `/api/events/{id}/support-campaigns/*`, `/api/events/{id}/sponsors/*`, `/api/events/{id}/sponsorship-proposals/*` | Finance 5004 |
+| 172 | `/api/sponsor/profile` | Finance 5004 |
 | 170 | `/api/notifications/*`, `/api/badges`, `/api/admin/users/*`, `/api/admin/volunteer-kyc/*`, `/api/admin/organizer-verifications/*`, `/api/admin/monitoring/*`, `/api/admin/audit-logs` | Identity 5002 |
 | 160 | `/api/events/*`, `/api/event-categories/*`, `/api/my-registrations`, `/api/certificates/*`, `/api/channels/*`, `/api/ratings/*` | Event 5003 |
 | 150 | `/api/dashboard/*` | Event 5003 |
@@ -97,6 +101,7 @@ Frontend gọi `/api/*` → Vite proxy về Gateway (5000) → Ocelot route theo
 | Description | string(2000) | |
 | Location | string(300) | Địa chỉ text |
 | Latitude, Longitude | decimal(9,6) | Tọa độ bản đồ |
+| CheckInRadiusKm | decimal(5,2) | Bán kính check-in GPS, mặc định 0.5km |
 | StartDate, EndDate | DateTime | |
 | MinParticipants | int | Mặc định 1 |
 | MaxParticipants | int | |
@@ -106,9 +111,10 @@ Frontend gọi `/api/*` → Vite proxy về Gateway (5000) → Ocelot route theo
 | Status | string(50) | Pending/Approved/Completed/Rejected/Cancelled |
 | CategoryId | int (FK) | → EventCategory |
 | OrganizerId | int (FK) | → User |
-| QrCode | string(500) | Sinh khi Approved |
+| QrCode | string(500) | GUID-based, sinh khi Approved, hỗ trợ rotate |
 | CancelReason | string(1000) | Lý do hủy |
 | CancelledAt | DateTime? | |
+| RejectReason | string(1000) | Lý do từ chối (≥10 ký tự) |
 
 ### Registration
 | Field | Type | Ghi chú |
@@ -120,13 +126,31 @@ Frontend gọi `/api/*` → Vite proxy về Gateway (5000) → Ocelot route theo
 | Status | string(50) | Pending/Confirmed/Cancelled |
 | RegisteredAt | DateTime | |
 | ConfirmedAt | DateTime? | |
+| CancelledAt | DateTime? | Thời điểm hủy |
 | Note | string(500) | Ghi chú khi đăng ký |
 | IsAttended | bool | |
-| AttendedAt | DateTime? | |
-| VolunteerHours | decimal(5,2) | |
+| AttendedAt | DateTime? | Thời điểm check-in |
+| CheckedOutAt | DateTime? | Thời điểm check-out |
+| VolunteerHours | decimal(5,2) | Pro-rate từ check-in đến check-out |
 | CancelRequested | bool | Volunteer xin hủy |
 | CancelRequestedAt | DateTime? | |
 | CancelReason | string(500) | |
+
+### SponsorProfile
+| Field | Type | Ghi chú |
+|---|---|---|
+| Id | int (PK) | |
+| UserId | int (FK, unique) | → User (1-1) |
+| OrganizationName | string | Tên tổ chức |
+| RepresentativeName | string | Tên đại diện |
+| ContactEmail | string | Email liên hệ |
+| Phone | string | SĐT |
+| Website | string | |
+| LogoUrl | string | |
+| Description | string | Mô tả |
+| IsVerified | bool | |
+| CreatedAt | DateTime | |
+| UpdatedAt | DateTime | |
 
 ### SupportCampaign
 | Field | Type | Ghi chú |
@@ -158,6 +182,7 @@ Frontend gọi `/api/*` → Vite proxy về Gateway (5000) → Ocelot route theo
 | IsAnonymous | bool | |
 | ProofImageUrl | string(500) | Ảnh minh chứng |
 | Status | string(50) | PendingConfirmation/Confirmed/Rejected/Cancelled |
+| RejectedReason | string(500) | Lý do từ chối |
 
 ### SponsorshipProposal
 | Field | Type | Ghi chú |
@@ -177,10 +202,11 @@ Frontend gọi `/api/*` → Vite proxy về Gateway (5000) → Ocelot route theo
 ### Các entity khác
 - **WorkShift**: ca làm việc (id, eventId, name, startTime, endTime, maxVolunteers, requiredSkillId?)
 - **Certificate**: chứng chỉ (id, userId, eventId, certificateCode [unique], volunteerHours, issuedAt, pdfUrl)
+- **CertificateJob**: job cấp chứng chỉ (id, eventId, status [Pending/Completed/Failed], createdAt)
 - **Badge**: huy hiệu (id, name, description, iconUrl, condition [JSON: min_events, min_hours])
 - **UserBadge**: user nhận badge (id, userId, badgeId, awardedAt)
 - **Rating**: đánh giá (id, eventId, raterId, rateeId, score 1-5, comment, isHidden, hiddenReason, hiddenAt, hiddenBy)
-- **Channel**: kênh trao đổi (id, eventId [unique 1-1], name, isActive)
+- **Channel**: kênh trao đổi (id, eventId, parentChannelId?, shiftId?, name, isActive)
 - **Post**: bài viết (id, channelId, authorId, content, imageUrl, createdAt)
 - **Comment**: bình luận (id, postId, authorId, content, createdAt)
 - **Like**: thích (id, postId, userId [unique cùng postId])
@@ -188,7 +214,7 @@ Frontend gọi `/api/*` → Vite proxy về Gateway (5000) → Ocelot route theo
 - **OrganizerVerification**: hồ sơ xác minh (id, organizerId [unique], organizationName, representativeName, contactEmail, phone, address, documentUrl, status, adminNote, rejectReason, verifiedAt, verifiedBy)
 - **VolunteerProfile**: hồ sơ volunteer (id, userId [unique], bloodType, languages, interests, bio, avatarUrl, totalVolunteerHours, kycStatus, identityFrontImageUrl, identityBackImageUrl, portraitImageUrl, kycSubmittedAt, kycReviewedAt)
 - **VolunteerSkill**: kỹ năng volunteer (id, userId, skillId [unique cùng userId], level, verificationStatus, evidenceUrl, verificationNote, adminNote)
-- **AuditLog**: log thao tác (id, userId, action, entityType, entityId, metadata, ipAddress, createdAtUtc)
+- **AuditLog**: log thao tác (id, userId, action, entityType, entityId, metadata [ghi method/GPS/IP cho check-in], ipAddress, createdAtUtc)
 - **EventSponsor**: tài trợ legacy (id, eventId, sponsorId, contributionType, amount, note, sponsoredAt)
 
 ## 4. API Endpoint chính
@@ -225,8 +251,9 @@ PUT    /api/notifications/read-all                     Đánh dấu tất cả �
 GET    /api/badges                                     Danh sách huy hiệu
 GET    /api/my-badges                                  Huy hiệu của tôi
 
+POST   /api/admin/users                     [Admin]    Tạo user mới
 GET    /api/admin/users                     [Admin]    Danh sách user
-PUT    /api/admin/users/{id}/toggle-status  [Admin]    Khóa/mở user (kèm impact)
+PUT    /api/admin/users/{id}/toggle-status  [Admin]    Khóa/mở user (kèm cascade)
 GET    /api/admin/volunteer-kyc             [Admin]    Danh sách KYC chờ duyệt
 PUT    /api/admin/volunteer-kyc/{id}/approve [Admin]   Duyệt KYC
 PUT    /api/admin/volunteer-kyc/{id}/reject  [Admin]   Từ chối KYC
@@ -247,17 +274,19 @@ GET    /api/events                                     Danh sách event (public,
 GET    /api/events/{id}                                Chi tiết event
 GET    /api/events/my                       [Organizer] Event của tôi
 GET    /api/events/recommended              [Volunteer] Gợi ý theo kỹ năng
+GET    /api/events/overdue-preview          [Admin]    Danh sách event quá hạn chưa complete
 POST   /api/events                          [Organizer] Tạo event
 PUT    /api/events/{id}                     [Organizer] Sửa event
 DELETE /api/events/{id}                     [Owner/Admin] Xóa event
 PUT    /api/events/{id}/approve             [Admin]    Duyệt → Approved
-PUT    /api/events/{id}/reject              [Admin]    Từ chối → Rejected
+PUT    /api/events/{id}/reject              [Admin]    Từ chối → Rejected (reason ≥10 chars)
 PUT    /api/events/{id}/complete            [Organizer/Admin] Hoàn thành
 PUT    /api/events/{id}/cancel              [Organizer/Admin] Hủy + cascade
 POST   /api/events/{id}/resubmit           [Organizer] Gửi duyệt lại
-POST   /api/events/{id}/uncomplete         [Admin]    Mở lại (rollback)
+POST   /api/events/{id}/uncomplete         [Admin]    Mở lại (rollback) + notify organizer
 POST   /api/events/auto-complete-overdue   [Admin]    Auto-complete quá hạn
-PUT    /api/events/{id}/transfer            [Admin]    Chuyển quyền sở hữu
+PUT    /api/events/{id}/transfer            [Admin]    Chuyển quyền (validate Verified + notify)
+POST   /api/events/{id}/qr/rotate          [Organizer/Admin] Xoay mã QR check-in
 GET    /api/events/{id}/impact                         Tác động công khai
 
 GET    /api/events/{id}/registrations       [Organizer/Admin] Danh sách đăng ký
@@ -271,6 +300,7 @@ POST   /api/events/{id}/registrations/{regId}/checkin [Organizer] QR/GPS
 POST   /api/events/{id}/self-checkin        [Volunteer] Tự check-in
 POST   /api/events/{id}/walk-in             [Organizer] Đăng ký tại chỗ
 POST   /api/events/{id}/registrations/{regId}/manual-attend [Organizer]
+POST   /api/events/{id}/registrations/{regId}/checkout [Organizer] Check-out + pro-rate hours
 PUT    /api/events/{id}/registrations/{regId}/hours [Organizer] Chỉnh giờ
 GET    /api/my-registrations                [Authenticated] Lịch sử đăng ký
 
@@ -295,16 +325,21 @@ POST   /api/channels/{id}/posts/{postId}/likes    [Authenticated]
 
 POST   /api/events/{id}/ratings             [Authenticated] Tạo đánh giá
 GET    /api/users/{userId}/ratings                     Xem đánh giá (public)
+GET    /api/ratings/admin                   [Admin]    Lọc theo raterId/rateeId/eventId/hidden
 PUT    /api/ratings/{id}/hide               [Admin]    Ẩn đánh giá
 PUT    /api/ratings/{id}/unhide             [Admin]    Hiện lại
-DELETE /api/ratings/{id}                    [Admin]    Xóa đánh giá
+DELETE /api/ratings/{id}                    [Admin]    Xóa đánh giá (chỉ Admin)
 
 GET    /api/dashboard                       [Authenticated] Dashboard theo role
-GET    /api/admin/export/events             [Admin]    Export event JSON/CSV
+GET    /api/dashboard/organizer-insights    [Organizer] Insights chi tiết
+GET    /api/admin/export/events             [Admin]    Export event JSON/CSV (maxRows limit)
 ```
 
 ### Finance Service (5004)
 ```
+GET    /api/sponsor/profile                 [Sponsor]  Xem hồ sơ nhà tài trợ
+PUT    /api/sponsor/profile                 [Sponsor]  Cập nhật hồ sơ nhà tài trợ
+
 GET    /api/events/{id}/support-campaigns              Danh sách campaign (public nếu Open)
 GET    /api/support-campaigns/{id}                     Chi tiết campaign
 POST   /api/events/{id}/support-campaigns   [Organizer] Tạo campaign
@@ -323,7 +358,7 @@ PUT    /api/donations/{id}/cancel           [Owner/Organizer]  Hủy khi pending
 
 GET    /api/events/{id}/sponsorship-proposals [Organizer/Sponsor/Admin]
 POST   /api/events/{id}/sponsorship-proposals/organizer-request [Organizer]
-POST   /api/events/{id}/sponsorship-proposals/sponsor-offer [Sponsor]
+POST   /api/events/{id}/sponsorship-proposals/sponsor-offer [Sponsor] (duplicate prevention)
 GET    /api/sponsorship-proposals/my        [Organizer/Sponsor]
 PUT    /api/sponsorship-proposals/{id}/accept [Bên nhận]
 PUT    /api/sponsorship-proposals/{id}/reject [Bên nhận]
@@ -343,7 +378,7 @@ GET    /api/admin/finance/overview          [Admin]    Tổng quan tài chính
 GET    /api/admin/finance/stale-donations   [Admin]    Donation pending quá hạn
 GET    /api/admin/finance/unreported-campaigns [Admin] Campaign chưa báo cáo
 GET    /api/admin/finance/open-proposals-past-event [Admin] Proposal kẹt
-GET    /api/admin/export/finance            [Admin]    Export finance JSON/CSV
+GET    /api/admin/export/finance            [Admin]    Export finance JSON/CSV (maxRows limit)
 ```
 
 ## 5. Công nghệ sử dụng
@@ -355,6 +390,7 @@ GET    /api/admin/export/finance            [Admin]    Export finance JSON/CSV
 | Database | SQL Server | 2022 |
 | API Gateway | Ocelot | 23.x |
 | Auth | JWT Bearer | 8.0.26 |
+| Realtime | SignalR | (built-in ASP.NET Core) |
 | Frontend | React + Vite | React 18, Vite 5 |
 | UI Library | Ant Design / custom CSS | |
 | Map | Leaflet | |

@@ -128,7 +128,7 @@ Hệ thống tự seed 4 tài khoản khi database được tạo lần đầu:
 |---|---|---|---|
 | Admin | `admin` | `admin123` | Quản trị viên hệ thống |
 | Organizer | `organizer` | `organizer123` | Nhà tổ chức (đã verified) |
-| Sponsor | `sponsor` | `sponsor123` | Nhà tài trợ |
+| Sponsor | `sponsor` | `sponsor123` | Nhà tài trợ (đã có SponsorProfile) |
 | Volunteer | `volunteer` | `volunteer123` | Tình nguyện viên (đã KYC verified) |
 
 Ngoài ra hệ thống seed sẵn:
@@ -136,15 +136,17 @@ Ngoài ra hệ thống seed sẵn:
 - 7 kỹ năng (Y tế, Giáo dục, CNTT, Hậu cần, Truyền thông, Ngoại ngữ, Lái xe).
 - 3 huy hiệu (Chiến sĩ xanh, Đại sứ nhân ái, Chuyên gia tình nguyện).
 - 3 sự kiện mẫu (1 Pending, 1 Approved, 1 Completed) với channel, registration, certificate.
+- 1 SponsorProfile cho tài khoản sponsor demo (Công ty TNHH Tài trợ Demo).
+- 1 OrganizerVerification cho tài khoản organizer demo (đã Verified).
 
 ## 9. Demo nhanh
 
 1. Mở `http://localhost:3000` → xem landing page.
-2. Đăng nhập `organizer / organizer123` → vào `/events/create` → tạo sự kiện.
+2. Đăng nhập `organizer / organizer123` → vào `/events/create` → tạo sự kiện (có thể set CheckInRadiusKm).
 3. Đăng nhập `admin / admin123` → vào `/admin/events` → duyệt sự kiện.
 4. Đăng nhập `volunteer / volunteer123` → vào `/events` → mở sự kiện đã duyệt → đăng ký.
-5. Đăng nhập `organizer` → vào `/my-events` → quản lý → xác nhận volunteer → điểm danh → hoàn thành.
-6. Đăng nhập `sponsor / sponsor123` → vào `/events` → mở sự kiện đã duyệt → gửi tài trợ → vào `/my-sponsorships` xem.
+5. Đăng nhập `organizer` → vào `/my-events` → quản lý → xác nhận volunteer → điểm danh → check-out → hoàn thành.
+6. Đăng nhập `sponsor / sponsor123` → vào `/sponsor/profile` → xem/sửa hồ sơ → vào `/events` → mở sự kiện đã duyệt → gửi tài trợ → vào `/my-sponsorships` xem.
 7. Đăng nhập `volunteer` → xem `/my-certificates` → xem `/my-registrations` → đánh giá organizer.
 
 ## 10. Lỗi thường gặp
@@ -156,6 +158,7 @@ Ngoài ra hệ thống seed sẵn:
 | `Timed out waiting for migration lock` | Service khác đang chạy migration | Đợi 30 giây hoặc restart |
 | `npm run dev` lỗi | Chưa `npm install` | Chạy `npm install` trong `BaseCore.WebClient/` |
 | Build lỗi "file is locked" | Process cũ đang chạy | Tắt hết terminal cũ rồi build lại |
+| 401 khi gọi API | User bị khóa (IsActive=false) hoặc token hết hạn | Kiểm tra trạng thái user hoặc refresh token |
 
 ## 11. Reset database demo
 
@@ -166,4 +169,4 @@ Nếu muốn đưa database về trạng thái sạch:
 sqlcmd -S "(localdb)\MSSQLLocalDB" -Q "DROP DATABASE IF EXISTS VolunteerHub"
 ```
 
-Sau đó restart bất kỳ service nào — migration sẽ tạo lại database + seed data.
+Sau đó restart bất kỳ service nào — migration sẽ tạo lại database + seed data (bao gồm SponsorProfile demo).
