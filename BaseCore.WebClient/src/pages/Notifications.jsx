@@ -13,11 +13,15 @@ const TYPE_ICON = {
 };
 
 function timeAgo(dt) {
-  const diff = (Date.now() - new Date(dt)) / 1000;
+  const raw = String(dt);
+  const d = new Date(raw.endsWith('Z') || raw.includes('+') ? raw : raw + 'Z');
+  const diff = (Date.now() - d.getTime()) / 1000;
+  if (diff < 0) return 'Vừa xong';
   if (diff < 60) return 'Vừa xong';
   if (diff < 3600) return `${Math.floor(diff / 60)} phút trước`;
   if (diff < 86400) return `${Math.floor(diff / 3600)} giờ trước`;
-  return new Date(dt).toLocaleDateString('vi-VN');
+  if (diff < 604800) return `${Math.floor(diff / 86400)} ngày trước`;
+  return d.toLocaleDateString('vi-VN');
 }
 
 export default function Notifications() {

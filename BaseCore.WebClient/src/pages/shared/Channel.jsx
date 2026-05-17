@@ -22,12 +22,15 @@ const filterTabs = [
 
 function fmt(dt) {
   if (!dt) return '';
-  const d = new Date(dt);
+  const raw = String(dt);
+  const d = new Date(raw.endsWith('Z') || raw.includes('+') ? raw : raw + 'Z');
   const now = new Date();
   const diff = (now - d) / 1000;
-  if (diff < 60) return 'Vua xong';
-  if (diff < 3600) return `${Math.floor(diff / 60)} phut truoc`;
-  if (diff < 86400) return `${Math.floor(diff / 3600)} gio truoc`;
+  if (diff < 0) return 'Vừa xong';
+  if (diff < 60) return 'Vừa xong';
+  if (diff < 3600) return `${Math.floor(diff / 60)} phút trước`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)} giờ trước`;
+  if (diff < 604800) return `${Math.floor(diff / 86400)} ngày trước`;
   return d.toLocaleDateString('vi-VN');
 }
 
