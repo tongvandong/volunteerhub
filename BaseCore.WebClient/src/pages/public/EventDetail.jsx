@@ -50,7 +50,7 @@ function EventImage({ src, title }) {
 
 export default function EventDetail() {
   const { id } = useParams();
-  const { isAuthenticated, isVolunteer } = useAuth();
+  const { isAuthenticated, isVolunteer, isSponsor } = useAuth();
   const navigate = useNavigate();
   const [event, setEvent] = useState(null);
   const [shifts, setShifts] = useState([]);
@@ -754,6 +754,15 @@ export default function EventDetail() {
 
             {isAuthenticated && isVolunteer() && !activeRegistration && event.status !== 'Approved' && (
               <p className="text-xs text-center text-gray-400">Sự kiện chưa mở đăng ký.</p>
+            )}
+
+            {isAuthenticated && isSponsor() && (event.status === 'Approved' || event.status === 'Completed') && (
+              <Link
+                to={`/my-sponsorships?eventId=${event.id}`}
+                className="btn-primary w-full text-center flex items-center justify-center gap-2"
+              >
+                <i className="fa-solid fa-handshake" /> Đề nghị tài trợ
+              </Link>
             )}
           </div>
 

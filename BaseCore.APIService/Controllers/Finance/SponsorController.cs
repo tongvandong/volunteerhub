@@ -16,15 +16,18 @@ namespace BaseCore.APIService.Controllers
         private readonly IEventSponsorRepositoryEF _sponsorRepo;
         private readonly MySqlDbContext _context;
         private readonly IAuditLogService _auditLogService;
+        private readonly INotificationService _notificationService;
 
         public SponsorController(
             IEventSponsorRepositoryEF sponsorRepo,
             MySqlDbContext context,
-            IAuditLogService auditLogService)
+            IAuditLogService auditLogService,
+            INotificationService notificationService)
         {
             _sponsorRepo = sponsorRepo;
             _context = context;
             _auditLogService = auditLogService;
+            _notificationService = notificationService;
         }
 
         [HttpGet("api/events/{eventId}/sponsors")]
@@ -41,10 +44,20 @@ namespace BaseCore.APIService.Controllers
             if (!int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var userId))
                 return Unauthorized();
 
+            var ev = await _context.Events.FirstOrDefaultAsync(e => e.Id == eventId);
+            if (ev == null) return NotFound(new { message = "Event not found" });
+
+            if (ev.EndDate <= DateTime.UtcNow)
+                return BadRequest(new { message = "Cannot sponsor an event that has already ended" });
+
             await RecordAuditAsync(userId, "Sponsor.Add.BlockedLegacy", "EventSponsor", null, $"EventId={eventId}");
+
+            Response.Headers["X-Deprecated"] = "Use /api/events/{eventId}/sponsorship-proposals/sponsor-offer instead";
+
             return BadRequest(new
             {
-                message = "Direct sponsorship is disabled. Please use the sponsorship proposal workflow so organizer and sponsor can approve and record actual received amount."
+                message = "Direct sponsorship is disabled. Please use the sponsorship proposal workflow so organizer and sponsor can approve and record actual received amount.",
+                warning = "This endpoint is deprecated. Use /api/events/{eventId}/sponsorship-proposals/sponsor-offer instead."
             });
         }
 

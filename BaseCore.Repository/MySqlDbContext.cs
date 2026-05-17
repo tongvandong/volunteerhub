@@ -55,6 +55,7 @@ namespace BaseCore.Repository
         public DbSet<AuditLog> AuditLogs { get; set; }
         public DbSet<CertificateJob> CertificateJobs { get; set; }
         public DbSet<OrganizerVerification> OrganizerVerifications { get; set; }
+        public DbSet<SponsorProfile> SponsorProfiles { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -802,6 +803,46 @@ namespace BaseCore.Repository
             // Seed certificate cho event 3 (Completed)
             modelBuilder.Entity<Certificate>().HasData(
                 new Certificate { Id = 1, UserId = 4, EventId = 3, CertificateCode = "CERT-2025-0001", IssuedAt = new DateTime(2025, 7, 1), VolunteerHours = 8, PdfUrl = "" }
+            );
+
+            // =============================================
+            // VOLUNTEERHUB: SPONSOR PROFILE
+            // =============================================
+
+            modelBuilder.Entity<SponsorProfile>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.OrganizationName).HasMaxLength(200).IsRequired(false);
+                entity.Property(e => e.RepresentativeName).HasMaxLength(150).IsRequired(false);
+                entity.Property(e => e.ContactEmail).HasMaxLength(150).IsRequired(false);
+                entity.Property(e => e.Phone).HasMaxLength(30).IsRequired(false);
+                entity.Property(e => e.Website).HasMaxLength(500).IsRequired(false);
+                entity.Property(e => e.LogoUrl).HasMaxLength(500).IsRequired(false);
+                entity.Property(e => e.Description).HasMaxLength(2000).IsRequired(false);
+                entity.HasOne(e => e.User)
+                      .WithMany()
+                      .HasForeignKey(e => e.UserId)
+                      .OnDelete(DeleteBehavior.Cascade);
+                entity.HasIndex(e => e.UserId).IsUnique();
+            });
+
+            // Seed sponsor profile for demo sponsor user (userId=3)
+            modelBuilder.Entity<SponsorProfile>().HasData(
+                new SponsorProfile
+                {
+                    Id = 1,
+                    UserId = 3,
+                    OrganizationName = "Công ty TNHH Tài trợ Demo",
+                    RepresentativeName = "Nguyễn Văn Sponsor",
+                    ContactEmail = "sponsor@demo.vn",
+                    Phone = "0901234567",
+                    Website = "https://sponsor-demo.vn",
+                    LogoUrl = "",
+                    Description = "Nhà tài trợ demo cho hệ thống VolunteerHub",
+                    IsVerified = true,
+                    CreatedAt = new DateTime(2025, 5, 1),
+                    UpdatedAt = new DateTime(2025, 5, 1)
+                }
             );
         }
     }

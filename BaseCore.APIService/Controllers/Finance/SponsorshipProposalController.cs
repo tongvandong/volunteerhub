@@ -302,6 +302,12 @@ namespace BaseCore.APIService.Controllers
 
             await _context.SaveChangesAsync();
             await RecordAuditAsync(userId, "SponsorshipProposal.Report", "SponsorshipProposal", proposal.Id, $"UsedAmount={proposal.UsedAmount:0.##}");
+            await _notificationService.SendAsync(
+                proposal.SponsorId,
+                "Báo cáo sử dụng tài trợ",
+                $"Ban tổ chức đã gửi báo cáo sử dụng tài trợ cho đề nghị '{proposal.Title}' của sự kiện '{proposal.Event.Title}'. Số tiền đã sử dụng: {proposal.UsedAmount:0.##}đ.",
+                "SponsorshipProposalReported",
+                proposal.Id);
             return Ok(await GetProposalDto(proposal.Id));
         }
 
@@ -309,6 +315,10 @@ namespace BaseCore.APIService.Controllers
         {
             if (!TryGetUserId(out var userId)) return Unauthorized();
             if (!await IsUserActiveAsync(userId)) return Forbid();
+
+            if (status == "Rejected" && (string.IsNullOrWhiteSpace(message) || message.Trim().Length < 10))
+                return BadRequest(new { message = "Reject reason must be at least 10 characters" });
+
             var proposal = await BaseProposalQuery().FirstOrDefaultAsync(p => p.Id == proposalId);
             if (proposal == null) return NotFound(new { message = "Proposal not found" });
             if (proposal.Status != "Pending") return BadRequest(new { message = "Only pending proposals can be answered" });

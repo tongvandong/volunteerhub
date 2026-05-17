@@ -28,6 +28,7 @@ const ManageEvent = lazy(() => import('./pages/organizer/ManageEvent'));
 const OrganizerVerification = lazy(() => import('./pages/organizer/OrganizerVerification'));
 const OrganizerInsights = lazy(() => import('./pages/organizer/OrganizerInsights'));
 const MySponsorships = lazy(() => import('./pages/sponsor/MySponsorships'));
+const SponsorProfile = lazy(() => import('./pages/sponsor/SponsorProfile'));
 const AdminEvents = lazy(() => import('./pages/admin/AdminEvents'));
 const AdminOrganizerVerifications = lazy(() => import('./pages/admin/AdminOrganizerVerifications'));
 const AdminVolunteerVerifications = lazy(() => import('./pages/admin/AdminVolunteerVerifications'));
@@ -94,6 +95,7 @@ function AppRoutes() {
         <Route path="/organizer/insights" element={<AppPage roles={['Organizer']}><OrganizerInsights /></AppPage>} />
 
         <Route path="/my-sponsorships" element={<AppPage roles={['Sponsor']}><MySponsorships /></AppPage>} />
+        <Route path="/sponsor/profile" element={<AppPage roles={['Sponsor']}><SponsorProfile /></AppPage>} />
 
         <Route path="/admin/events" element={<AppPage roles={['Admin']}><AdminEvents /></AppPage>} />
         <Route path="/admin/organizer-verifications" element={<AppPage roles={['Admin']}><AdminOrganizerVerifications /></AppPage>} />

@@ -95,7 +95,22 @@ namespace BaseCore.APIService.Controllers
                     .Where(s => s.SponsorId == userId)
                     .OrderByDescending(s => s.SponsoredAt)
                     .ToListAsync();
-                return Ok(new { totalSponsored = mySponsors.Count, sponsors = mySponsors });
+                var myProposals = await _context.SponsorshipProposals
+                    .Where(p => p.SponsorId == userId)
+                    .ToListAsync();
+                var totalProposals = myProposals.Count;
+                var pendingProposals = myProposals.Count(p => p.Status == "Pending");
+                var receivedAmount = myProposals
+                    .Where(p => p.Status == "Received" || p.Status == "Reported")
+                    .Sum(p => p.ActualReceivedAmount ?? 0);
+                return Ok(new
+                {
+                    totalSponsored = mySponsors.Count,
+                    sponsors = mySponsors,
+                    totalProposals,
+                    pendingProposals,
+                    receivedAmount
+                });
             }
             else // Volunteer
             {

@@ -254,6 +254,11 @@ export const sponsorApi = {
   getMySponsorshipTracking: (id) => api.get(`/sponsors/my/${id}/tracking`),
 };
 
+export const sponsorProfileApi = {
+  get: () => api.get('/sponsor/profile'),
+  update: (data) => api.put('/sponsor/profile', data),
+};
+
 export const supportCampaignApi = {
   getByEvent: (eventId) => api.get(`/events/${eventId}/support-campaigns`),
   getById: (campaignId) => api.get(`/support-campaigns/${campaignId}`),
