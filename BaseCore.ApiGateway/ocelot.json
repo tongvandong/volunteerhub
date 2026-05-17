@@ -257,6 +257,14 @@
       "Priority": 160
     },
     {
+      "DownstreamPathTemplate": "/api/sponsor/profile",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [{ "Host": "localhost", "Port": 5004 }],
+      "UpstreamPathTemplate": "/api/sponsor/profile",
+      "UpstreamHttpMethod": [ "GET", "PUT", "OPTIONS" ],
+      "Priority": 176
+    },
+    {
       "DownstreamPathTemplate": "/api/events/{eventId}/support-campaigns/{everything}",
       "DownstreamScheme": "http",
       "DownstreamHostAndPorts": [{ "Host": "localhost", "Port": 5004 }],
