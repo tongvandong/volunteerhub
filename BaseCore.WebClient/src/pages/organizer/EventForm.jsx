@@ -11,6 +11,7 @@ const INIT = {
   location: '',
   latitude: '',
   longitude: '',
+  checkInRadiusKm: 0.5,
   startDate: '',
   endDate: '',
   minParticipants: 1,
@@ -133,6 +134,7 @@ export default function EventForm() {
     location: 1,
     latitude: 1,
     longitude: 1,
+    checkInRadiusKm: 1,
     startDate: 2,
     endDate: 2,
     minParticipants: 2,
@@ -206,6 +208,7 @@ export default function EventForm() {
   const validateAll = useCallback(() => {
     const latitude = form.latitude ? parseFloat(form.latitude) : null;
     const longitude = form.longitude ? parseFloat(form.longitude) : null;
+    const checkInRadiusKm = parseFloat(form.checkInRadiusKm);
     const minParticipants = parseInt(form.minParticipants, 10);
     const maxParticipants = parseInt(form.maxParticipants, 10);
 
@@ -219,6 +222,9 @@ export default function EventForm() {
     }
     if (latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) {
       return 'Tọa độ không hợp lệ. Latitude phải từ -90 đến 90, longitude phải từ -180 đến 180.';
+    }
+    if (!Number.isFinite(checkInRadiusKm) || checkInRadiusKm <= 0 || checkInRadiusKm > 10) {
+      return 'Bán kính điểm danh phải lớn hơn 0 và không vượt quá 10 km.';
     }
     if (!Number.isInteger(minParticipants) || minParticipants < 1) {
       return 'Số tình nguyện viên tối thiểu phải từ 1 trở lên.';
@@ -247,9 +253,13 @@ export default function EventForm() {
     if (stepIndex === 1) {
       const latitude = form.latitude ? parseFloat(form.latitude) : null;
       const longitude = form.longitude ? parseFloat(form.longitude) : null;
+      const checkInRadiusKm = parseFloat(form.checkInRadiusKm);
       if (!form.location.trim()) return 'Vui lòng nhập địa điểm sự kiện.';
       if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
         return 'Vui lòng chọn vị trí trên bản đồ hoặc nhập tọa độ.';
+      }
+      if (!Number.isFinite(checkInRadiusKm) || checkInRadiusKm <= 0 || checkInRadiusKm > 10) {
+        return 'Bán kính điểm danh phải lớn hơn 0 và không vượt quá 10 km.';
       }
     }
 
@@ -391,6 +401,7 @@ export default function EventForm() {
             location: ev.location || '',
             latitude: ev.latitude || '',
             longitude: ev.longitude || '',
+            checkInRadiusKm: ev.checkInRadiusKm || 0.5,
             startDate: ev.startDate ? ev.startDate.slice(0, 16) : '',
             endDate: ev.endDate ? ev.endDate.slice(0, 16) : '',
             minParticipants: ev.minParticipants || 1,
@@ -519,6 +530,7 @@ export default function EventForm() {
       ...form,
       latitude: parseFloat(form.latitude),
       longitude: parseFloat(form.longitude),
+      checkInRadiusKm: parseFloat(form.checkInRadiusKm),
       minParticipants: parseInt(form.minParticipants, 10),
       maxParticipants: parseInt(form.maxParticipants, 10),
       categoryId: parseInt(form.categoryId, 10),
@@ -762,6 +774,21 @@ export default function EventForm() {
           </div>
 
           {!form.latitude || !form.longitude ? <Notice type="error">Vui lòng chọn tọa độ trước khi lưu sự kiện.</Notice> : null}
+          <div className="rounded-xl border border-gray-200 bg-white p-4">
+            <label className="mb-1 block text-sm font-medium text-gray-700">Bán kính GPS cho điểm danh (km)</label>
+            <input
+              type="number"
+              min="0.05"
+              max="10"
+              step="0.05"
+              value={form.checkInRadiusKm}
+              onInput={(event) => set('checkInRadiusKm', event.target.value)}
+              onChange={(event) => set('checkInRadiusKm', event.target.value)}
+              className="input-field"
+            />
+            <FieldHint>Mặc định 0.5 km. Sự kiện trong phòng nên để nhỏ hơn, sự kiện ngoài trời rộng có thể tăng nhưng tối đa 10 km.</FieldHint>
+          </div>
+
           {locationNote && <Notice type="info">{locationNote}</Notice>}
         </section>
       );

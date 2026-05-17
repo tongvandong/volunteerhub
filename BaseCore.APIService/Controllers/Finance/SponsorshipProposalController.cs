@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
+using System.Data;
 
 namespace BaseCore.APIService.Controllers
 {
@@ -14,11 +15,16 @@ namespace BaseCore.APIService.Controllers
     {
         private readonly MySqlDbContext _context;
         private readonly IAuditLogService _auditLogService;
+        private readonly INotificationService _notificationService;
 
-        public SponsorshipProposalController(MySqlDbContext context, IAuditLogService auditLogService)
+        public SponsorshipProposalController(
+            MySqlDbContext context,
+            IAuditLogService auditLogService,
+            INotificationService notificationService)
         {
             _context = context;
             _auditLogService = auditLogService;
+            _notificationService = notificationService;
         }
 
         [HttpGet("api/sponsors/users"), Authorize(Roles = "Organizer,Admin")]
@@ -65,20 +71,25 @@ namespace BaseCore.APIService.Controllers
 
         [HttpPost("api/events/{eventId}/sponsorship-proposals/organizer-request"), Authorize(Roles = "Organizer,Admin")]
         [EnableRateLimiting("write-sensitive")]
-        public async Task<IActionResult> OrganizerRequest(int eventId, [FromBody] SponsorshipProposalDto dto)
+        public async Task<IActionResult> OrganizerRequest(int eventId, [FromBody] OrganizerSponsorshipRequestDto dto)
         {
             if (!TryGetUserId(out var userId)) return Unauthorized();
+            if (!await IsUserActiveAsync(userId)) return Forbid();
 
             var ev = await _context.Events.FirstOrDefaultAsync(e => e.Id == eventId);
             if (ev == null) return NotFound(new { message = "Event not found" });
             if (!CanManageEvent(ev, userId)) return Forbid();
             if (ev.Status is "Rejected" or "Cancelled") return BadRequest(new { message = "Cannot sponsor rejected or cancelled events" });
+            if (ev.Status == "Completed" && !dto.IsRetroactive)
+                return BadRequest(new { message = "Completed events require isRetroactive=true for organizer sponsorship requests" });
 
             var sponsor = await _context.Users.FirstOrDefaultAsync(u => u.Id == dto.SponsorId && u.UserType == 2 && u.IsActive);
             if (sponsor == null) return BadRequest(new { message = "Sponsor account not found" });
 
             var validation = ValidateProposal(dto, "OrganizerRequest");
             if (validation != null) return BadRequest(new { message = validation });
+            if (await HasActiveProposalAsync(eventId, sponsor.Id))
+                return BadRequest(new { message = "This sponsor already has an active sponsorship proposal for this event" });
 
             var proposal = new SponsorshipProposal
             {
@@ -100,22 +111,31 @@ namespace BaseCore.APIService.Controllers
             _context.SponsorshipProposals.Add(proposal);
             await _context.SaveChangesAsync();
             await RecordAuditAsync(userId, "SponsorshipProposal.OrganizerRequest", "SponsorshipProposal", proposal.Id, $"EventId={eventId};SponsorId={sponsor.Id};Amount={proposal.RequestedAmount:0.##}");
+            await _notificationService.SendAsync(
+                sponsor.Id,
+                "Lời mời tài trợ mới",
+                $"Bạn nhận được lời mời tài trợ '{proposal.Title}' cho sự kiện '{ev.Title}'.",
+                "SponsorshipProposalCreated",
+                proposal.Id);
 
             return Ok(await GetProposalDto(proposal.Id));
         }
 
         [HttpPost("api/events/{eventId}/sponsorship-proposals/sponsor-offer"), Authorize(Roles = "Sponsor")]
         [EnableRateLimiting("write-sensitive")]
-        public async Task<IActionResult> SponsorOffer(int eventId, [FromBody] SponsorshipProposalDto dto)
+        public async Task<IActionResult> SponsorOffer(int eventId, [FromBody] SponsorSponsorshipOfferDto dto)
         {
             if (!TryGetUserId(out var userId)) return Unauthorized();
+            if (!await IsUserActiveAsync(userId)) return Forbid();
 
             var ev = await _context.Events.FirstOrDefaultAsync(e => e.Id == eventId);
             if (ev == null) return NotFound(new { message = "Event not found" });
-            if (ev.Status != "Approved") return BadRequest(new { message = "Only approved events can receive sponsor offers" });
+            if (ev.Status is not ("Approved" or "Completed")) return BadRequest(new { message = "Only approved or completed events can receive sponsor offers" });
 
             var validation = ValidateProposal(dto, "SponsorOffer");
             if (validation != null) return BadRequest(new { message = validation });
+            if (await HasActiveProposalAsync(eventId, userId))
+                return BadRequest(new { message = "You already have an active sponsorship proposal for this event" });
 
             var sponsor = await _context.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == userId);
             var proposal = new SponsorshipProposal
@@ -140,6 +160,12 @@ namespace BaseCore.APIService.Controllers
             _context.SponsorshipProposals.Add(proposal);
             await _context.SaveChangesAsync();
             await RecordAuditAsync(userId, "SponsorshipProposal.SponsorOffer", "SponsorshipProposal", proposal.Id, $"EventId={eventId};Amount={proposal.OfferedAmount:0.##}");
+            await _notificationService.SendAsync(
+                ev.OrganizerId,
+                "Đề nghị tài trợ mới",
+                $"Sponsor '{sponsor?.Name ?? sponsor?.UserName ?? "Sponsor"}' đã gửi đề nghị tài trợ '{proposal.Title}' cho sự kiện '{ev.Title}'.",
+                "SponsorshipProposalCreated",
+                proposal.Id);
 
             return Ok(await GetProposalDto(proposal.Id));
         }
@@ -157,6 +183,7 @@ namespace BaseCore.APIService.Controllers
         public async Task<IActionResult> Cancel(int proposalId)
         {
             if (!TryGetUserId(out var userId)) return Unauthorized();
+            if (!await IsUserActiveAsync(userId)) return Forbid();
             var proposal = await BaseProposalQuery().FirstOrDefaultAsync(p => p.Id == proposalId);
             if (proposal == null) return NotFound(new { message = "Proposal not found" });
             if (!CanAccessProposal(proposal, userId)) return Forbid();
@@ -166,6 +193,7 @@ namespace BaseCore.APIService.Controllers
             proposal.CancelledAt = DateTime.UtcNow;
             await _context.SaveChangesAsync();
             await RecordAuditAsync(userId, "SponsorshipProposal.Cancel", "SponsorshipProposal", proposal.Id);
+            await NotifyProposalCounterpartyAsync(proposal, userId, "Đề nghị tài trợ đã bị hủy", $"Đề nghị tài trợ '{proposal.Title}' cho sự kiện '{proposal.Event.Title}' đã bị hủy.", "SponsorshipProposalCancelled");
             return Ok(ToDto(proposal));
         }
 
@@ -174,46 +202,56 @@ namespace BaseCore.APIService.Controllers
         public async Task<IActionResult> MarkReceived(int proposalId, [FromBody] ProposalReceivedDto? dto = null)
         {
             if (!TryGetUserId(out var userId)) return Unauthorized();
+            if (!await IsUserActiveAsync(userId)) return Forbid();
+            if (dto?.ActualReceivedAmount == null)
+                return BadRequest(new { message = "Actual received amount is required" });
+            if (dto.ActualReceivedAmount.Value <= 0)
+                return BadRequest(new { message = "Actual received amount must be greater than zero" });
+
+            await using var tx = await _context.Database.BeginTransactionAsync(IsolationLevel.Serializable);
             var proposal = await BaseProposalQuery().FirstOrDefaultAsync(p => p.Id == proposalId);
             if (proposal == null) return NotFound(new { message = "Proposal not found" });
             if (!CanManageEvent(proposal.Event, userId)) return Forbid();
-            if (proposal.Status != "Accepted") return BadRequest(new { message = "Only accepted proposals can be marked as received" });
-            if (dto != null && dto.ActualReceivedAmount.HasValue && dto.ActualReceivedAmount.Value < 0)
-                return BadRequest(new { message = "Actual received amount cannot be negative" });
+            if (proposal.Status is not ("Accepted" or "Received")) return BadRequest(new { message = "Only accepted or received proposals can be marked as received" });
 
             proposal.Status = "Received";
-            proposal.ReceivedAt = DateTime.UtcNow;
+            proposal.ReceivedAt ??= DateTime.UtcNow;
             proposal.ReceivedBy = userId;
             var pledged = ResolveAmount(proposal);
-            var actual = dto?.ActualReceivedAmount ?? pledged;
+            var actual = dto.ActualReceivedAmount.Value;
             proposal.ActualReceivedAmount = actual;
 
-            if (proposal.LegacyEventSponsorId == null)
+            var legacy = proposal.LegacyEventSponsorId.HasValue
+                ? await _context.EventSponsors.FindAsync(proposal.LegacyEventSponsorId.Value)
+                : null;
+
+            if (legacy == null)
             {
-                var legacy = new EventSponsor
+                legacy = new EventSponsor
                 {
                     EventId = proposal.EventId,
                     SponsorId = proposal.SponsorId,
                     ContributionType = "Financial",
-                    Amount = actual,
-                    Note = !string.IsNullOrWhiteSpace(proposal.PublicSponsorName)
-                        ? proposal.PublicSponsorName
-                        : proposal.PublicMessage.Length > 0 ? proposal.PublicMessage : proposal.Title,
                     SponsoredAt = DateTime.UtcNow
                 };
                 _context.EventSponsors.Add(legacy);
-                await _context.SaveChangesAsync();
-                proposal.LegacyEventSponsorId = legacy.Id;
-            }
-            else
-            {
-                // Keep legacy EventSponsor in sync with the actual amount
-                var legacy = await _context.EventSponsors.FindAsync(proposal.LegacyEventSponsorId.Value);
-                if (legacy != null) legacy.Amount = actual;
             }
 
+            legacy.Amount = actual;
+            legacy.Note = BuildLegacySponsorNote(proposal);
+            legacy.ContributionType = "Financial";
+
             await _context.SaveChangesAsync();
+            proposal.LegacyEventSponsorId = legacy.Id;
+            await _context.SaveChangesAsync();
+            await tx.CommitAsync();
             await RecordAuditAsync(userId, "SponsorshipProposal.Received", "SponsorshipProposal", proposal.Id, $"EventId={proposal.EventId};Pledged={pledged:0.##};Actual={actual:0.##}");
+            await _notificationService.SendAsync(
+                proposal.SponsorId,
+                "Tài trợ đã được ghi nhận",
+                $"Ban tổ chức đã ghi nhận {actual:0.##}đ cho đề nghị '{proposal.Title}' của sự kiện '{proposal.Event.Title}'. Số cam kết ban đầu: {pledged:0.##}đ.",
+                "SponsorshipReceived",
+                proposal.Id);
             return Ok(await GetProposalDto(proposal.Id));
         }
 
@@ -224,6 +262,8 @@ namespace BaseCore.APIService.Controllers
             if (!TryGetUserId(out var userId)) return Unauthorized();
             var proposal = await BaseProposalQuery().FirstOrDefaultAsync(p => p.Id == proposalId);
             if (proposal == null) return NotFound(new { message = "Proposal not found" });
+            if (string.IsNullOrWhiteSpace(dto?.ResponseMessage))
+                return BadRequest(new { message = "Revert reason is required" });
             if (proposal.Status == "Received" || proposal.Status == "Reported")
                 return BadRequest(new { message = "Cannot revert a received or reported proposal. Use Report to adjust figures." });
             if (proposal.Status == "Pending")
@@ -232,9 +272,10 @@ namespace BaseCore.APIService.Controllers
             proposal.Status = "Pending";
             proposal.RespondedAt = null;
             proposal.CancelledAt = null;
-            proposal.ResponseMessage = dto?.ResponseMessage?.Trim() ?? proposal.ResponseMessage;
+            proposal.ResponseMessage = dto.ResponseMessage.Trim();
             await _context.SaveChangesAsync();
             await RecordAuditAsync(userId, "SponsorshipProposal.AdminRevertToPending", "SponsorshipProposal", proposal.Id);
+            await NotifyBothPartiesAsync(proposal, "Đề nghị tài trợ được đưa về chờ xử lý", $"Admin đã đưa đề nghị '{proposal.Title}' về trạng thái chờ xử lý. Lý do: {proposal.ResponseMessage}", "SponsorshipProposalReverted");
             return Ok(ToDto(proposal));
         }
 
@@ -267,6 +308,7 @@ namespace BaseCore.APIService.Controllers
         private async Task<IActionResult> Respond(int proposalId, string status, string? message)
         {
             if (!TryGetUserId(out var userId)) return Unauthorized();
+            if (!await IsUserActiveAsync(userId)) return Forbid();
             var proposal = await BaseProposalQuery().FirstOrDefaultAsync(p => p.Id == proposalId);
             if (proposal == null) return NotFound(new { message = "Proposal not found" });
             if (proposal.Status != "Pending") return BadRequest(new { message = "Only pending proposals can be answered" });
@@ -282,6 +324,7 @@ namespace BaseCore.APIService.Controllers
             proposal.ResponseMessage = message?.Trim() ?? "";
             await _context.SaveChangesAsync();
             await RecordAuditAsync(userId, $"SponsorshipProposal.{status}", "SponsorshipProposal", proposal.Id, $"Type={proposal.Type}");
+            await NotifyProposalResponseAsync(proposal, userId, status);
 
             return Ok(ToDto(proposal));
         }
@@ -316,6 +359,8 @@ namespace BaseCore.APIService.Controllers
                 sponsorEmail = p.Sponsor?.Email,
                 p.OrganizerId,
                 organizerName = p.Organizer?.Name ?? p.Organizer?.UserName,
+                organizerEmail = p.Organizer?.Email,
+                organizerPhone = p.Organizer?.Phone,
                 p.Type,
                 p.Title,
                 p.Message,
@@ -358,7 +403,24 @@ namespace BaseCore.APIService.Controllers
             return role == "Admin" || ev.OrganizerId == userId;
         }
 
-        private static string? ValidateProposal(SponsorshipProposalDto dto, string type)
+        private async Task<bool> HasActiveProposalAsync(int eventId, int sponsorId)
+        {
+            var hasActiveProposal = await _context.SponsorshipProposals.AnyAsync(p =>
+                p.EventId == eventId &&
+                p.SponsorId == sponsorId &&
+                (p.Status == "Pending" || p.Status == "Accepted" || p.Status == "Received" || p.Status == "Reported"));
+            if (hasActiveProposal) return true;
+
+            var linkedLegacyIds = _context.SponsorshipProposals
+                .Where(p => p.LegacyEventSponsorId != null)
+                .Select(p => p.LegacyEventSponsorId!.Value);
+            return await _context.EventSponsors.AnyAsync(s =>
+                s.EventId == eventId &&
+                s.SponsorId == sponsorId &&
+                !linkedLegacyIds.Contains(s.Id));
+        }
+
+        private static string? ValidateProposal(SponsorshipProposalBaseDto dto, string type)
         {
             if (string.IsNullOrWhiteSpace(dto.Title) || dto.Title.Trim().Length > 200) return "Proposal title is required and must be at most 200 characters";
             if (string.IsNullOrWhiteSpace(dto.Message) || dto.Message.Trim().Length > 2000) return "Proposal message is required and must be at most 2000 characters";
@@ -382,9 +444,49 @@ namespace BaseCore.APIService.Controllers
             return p.Type == "OrganizerRequest" ? p.RequestedAmount ?? 0 : p.OfferedAmount ?? 0;
         }
 
+        private static string BuildLegacySponsorNote(SponsorshipProposal proposal)
+        {
+            if (!string.IsNullOrWhiteSpace(proposal.PublicSponsorName)) return proposal.PublicSponsorName.Trim();
+            if (!string.IsNullOrWhiteSpace(proposal.PublicMessage)) return proposal.PublicMessage.Trim();
+            return proposal.Title.Trim();
+        }
+
+        private async Task NotifyProposalResponseAsync(SponsorshipProposal proposal, int actorUserId, string status)
+        {
+            var title = status == "Accepted" ? "Đề nghị tài trợ đã được chấp nhận" : "Đề nghị tài trợ bị từ chối";
+            var message = $"Đề nghị tài trợ '{proposal.Title}' cho sự kiện '{proposal.Event.Title}' đã được cập nhật sang trạng thái {status}.";
+            if (!string.IsNullOrWhiteSpace(proposal.ResponseMessage)) message += $" Phản hồi: {proposal.ResponseMessage}";
+            await NotifyProposalCounterpartyAsync(proposal, actorUserId, title, message, $"SponsorshipProposal{status}");
+        }
+
+        private async Task NotifyProposalCounterpartyAsync(SponsorshipProposal proposal, int actorUserId, string title, string message, string type)
+        {
+            var recipients = new HashSet<int>();
+            if (proposal.SponsorId != actorUserId) recipients.Add(proposal.SponsorId);
+            if (proposal.OrganizerId != actorUserId) recipients.Add(proposal.OrganizerId);
+
+            foreach (var recipientId in recipients)
+            {
+                await _notificationService.SendAsync(recipientId, title, message, type, proposal.Id);
+            }
+        }
+
+        private async Task NotifyBothPartiesAsync(SponsorshipProposal proposal, string title, string message, string type)
+        {
+            foreach (var recipientId in new[] { proposal.SponsorId, proposal.OrganizerId }.Distinct())
+            {
+                await _notificationService.SendAsync(recipientId, title, message, type, proposal.Id);
+            }
+        }
+
         private bool TryGetUserId(out int userId)
         {
             return int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out userId);
+        }
+
+        private async Task<bool> IsUserActiveAsync(int userId)
+        {
+            return await _context.Users.AnyAsync(u => u.Id == userId && u.IsActive);
         }
 
         private string? GetRole()
@@ -398,9 +500,8 @@ namespace BaseCore.APIService.Controllers
         }
     }
 
-    public class SponsorshipProposalDto
+    public class SponsorshipProposalBaseDto
     {
-        public int SponsorId { get; set; }
         public string Title { get; set; } = "";
         public string Message { get; set; } = "";
         public decimal? RequestedAmount { get; set; }
@@ -411,6 +512,16 @@ namespace BaseCore.APIService.Controllers
         public string? PublicMessage { get; set; }
         public string? LogoUrl { get; set; }
         public string? AttachmentUrl { get; set; }
+    }
+
+    public class OrganizerSponsorshipRequestDto : SponsorshipProposalBaseDto
+    {
+        public int SponsorId { get; set; }
+        public bool IsRetroactive { get; set; }
+    }
+
+    public class SponsorSponsorshipOfferDto : SponsorshipProposalBaseDto
+    {
     }
 
     public class ProposalResponseDto

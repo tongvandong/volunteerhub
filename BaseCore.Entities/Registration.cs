@@ -11,9 +11,11 @@ namespace BaseCore.Entities
         public string Status { get; set; } = "Pending"; // Pending | Confirmed | Cancelled
         public DateTime RegisteredAt { get; set; } = DateTime.UtcNow;
         public DateTime? ConfirmedAt { get; set; }
+        public DateTime? CancelledAt { get; set; }
         public string Note { get; set; }
         public bool IsAttended { get; set; } = false;
         public DateTime? AttendedAt { get; set; }
+        public DateTime? CheckedOutAt { get; set; }
         public decimal VolunteerHours { get; set; } = 0;
         public bool CancelRequested { get; set; } = false;
         public DateTime? CancelRequestedAt { get; set; }

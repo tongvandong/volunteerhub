@@ -5,7 +5,9 @@ using BaseCore.Services.VolunteerHub;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using System.Net.Mail;
 using System.Security.Claims;
+using System.Text.RegularExpressions;
 
 namespace BaseCore.AuthService.Controllers
 {
@@ -73,9 +75,10 @@ namespace BaseCore.AuthService.Controllers
                 return BadRequest(new { message = "Username/email and password are required" });
             }
 
-            if (request.Password.Length < 8)
+            var validation = await ValidateRegisterRequestAsync(request, username);
+            if (validation != null)
             {
-                return BadRequest(new { message = "Password must be at least 8 characters" });
+                return BadRequest(new { message = validation });
             }
 
             var userType = ResolveUserType(request);
@@ -87,8 +90,8 @@ namespace BaseCore.AuthService.Controllers
                 {
                     UserName = username,
                     Name = displayName,
-                    Email = request.Email ?? "",
-                    Phone = request.Phone ?? "",
+                    Email = request.Email?.Trim() ?? "",
+                    Phone = request.Phone?.Trim() ?? "",
                     UserType = userType
                 };
 
@@ -195,6 +198,7 @@ namespace BaseCore.AuthService.Controllers
         }
 
         [HttpPost("logout")]
+        [Authorize]
         [EnableRateLimiting("auth-sensitive")]
         public async Task<IActionResult> Logout([FromBody] RefreshTokenRequest? request)
         {
@@ -328,6 +332,59 @@ namespace BaseCore.AuthService.Controllers
             return string.Equals(request.Role, "Organizer", StringComparison.OrdinalIgnoreCase) ? 1
                 : string.Equals(request.Role, "Sponsor", StringComparison.OrdinalIgnoreCase) ? 2
                 : 0;
+        }
+
+        private async Task<string?> ValidateRegisterRequestAsync(RegisterRequest request, string username)
+        {
+            if (username.Length < 3 || username.Length > 50)
+                return "Username must be between 3 and 50 characters";
+            if (!Regex.IsMatch(username, "^[a-zA-Z0-9_-]+$"))
+                return "Username can only contain letters, numbers, underscore and hyphen";
+
+            if (request.Password.Length < 8)
+                return "Password must be at least 8 characters";
+            if (!Regex.IsMatch(request.Password, "[A-Za-z]") || !Regex.IsMatch(request.Password, "[0-9]"))
+                return "Password must contain at least one letter and one number";
+
+            var userType = ResolveUserType(request);
+            if (userType is < 0 or > 2)
+                return "Public registration only supports Volunteer, Organizer or Sponsor";
+
+            if (!string.IsNullOrWhiteSpace(request.Role) &&
+                !new[] { "Volunteer", "Organizer", "Sponsor" }.Contains(request.Role.Trim(), StringComparer.OrdinalIgnoreCase))
+                return "Invalid role";
+
+            if (!string.IsNullOrWhiteSpace(request.Email))
+            {
+                if (request.Email.Length > 100 || !IsValidEmail(request.Email.Trim()))
+                    return "Email is invalid";
+                var existingEmailUser = (await _userService.GetAll()).FirstOrDefault(u =>
+                    string.Equals(u.Email, request.Email.Trim(), StringComparison.OrdinalIgnoreCase));
+                if (existingEmailUser != null)
+                    return "Email already exists";
+            }
+
+            if ((await _userService.GetAll()).Any(u => string.Equals(u.UserName, username, StringComparison.OrdinalIgnoreCase)))
+                return "Username already exists";
+
+            if (!string.IsNullOrWhiteSpace(request.Phone) &&
+                (request.Phone.Trim().Length > 20 || !Regex.IsMatch(request.Phone.Trim(), @"^\+?[0-9\s.-]{8,20}$")))
+                return "Phone number is invalid";
+
+            return null;
+        }
+
+        private static bool IsValidEmail(string email)
+        {
+            try
+            {
+                var address = new MailAddress(email);
+                return string.Equals(address.Address, email, StringComparison.OrdinalIgnoreCase);
+            }
+            catch
+            {
+                return false;
+            }
         }
     }
 

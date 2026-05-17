@@ -552,6 +552,9 @@ export default function EventDetail() {
                           </div>
                           <p className="mt-1 text-sm text-gray-600">{campaign.description}</p>
                           {campaign.transparencyNote && <p className="mt-2 text-xs text-gray-500">{campaign.transparencyNote}</p>}
+                          <p className="mt-2 text-xs text-gray-500">
+                            {campaign.confirmedCount || 0} lượt ủng hộ đã xác nhận
+                          </p>
                         </div>
                         {campaign.status === 'Open' && (
                           <button onClick={() => openDonation(campaign)} className="btn-primary btn-sm shrink-0">
@@ -592,6 +595,20 @@ export default function EventDetail() {
                   <span key={s.id} className="bg-purple-50 text-purple-700 border border-purple-100 px-3 py-1 rounded-full text-sm font-medium">
                     {s.note || s.sponsor?.name || 'Nhà tài trợ'} · {s.contributionType}
                   </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {impact?.interestedSponsorships?.length > 0 && (
+            <div className="card p-5">
+              <h3 className="font-semibold text-gray-900 mb-3">Nhà tài trợ đang quan tâm</h3>
+              <div className="space-y-2">
+                {impact.interestedSponsorships.map((s) => (
+                  <div key={s.id} className="rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-sm text-blue-800">
+                    <span className="font-medium">{s.sponsorName || 'Nhà tài trợ'}</span>
+                    <span className="text-blue-600"> · {s.title}</span>
+                  </div>
                 ))}
               </div>
             </div>

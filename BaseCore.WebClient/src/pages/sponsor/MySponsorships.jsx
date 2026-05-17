@@ -33,12 +33,13 @@ export default function MySponsorships() {
   });
 
   const load = async () => {
-    const [proposalRes, eventRes] = await Promise.all([
+    const [proposalRes, approvedEventRes, completedEventRes] = await Promise.all([
       sponsorshipProposalApi.getMy(),
       eventApi.getAll({ status: 'Approved', pageSize: 100 }),
+      eventApi.getAll({ status: 'Completed', pageSize: 100 }),
     ]);
     setProposals(proposalRes.data || []);
-    setEvents(eventRes.data?.items || []);
+    setEvents([...(approvedEventRes.data?.items || []), ...(completedEventRes.data?.items || [])]);
   };
 
   useEffect(() => {
@@ -103,7 +104,7 @@ export default function MySponsorships() {
   const received = proposals.filter((p) => p.status === 'Received' || p.status === 'Reported');
   const pending = proposals.filter((p) => p.status === 'Pending');
   const accepted = proposals.filter((p) => p.status === 'Accepted');
-  const totalReceived = received.reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+  const totalReceived = received.reduce((sum, p) => sum + (Number(p.actualReceivedAmount ?? p.amount) || 0), 0);
 
   return (
     <div className="space-y-5">
@@ -159,7 +160,10 @@ export default function MySponsorships() {
                     {proposal.eventStartDate && <span><i className="fa-solid fa-calendar mr-1" />{fmt(proposal.eventStartDate)}</span>}
                     {proposal.eventLocation && <span><i className="fa-solid fa-location-dot mr-1" />{proposal.eventLocation}</span>}
                     <span>Organizer: {proposal.organizerName}</span>
+                    {proposal.organizerEmail && <span>Email: {proposal.organizerEmail}</span>}
+                    {proposal.organizerPhone && <span>Điện thoại: {proposal.organizerPhone}</span>}
                     <span>Số tiền: {money(proposal.amount)}</span>
+                    {proposal.actualReceivedAmount != null && <span>Thực nhận: {money(proposal.actualReceivedAmount)}</span>}
                   </div>
                   {proposal.responseMessage && <p className="mt-2 text-xs text-gray-500">Phản hồi: {proposal.responseMessage}</p>}
                 </div>

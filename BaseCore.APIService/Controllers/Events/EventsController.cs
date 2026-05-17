@@ -16,17 +16,20 @@ namespace BaseCore.APIService.Controllers
         private readonly IEventService _eventService;
         private readonly IRegistrationService _registrationService;
         private readonly IAuditLogService _auditLogService;
+        private readonly INotificationService _notificationService;
         private readonly MySqlDbContext _context;
 
         public EventsController(
             IEventService eventService,
             IRegistrationService registrationService,
             IAuditLogService auditLogService,
+            INotificationService notificationService,
             MySqlDbContext context)
         {
             _eventService = eventService;
             _registrationService = registrationService;
             _auditLogService = auditLogService;
+            _notificationService = notificationService;
             _context = context;
         }
 
@@ -82,6 +85,13 @@ namespace BaseCore.APIService.Controllers
             var sponsors = await _context.EventSponsors
                 .Where(s => s.EventId == id)
                 .ToListAsync();
+            var proposalLegacySponsorIds = await _context.SponsorshipProposals
+                .Where(p => p.EventId == id && p.LegacyEventSponsorId != null)
+                .Select(p => p.LegacyEventSponsorId!.Value)
+                .ToListAsync();
+            var standaloneSponsors = sponsors
+                .Where(s => !proposalLegacySponsorIds.Contains(s.Id))
+                .ToList();
             var campaigns = await _context.SupportCampaigns
                 .Where(c => c.EventId == id)
                 .Select(c => new
@@ -94,7 +104,20 @@ namespace BaseCore.APIService.Controllers
                     c.ReportSummary,
                     c.ReportedAt,
                     confirmedAmount = c.Donations.Where(d => d.Status == "Confirmed").Sum(d => (decimal?)d.Amount) ?? 0,
-                    confirmedCount = c.Donations.Count(d => d.Status == "Confirmed")
+                    confirmedCount = c.Donations.Count(d => d.Status == "Confirmed"),
+                    publicDonors = c.Donations
+                        .Where(d => d.Status == "Confirmed")
+                        .OrderByDescending(d => d.ConfirmedAt ?? d.CreatedAt)
+                        .Take(10)
+                        .Select(d => new
+                        {
+                            d.Id,
+                            d.Amount,
+                            displayName = d.IsAnonymous ? "Ẩn danh" : d.DisplayName,
+                            d.IsAnonymous,
+                            d.CreatedAt,
+                            d.ConfirmedAt
+                        })
                 })
                 .ToListAsync();
             var sponsorships = await _context.SponsorshipProposals
@@ -110,6 +133,18 @@ namespace BaseCore.APIService.Controllers
                     p.UsedAmount,
                     p.ReportSummary,
                     p.ReportedAt
+                })
+                .ToListAsync();
+            var interestedSponsorships = await _context.SponsorshipProposals
+                .Include(p => p.Sponsor)
+                .Where(p => p.EventId == id && p.Status == "Accepted")
+                .Select(p => new
+                {
+                    p.Id,
+                    p.Title,
+                    sponsorName = p.PublicSponsorName != "" ? p.PublicSponsorName : p.Sponsor.Name,
+                    amount = p.Type == "OrganizerRequest" ? p.RequestedAmount ?? 0 : p.OfferedAmount ?? 0,
+                    p.RespondedAt
                 })
                 .ToListAsync();
             var certificates = await _context.Certificates
@@ -131,14 +166,15 @@ namespace BaseCore.APIService.Controllers
                 cancelRequestedCount = registrations.Count(r => r.CancelRequested),
                 totalVolunteerHours = registrations.Where(r => r.IsAttended).Sum(r => r.VolunteerHours),
                 certificatesIssued = certificates,
-                sponsorCount = sponsors.Count,
-                sponsorAmount = sponsors.Sum(s => s.Amount),
+                sponsorCount = standaloneSponsors.Count,
+                sponsorAmount = standaloneSponsors.Sum(s => s.Amount),
                 donationConfirmedAmount,
                 donationConfirmedCount = campaigns.Sum(c => c.confirmedCount),
                 sponsorshipReceivedAmount,
                 financialConfirmedAmount = donationConfirmedAmount + sponsorshipReceivedAmount,
                 supportCampaigns = campaigns,
-                receivedSponsorships = sponsorships
+                receivedSponsorships = sponsorships,
+                interestedSponsorships
             });
         }
 
@@ -171,11 +207,15 @@ namespace BaseCore.APIService.Controllers
             var dateError = ValidateEventDates(dto.StartDate, dto.EndDate);
             if (dateError != null)
                 return BadRequest(new { message = dateError });
+            var radiusError = ValidateCheckInRadius(dto.CheckInRadiusKm);
+            if (radiusError != null)
+                return BadRequest(new { message = radiusError });
 
             var ev = new Entities.Event
             {
                 Title = dto.Title.Trim(), Description = dto.Description ?? "", Location = dto.Location ?? "",
                 Latitude = dto.Latitude, Longitude = dto.Longitude,
+                CheckInRadiusKm = dto.CheckInRadiusKm ?? 0.5m,
                 StartDate = dto.StartDate, EndDate = dto.EndDate,
                 MinParticipants = dto.MinParticipants, MaxParticipants = dto.MaxParticipants, RequiresKyc = dto.RequiresKyc, CategoryId = dto.CategoryId,
                 OrganizerId = userId, ImageUrl = dto.ImageUrl ?? "",
@@ -215,6 +255,10 @@ namespace BaseCore.APIService.Controllers
             var dateError = ValidateEventDates(nextStartDate, nextEndDate);
             if (dateError != null)
                 return BadRequest(new { message = dateError });
+            var nextCheckInRadiusKm = dto.CheckInRadiusKm ?? ev.CheckInRadiusKm;
+            var radiusError = ValidateCheckInRadius(nextCheckInRadiusKm);
+            if (radiusError != null)
+                return BadRequest(new { message = radiusError });
 
             var outsideShift = await _context.WorkShifts
                 .Where(s => s.EventId == id)
@@ -236,6 +280,7 @@ namespace BaseCore.APIService.Controllers
             ev.Location = dto.Location ?? ev.Location;
             ev.Latitude = nextLatitude;
             ev.Longitude = nextLongitude;
+            ev.CheckInRadiusKm = nextCheckInRadiusKm;
             ev.StartDate = nextStartDate;
             ev.EndDate = nextEndDate;
             ev.MinParticipants = nextMinParticipants;
@@ -297,6 +342,26 @@ namespace BaseCore.APIService.Controllers
                 return Ok(ev);
             }
             catch (Exception ex) { return BadRequest(new { message = ex.Message }); }
+        }
+
+        [HttpPost("{id}/qr/rotate"), Authorize(Roles = "Organizer,Admin")]
+        [EnableRateLimiting("write-sensitive")]
+        public async Task<IActionResult> RotateQr(int id)
+        {
+            if (!int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var userId))
+                return Unauthorized();
+            var role = User.FindFirst(ClaimTypes.Role)?.Value;
+
+            var ev = await _eventService.GetByIdAsync(id);
+            if (ev == null) return NotFound(new { message = "Event not found" });
+            if (role != "Admin" && ev.OrganizerId != userId) return Forbid();
+            if (ev.Status != "Approved")
+                return BadRequest(new { message = "Only approved events can rotate check-in QR" });
+
+            ev.QrCode = $"EVT-{id}-{Guid.NewGuid():N}";
+            await _eventService.UpdateAsync(ev);
+            await RecordAuditAsync(userId, "Event.RotateQr", "Event", ev.Id, $"HasQr=true");
+            return Ok(new { qrCode = ev.QrCode });
         }
 
         [HttpPut("{id}/reject"), Authorize(Roles = "Admin")]
@@ -387,6 +452,30 @@ namespace BaseCore.APIService.Controllers
             return Ok(new { completed });
         }
 
+        [HttpGet("overdue-preview"), Authorize(Roles = "Admin")]
+        public async Task<IActionResult> GetOverduePreview()
+        {
+            var cutoff = DateTime.UtcNow.AddDays(-1);
+            var items = await _context.Events
+                .Include(e => e.Organizer)
+                .Where(e => e.Status == "Approved" && e.EndDate <= cutoff)
+                .OrderBy(e => e.EndDate)
+                .Select(e => new
+                {
+                    e.Id,
+                    e.Title,
+                    e.StartDate,
+                    e.EndDate,
+                    organizerId = e.OrganizerId,
+                    organizerName = e.Organizer != null ? e.Organizer.Name : "",
+                    confirmedRegistrations = _context.Registrations.Count(r => r.EventId == e.Id && r.Status == "Confirmed"),
+                    attendedRegistrations = _context.Registrations.Count(r => r.EventId == e.Id && r.IsAttended)
+                })
+                .ToListAsync();
+
+            return Ok(new { items, totalCount = items.Count, cutoff });
+        }
+
         [HttpPut("{id}/transfer"), Authorize(Roles = "Admin")]
         [EnableRateLimiting("write-sensitive")]
         public async Task<IActionResult> Transfer(int id, [FromBody] EventTransferDto dto)
@@ -413,6 +502,18 @@ namespace BaseCore.APIService.Controllers
             var oldOrganizerId = ev.OrganizerId;
             ev.OrganizerId = dto.NewOrganizerId;
             await _eventService.UpdateAsync(ev);
+            await _notificationService.SendAsync(
+                oldOrganizerId,
+                "Sự kiện đã được chuyển giao",
+                $"Admin đã chuyển sự kiện '{ev.Title}' sang nhà tổ chức khác.",
+                "EventTransferred",
+                ev.Id);
+            await _notificationService.SendAsync(
+                dto.NewOrganizerId,
+                "Bạn được nhận quản lý sự kiện",
+                $"Admin đã chuyển sự kiện '{ev.Title}' cho bạn quản lý.",
+                "EventTransferred",
+                ev.Id);
             await RecordAuditAsync(userId, "Event.Transfer", "Event", ev.Id, $"From={oldOrganizerId};To={dto.NewOrganizerId}");
             return Ok(ev);
         }
@@ -508,6 +609,14 @@ namespace BaseCore.APIService.Controllers
 
             return null;
         }
+
+        private static string? ValidateCheckInRadius(decimal? radiusKm)
+        {
+            if (!radiusKm.HasValue) return null;
+            if (radiusKm.Value <= 0 || radiusKm.Value > 10)
+                return "Check-in radius must be greater than 0 and at most 10km.";
+            return null;
+        }
     }
 
     public class EventCreateDto
@@ -517,6 +626,7 @@ namespace BaseCore.APIService.Controllers
         public string? Location { get; set; }
         public decimal? Latitude { get; set; }
         public decimal? Longitude { get; set; }
+        public decimal? CheckInRadiusKm { get; set; }
         public DateTime StartDate { get; set; }
         public DateTime EndDate { get; set; }
         public int MinParticipants { get; set; } = 1;
@@ -534,6 +644,7 @@ namespace BaseCore.APIService.Controllers
         public string? Location { get; set; }
         public decimal? Latitude { get; set; }
         public decimal? Longitude { get; set; }
+        public decimal? CheckInRadiusKm { get; set; }
         public DateTime? StartDate { get; set; }
         public DateTime? EndDate { get; set; }
         public int? MinParticipants { get; set; }

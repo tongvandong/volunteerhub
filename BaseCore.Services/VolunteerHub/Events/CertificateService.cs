@@ -53,12 +53,16 @@ namespace BaseCore.Services.VolunteerHub
                 };
                 _context.Certificates.Add(cert);
 
-                // Update total volunteer hours in profile
+                await _context.SaveChangesAsync();
+
                 var profile = await _context.VolunteerProfiles.FirstOrDefaultAsync(p => p.UserId == reg.UserId);
                 if (profile != null)
-                    profile.TotalVolunteerHours += reg.VolunteerHours;
-
-                await _context.SaveChangesAsync();
+                {
+                    profile.TotalVolunteerHours = await _context.Registrations
+                        .Where(r => r.UserId == reg.UserId && r.IsAttended)
+                        .SumAsync(r => (decimal?)r.VolunteerHours) ?? 0m;
+                    await _context.SaveChangesAsync();
+                }
 
                 _context.CertificateJobs.Add(new CertificateJob
                 {

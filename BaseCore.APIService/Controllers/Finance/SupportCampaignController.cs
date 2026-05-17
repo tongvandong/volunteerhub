@@ -15,11 +15,16 @@ namespace BaseCore.APIService.Controllers
         private static readonly string[] PublicCampaignStatuses = ["Open", "Closed", "Reported"];
         private readonly MySqlDbContext _context;
         private readonly IAuditLogService _auditLogService;
+        private readonly INotificationService _notificationService;
 
-        public SupportCampaignController(MySqlDbContext context, IAuditLogService auditLogService)
+        public SupportCampaignController(
+            MySqlDbContext context,
+            IAuditLogService auditLogService,
+            INotificationService notificationService)
         {
             _context = context;
             _auditLogService = auditLogService;
+            _notificationService = notificationService;
         }
 
         [HttpGet("api/events/{eventId}/support-campaigns")]
@@ -37,7 +42,6 @@ namespace BaseCore.APIService.Controllers
             {
                 query = query.Where(c =>
                     PublicCampaignStatuses.Contains(c.Status) &&
-                    c.Status != "Cancelled" &&
                     (ev.Status == "Approved" || ev.Status == "Completed"));
             }
 
@@ -130,6 +134,7 @@ namespace BaseCore.APIService.Controllers
         public async Task<IActionResult> Create(int eventId, [FromBody] SupportCampaignDto dto)
         {
             if (!TryGetUserId(out var userId)) return Unauthorized();
+            if (!await IsUserActiveAsync(userId)) return Forbid();
 
             var ev = await _context.Events.FirstOrDefaultAsync(e => e.Id == eventId);
             if (ev == null) return NotFound(new { message = "Event not found" });
@@ -174,12 +179,15 @@ namespace BaseCore.APIService.Controllers
         public async Task<IActionResult> Update(int campaignId, [FromBody] SupportCampaignDto dto)
         {
             if (!TryGetUserId(out var userId)) return Unauthorized();
+            if (!await IsUserActiveAsync(userId)) return Forbid();
 
             var campaign = await _context.SupportCampaigns.Include(c => c.Event).FirstOrDefaultAsync(c => c.Id == campaignId);
             if (campaign == null) return NotFound(new { message = "Campaign not found" });
             if (!CanManageEvent(campaign.Event, userId)) return Forbid();
             if (campaign.Status == "Cancelled" || campaign.Status == "Reported")
                 return BadRequest(new { message = "Cannot edit cancelled or reported campaign" });
+            if (campaign.Event.Status is "Rejected" or "Cancelled")
+                return BadRequest(new { message = "Cannot edit campaign for rejected or cancelled event" });
 
             var validation = ValidateCampaign(dto, requireReceiveInfo: campaign.Status == "Open");
             if (validation != null) return BadRequest(new { message = validation });
@@ -217,13 +225,14 @@ namespace BaseCore.APIService.Controllers
         public async Task<IActionResult> ReportCampaign(int campaignId, [FromBody] FinancialReportDto dto)
         {
             if (!TryGetUserId(out var userId)) return Unauthorized();
+            if (!await IsUserActiveAsync(userId)) return Forbid();
 
             var campaign = await _context.SupportCampaigns
                 .Include(c => c.Event)
                 .FirstOrDefaultAsync(c => c.Id == campaignId);
             if (campaign == null) return NotFound(new { message = "Campaign not found" });
             if (!CanManageEvent(campaign.Event, userId)) return Forbid();
-            if (campaign.Status == "Cancelled") return BadRequest(new { message = "Cancelled campaign cannot be reported" });
+            if (campaign.Status != "Closed") return BadRequest(new { message = "Only closed campaigns can be reported" });
 
             var validation = ValidateReport(dto);
             if (validation != null) return BadRequest(new { message = validation });
@@ -250,9 +259,14 @@ namespace BaseCore.APIService.Controllers
         }
 
         [HttpGet("api/support-campaigns/{campaignId}/donations"), Authorize(Roles = "Organizer,Admin")]
-        public async Task<IActionResult> GetCampaignDonations(int campaignId)
+        public async Task<IActionResult> GetCampaignDonations(
+            int campaignId,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 50)
         {
             if (!TryGetUserId(out var userId)) return Unauthorized();
+            page = Math.Max(1, page);
+            pageSize = Math.Clamp(pageSize, 1, 100);
 
             var campaign = await _context.SupportCampaigns
                 .AsNoTracking()
@@ -261,11 +275,16 @@ namespace BaseCore.APIService.Controllers
             if (campaign == null) return NotFound(new { message = "Campaign not found" });
             if (!CanManageEvent(campaign.Event, userId)) return Forbid();
 
-            var donations = await _context.IndividualDonations
+            var query = _context.IndividualDonations
                 .AsNoTracking()
                 .Include(d => d.User)
                 .Where(d => d.CampaignId == campaignId)
-                .OrderByDescending(d => d.CreatedAt)
+                .OrderByDescending(d => d.CreatedAt);
+
+            var totalCount = await query.CountAsync();
+            var donations = await query
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
                 .Select(d => new
                 {
                     d.Id,
@@ -288,7 +307,14 @@ namespace BaseCore.APIService.Controllers
                 })
                 .ToListAsync();
 
-            return Ok(donations);
+            return Ok(new
+            {
+                items = donations,
+                totalCount,
+                page,
+                pageSize,
+                totalPages = (int)Math.Ceiling((double)totalCount / pageSize)
+            });
         }
 
         [HttpPost("api/support-campaigns/{campaignId}/donations"), Authorize(Roles = "Volunteer")]
@@ -296,6 +322,7 @@ namespace BaseCore.APIService.Controllers
         public async Task<IActionResult> Donate(int campaignId, [FromBody] IndividualDonationDto dto)
         {
             if (!TryGetUserId(out var userId)) return Unauthorized();
+            if (!await IsUserActiveAsync(userId)) return Forbid();
 
             var campaign = await _context.SupportCampaigns
                 .Include(c => c.Event)
@@ -309,6 +336,11 @@ namespace BaseCore.APIService.Controllers
 
             var validation = ValidateDonation(dto);
             if (validation != null) return BadRequest(new { message = validation });
+            var maxDonationAmount = campaign.TargetAmount > 0
+                ? Math.Min(1_000_000_000m, campaign.TargetAmount * 10m)
+                : 1_000_000_000m;
+            if (dto.Amount > maxDonationAmount)
+                return BadRequest(new { message = $"Donation amount must not exceed {maxDonationAmount:0.##}" });
             if (campaign.MinimumAmount.HasValue && dto.Amount < campaign.MinimumAmount.Value)
                 return BadRequest(new { message = "Donation amount must be at least the campaign minimum amount" });
 
@@ -318,8 +350,8 @@ namespace BaseCore.APIService.Controllers
                 UserId = userId,
                 Amount = dto.Amount,
                 DisplayName = dto.IsAnonymous ? "" : dto.DisplayName.Trim(),
-                Phone = dto.Phone?.Trim() ?? "",
-                Email = dto.Email?.Trim() ?? "",
+                Phone = dto.IsAnonymous ? "" : (dto.Phone?.Trim() ?? ""),
+                Email = dto.IsAnonymous ? "" : (dto.Email?.Trim() ?? ""),
                 Note = dto.Note?.Trim() ?? "",
                 IsAnonymous = dto.IsAnonymous,
                 ProofImageUrl = dto.ProofImageUrl?.Trim() ?? "",
@@ -373,11 +405,12 @@ namespace BaseCore.APIService.Controllers
         [EnableRateLimiting("write-sensitive")]
         public Task<IActionResult> RejectDonation(int donationId, [FromBody] DonationStatusDto dto) => ChangeDonationStatus(donationId, "Rejected", dto?.Reason);
 
-        [HttpPut("api/donations/{donationId}/cancel"), Authorize(Roles = "Volunteer")]
+        [HttpPut("api/donations/{donationId}/cancel"), Authorize(Roles = "Volunteer,Organizer,Admin")]
         [EnableRateLimiting("write-sensitive")]
         public async Task<IActionResult> CancelDonation(int donationId)
         {
             if (!TryGetUserId(out var userId)) return Unauthorized();
+            if (!await IsUserActiveAsync(userId)) return Forbid();
 
             var donation = await _context.IndividualDonations
                 .Include(d => d.Campaign).ThenInclude(c => c.Event)
@@ -393,6 +426,7 @@ namespace BaseCore.APIService.Controllers
             donation.UpdatedAt = DateTime.UtcNow;
             await _context.SaveChangesAsync();
             await RecordAuditAsync(userId, "IndividualDonation.Cancel", "IndividualDonation", donation.Id, $"CampaignId={donation.CampaignId}");
+            await NotifyDonationCancelledAsync(donation, userId, canManage);
 
             return Ok(donation);
         }
@@ -400,10 +434,14 @@ namespace BaseCore.APIService.Controllers
         private async Task<IActionResult> ChangeCampaignStatus(int campaignId, string status)
         {
             if (!TryGetUserId(out var userId)) return Unauthorized();
+            if (!await IsUserActiveAsync(userId)) return Forbid();
 
             var campaign = await _context.SupportCampaigns.Include(c => c.Event).FirstOrDefaultAsync(c => c.Id == campaignId);
             if (campaign == null) return NotFound(new { message = "Campaign not found" });
             if (!CanManageEvent(campaign.Event, userId)) return Forbid();
+
+            var transitionValidation = ValidateCampaignTransition(campaign, status);
+            if (transitionValidation != null) return BadRequest(new { message = transitionValidation });
 
             if (status == "Open")
             {
@@ -413,8 +451,34 @@ namespace BaseCore.APIService.Controllers
 
             campaign.Status = status;
             campaign.UpdatedAt = DateTime.UtcNow;
+            var pendingDonations = new List<IndividualDonation>();
+            if (status == "Cancelled")
+            {
+                pendingDonations = await _context.IndividualDonations
+                    .Where(d => d.CampaignId == campaign.Id && d.Status == "PendingConfirmation")
+                    .ToListAsync();
+                foreach (var donation in pendingDonations)
+                {
+                    donation.Status = "Cancelled";
+                    donation.RejectedReason = "Campaign cancelled";
+                    donation.UpdatedAt = DateTime.UtcNow;
+                }
+            }
             await _context.SaveChangesAsync();
             await RecordAuditAsync(userId, $"SupportCampaign.{status}", "SupportCampaign", campaign.Id, $"EventId={campaign.EventId}");
+            if (status == "Cancelled")
+            {
+                await NotifyConfirmedDonorsCampaignClosedAsync(campaign.Id, campaign.EventId, campaign.Title, campaign.Event.Title, "Đợt kêu gọi đã bị hủy");
+                foreach (var donation in pendingDonations)
+                {
+                    await _notificationService.SendAsync(
+                        donation.UserId,
+                        "Khoản ủng hộ chờ xác nhận đã bị hủy",
+                        $"Đợt kêu gọi '{campaign.Title}' đã bị hủy nên khoản ủng hộ chờ xác nhận của bạn đã được hủy tự động.",
+                        "DonationCancelled",
+                        campaign.Id);
+                }
+            }
 
             return Ok(campaign);
         }
@@ -422,6 +486,7 @@ namespace BaseCore.APIService.Controllers
         private async Task<IActionResult> ChangeDonationStatus(int donationId, string status, string? reason)
         {
             if (!TryGetUserId(out var userId)) return Unauthorized();
+            if (!await IsUserActiveAsync(userId)) return Forbid();
 
             var donation = await _context.IndividualDonations
                 .Include(d => d.Campaign).ThenInclude(c => c.Event)
@@ -430,6 +495,10 @@ namespace BaseCore.APIService.Controllers
             if (!CanManageEvent(donation.Campaign.Event, userId)) return Forbid();
             if (donation.Status != "PendingConfirmation")
                 return BadRequest(new { message = "Only pending donations can be updated" });
+            if (donation.Campaign.Status != "Open")
+                return BadRequest(new { message = "Only donations in open campaigns can be updated" });
+            if (donation.Campaign.Event.Status != "Approved")
+                return BadRequest(new { message = "Only donations for approved events can be updated" });
 
             donation.Status = status;
             donation.UpdatedAt = DateTime.UtcNow;
@@ -446,6 +515,7 @@ namespace BaseCore.APIService.Controllers
 
             await _context.SaveChangesAsync();
             await RecordAuditAsync(userId, $"IndividualDonation.{status}", "IndividualDonation", donation.Id, $"CampaignId={donation.CampaignId};Amount={donation.Amount:0.##}");
+            await NotifyDonationStatusChangedAsync(donation, status);
 
             return Ok(donation);
         }
@@ -485,6 +555,11 @@ namespace BaseCore.APIService.Controllers
             return int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out userId);
         }
 
+        private async Task<bool> IsUserActiveAsync(int userId)
+        {
+            return await _context.Users.AnyAsync(u => u.Id == userId && u.IsActive);
+        }
+
         private static string NormalizeCampaignStatus(string? status, string fallback)
         {
             return status?.Trim() switch
@@ -520,6 +595,8 @@ namespace BaseCore.APIService.Controllers
         {
             if (ev.Status != "Approved")
                 return "Only approved events can open support campaigns";
+            if (NormalizeToUtc(ev.EndDate) < DateTime.UtcNow)
+                return "Cannot open support campaign after event end date";
             if (string.IsNullOrWhiteSpace(campaign.ReceiveInfo))
                 return "Receive info is required to open a campaign";
             if (campaign.TargetAmount <= 0)
@@ -527,6 +604,70 @@ namespace BaseCore.APIService.Controllers
             if (NormalizeToUtc(campaign.EndDate) <= NormalizeToUtc(campaign.StartDate))
                 return "End date must be after start date";
             return null;
+        }
+
+        private static string? ValidateCampaignTransition(SupportCampaign campaign, string nextStatus)
+        {
+            return nextStatus switch
+            {
+                "Open" when campaign.Status != "Draft" => "Only draft campaigns can be opened",
+                "Closed" when campaign.Status != "Open" => "Only open campaigns can be closed",
+                "Cancelled" when campaign.Status is "Reported" or "Cancelled" => "Reported or already cancelled campaigns cannot be cancelled",
+                _ => null
+            };
+        }
+
+        private async Task NotifyDonationStatusChangedAsync(IndividualDonation donation, string status)
+        {
+            var title = status == "Confirmed" ? "Khoản ủng hộ đã được xác nhận" : "Khoản ủng hộ bị từ chối";
+            var message = status == "Confirmed"
+                ? $"Khoản ủng hộ {donation.Amount:0.##}đ cho đợt '{donation.Campaign.Title}' đã được xác nhận."
+                : $"Khoản ủng hộ {donation.Amount:0.##}đ cho đợt '{donation.Campaign.Title}' bị từ chối.";
+            if (status == "Rejected" && !string.IsNullOrWhiteSpace(donation.RejectedReason))
+                message += $" Lý do: {donation.RejectedReason}";
+
+            await _notificationService.SendAsync(donation.UserId, title, message, $"Donation{status}", donation.CampaignId);
+        }
+
+        private async Task NotifyDonationCancelledAsync(IndividualDonation donation, int actorUserId, bool actorCanManage)
+        {
+            if (actorCanManage && donation.UserId != actorUserId)
+            {
+                await _notificationService.SendAsync(
+                    donation.UserId,
+                    "Khoản ủng hộ đã bị hủy",
+                    $"Khoản ủng hộ {donation.Amount:0.##}đ cho đợt '{donation.Campaign.Title}' đã bị ban tổ chức hủy.",
+                    "DonationCancelled",
+                    donation.CampaignId);
+                return;
+            }
+
+            var organizerId = donation.Campaign.Event.OrganizerId;
+            if (organizerId != actorUserId)
+            {
+                await _notificationService.SendAsync(
+                    organizerId,
+                    "Volunteer đã hủy khoản ủng hộ",
+                    $"Một khoản ủng hộ {donation.Amount:0.##}đ cho đợt '{donation.Campaign.Title}' đã bị người ủng hộ hủy.",
+                    "DonationCancelled",
+                    donation.CampaignId);
+            }
+        }
+
+        private async Task NotifyConfirmedDonorsCampaignClosedAsync(int campaignId, int eventId, string campaignTitle, string eventTitle, string title)
+        {
+            var donorIds = await _context.IndividualDonations
+                .AsNoTracking()
+                .Where(d => d.CampaignId == campaignId && d.Status == "Confirmed")
+                .Select(d => d.UserId)
+                .Distinct()
+                .ToListAsync();
+
+            var message = $"Đợt kêu gọi '{campaignTitle}' của sự kiện '{eventTitle}' đã đóng/hủy. Vui lòng theo dõi báo cáo hoặc liên hệ ban tổ chức để biết phương án xử lý khoản ủng hộ.";
+            foreach (var donorId in donorIds)
+            {
+                await _notificationService.SendAsync(donorId, title, message, "CampaignClosed", eventId);
+            }
         }
 
         private static DateTime NormalizeToUtc(DateTime value)
@@ -549,7 +690,18 @@ namespace BaseCore.APIService.Controllers
                 return "Donation contact fields are too long";
             if ((dto.Note?.Length ?? 0) > 500 || (dto.ProofImageUrl?.Length ?? 0) > 500)
                 return "Donation note or proof URL is too long";
+            if (!string.IsNullOrWhiteSpace(dto.ProofImageUrl) && !IsInternalUploadUrl(dto.ProofImageUrl))
+                return "Proof image must be uploaded through the system";
             return null;
+        }
+
+        private static bool IsInternalUploadUrl(string value)
+        {
+            var trimmed = value.Trim();
+            if (trimmed.Length > 500 || trimmed.Contains('\\')) return false;
+            if (System.Text.RegularExpressions.Regex.IsMatch(trimmed, @"^[a-zA-Z][a-zA-Z0-9+.-]*:")) return false;
+            return trimmed.StartsWith("/uploads/", StringComparison.OrdinalIgnoreCase) ||
+                   trimmed.StartsWith("/api/uploads/", StringComparison.OrdinalIgnoreCase);
         }
 
         private static string? ValidateReport(FinancialReportDto dto)

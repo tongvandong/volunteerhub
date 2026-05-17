@@ -6,6 +6,9 @@ using BaseCore.Services.VolunteerHub;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 using System.Text;
+using System.Text.RegularExpressions;
+using BaseCore.Common;
+using BaseCore.Entities;
 
 namespace BaseCore.APIService.Controllers
 {
@@ -16,20 +19,39 @@ namespace BaseCore.APIService.Controllers
     {
         private readonly MySqlDbContext _context;
         private readonly IAuditLogService _auditLogService;
+        private readonly INotificationService _notificationService;
+        private readonly IEventService _eventService;
 
-        public AdminController(MySqlDbContext context, IAuditLogService auditLogService)
+        public AdminController(
+            MySqlDbContext context,
+            IAuditLogService auditLogService,
+            INotificationService notificationService,
+            IEventService eventService)
         {
             _context = context;
             _auditLogService = auditLogService;
+            _notificationService = notificationService;
+            _eventService = eventService;
         }
 
         [HttpGet("users")]
         public async Task<IActionResult> GetUsers(
-            [FromQuery] string? keyword, [FromQuery] int page = 1, [FromQuery] int pageSize = 20)
+            [FromQuery] string? keyword,
+            [FromQuery] int? userType,
+            [FromQuery] bool? isActive,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 20)
         {
+            page = Math.Max(1, page);
+            pageSize = Math.Clamp(pageSize, 1, 100);
+
             var query = _context.Users.AsQueryable();
             if (!string.IsNullOrEmpty(keyword))
                 query = query.Where(u => u.UserName.Contains(keyword) || u.Name.Contains(keyword) || u.Email.Contains(keyword));
+            if (userType.HasValue)
+                query = query.Where(u => u.UserType == userType.Value);
+            if (isActive.HasValue)
+                query = query.Where(u => u.IsActive == isActive.Value);
 
             var total = await query.CountAsync();
             var users = await query.OrderByDescending(u => u.Id)
@@ -44,46 +66,216 @@ namespace BaseCore.APIService.Controllers
         [EnableRateLimiting("write-sensitive")]
         public async Task<IActionResult> ToggleUserStatus(int id)
         {
+            var currentUserId = GetCurrentUserId();
+            if (currentUserId == id)
+                return BadRequest(new { message = "Admin không thể tự khóa tài khoản của chính mình" });
+
             var user = await _context.Users.FindAsync(id);
             if (user == null) return NotFound();
+            if (user.UserType == 3)
+                return BadRequest(new { message = "Không thể khóa hoặc mở khóa tài khoản Admin bằng chức năng này" });
+
             user.IsActive = !user.IsActive;
             await _context.SaveChangesAsync();
             await RecordAuditAsync("Admin.User.ToggleStatus", "User", user.Id, $"IsActive={user.IsActive}");
+
+            await _notificationService.SendAsync(
+                user.Id,
+                user.IsActive ? "Tài khoản đã được mở lại" : "Tài khoản đã bị khóa",
+                user.IsActive
+                    ? "Admin đã mở lại tài khoản của bạn. Các event, chiến dịch hoặc đề nghị tài trợ đã bị hủy trước đó không được rollback tự động."
+                    : "Admin đã khóa tài khoản của bạn. Các hoạt động đang mở có thể bị hủy để tránh phát sinh dữ liệu treo.",
+                user.IsActive ? "UserReactivated" : "UserDeactivated",
+                user.Id);
 
             // Impact summary when deactivating — non-destructive; the admin decides next steps.
             object? impact = null;
             if (!user.IsActive)
             {
+                var now = DateTime.UtcNow;
                 if (user.UserType == 1) // Organizer
                 {
+                    var activeEvents = await _context.Events
+                        .Where(e => e.OrganizerId == id && (e.Status == "Pending" || e.Status == "Approved"))
+                        .Select(e => new { e.Id, e.Title, e.Status })
+                        .ToListAsync();
+                    foreach (var ev in activeEvents)
+                    {
+                        try
+                        {
+                            await _eventService.CancelAsync(ev.Id, null, "Organizer account deactivated by admin");
+                        }
+                        catch
+                        {
+                            // Deactivation must stay resilient; unresolved events are still visible in admin audit.
+                        }
+                    }
+
+                    var campaigns = await _context.SupportCampaigns
+                        .Include(c => c.Event)
+                        .Where(c => c.Event.OrganizerId == id && (c.Status == "Draft" || c.Status == "Open"))
+                        .ToListAsync();
+                    var campaignIds = campaigns.Select(c => c.Id).ToList();
+                    var pendingDonations = await _context.IndividualDonations
+                        .Include(d => d.Campaign)
+                        .Where(d => campaignIds.Contains(d.CampaignId) && d.Status == "PendingConfirmation")
+                        .ToListAsync();
+                    var proposals = await _context.SponsorshipProposals
+                        .Include(p => p.Event)
+                        .Where(p => p.OrganizerId == id && (p.Status == "Pending" || p.Status == "Accepted"))
+                        .ToListAsync();
+
+                    foreach (var c in campaigns)
+                    {
+                        c.Status = "Cancelled";
+                        c.UpdatedAt = now;
+                    }
+                    foreach (var d in pendingDonations)
+                    {
+                        d.Status = "Cancelled";
+                        d.RejectedReason = "Organizer account deactivated";
+                        d.UpdatedAt = now;
+                    }
+                    foreach (var p in proposals)
+                    {
+                        p.Status = "Cancelled";
+                        p.CancelledAt = now;
+                        p.ResponseMessage = "Organizer account deactivated by admin";
+                    }
+                    await _context.SaveChangesAsync();
+
+                    foreach (var d in pendingDonations)
+                    {
+                        await _notificationService.SendAsync(d.UserId, "Khoản ủng hộ đã bị hủy", $"Khoản ủng hộ chờ xác nhận cho đợt '{d.Campaign.Title}' đã bị hủy vì tài khoản ban tổ chức bị khóa.", "DonationCancelled", d.CampaignId);
+                    }
+                    foreach (var p in proposals)
+                    {
+                        await _notificationService.SendAsync(p.SponsorId, "Đề nghị tài trợ đã bị hủy", $"Đề nghị tài trợ '{p.Title}' cho sự kiện '{p.Event.Title}' đã bị hủy vì tài khoản ban tổ chức bị khóa.", "SponsorshipProposalCancelled", p.Id);
+                    }
+
                     impact = new
                     {
                         role = "Organizer",
-                        activeEvents = await _context.Events.CountAsync(e => e.OrganizerId == id && (e.Status == "Pending" || e.Status == "Approved")),
-                        openCampaigns = await _context.SupportCampaigns.CountAsync(c => c.Event.OrganizerId == id && c.Status == "Open"),
-                        openProposals = await _context.SponsorshipProposals.CountAsync(p => p.OrganizerId == id && (p.Status == "Pending" || p.Status == "Accepted"))
+                        cancelledEvents = activeEvents.Count,
+                        cancelledCampaigns = campaigns.Count,
+                        cancelledPendingDonations = pendingDonations.Count,
+                        cancelledProposals = proposals.Count
                     };
                 }
                 else if (user.UserType == 2) // Sponsor
                 {
+                    var proposals = await _context.SponsorshipProposals
+                        .Include(p => p.Event)
+                        .Where(p => p.SponsorId == id && (p.Status == "Pending" || p.Status == "Accepted"))
+                        .ToListAsync();
+                    foreach (var p in proposals)
+                    {
+                        p.Status = "Cancelled";
+                        p.CancelledAt = now;
+                        p.ResponseMessage = "Sponsor account deactivated by admin";
+                    }
+                    await _context.SaveChangesAsync();
+                    foreach (var p in proposals)
+                    {
+                        await _notificationService.SendAsync(p.OrganizerId, "Đề nghị tài trợ đã bị hủy", $"Đề nghị tài trợ '{p.Title}' cho sự kiện '{p.Event.Title}' đã bị hủy vì tài khoản sponsor bị khóa.", "SponsorshipProposalCancelled", p.Id);
+                    }
+
                     impact = new
                     {
                         role = "Sponsor",
-                        openProposals = await _context.SponsorshipProposals.CountAsync(p => p.SponsorId == id && (p.Status == "Pending" || p.Status == "Accepted"))
+                        cancelledProposals = proposals.Count
                     };
                 }
                 else if (user.UserType == 0) // Volunteer
                 {
+                    var pendingDonations = await _context.IndividualDonations
+                        .Include(d => d.Campaign).ThenInclude(c => c.Event)
+                        .Where(d => d.UserId == id && d.Status == "PendingConfirmation")
+                        .ToListAsync();
+                    foreach (var d in pendingDonations)
+                    {
+                        d.Status = "Cancelled";
+                        d.RejectedReason = "Volunteer account deactivated";
+                        d.UpdatedAt = now;
+                    }
+                    await _context.SaveChangesAsync();
+                    foreach (var d in pendingDonations)
+                    {
+                        await _notificationService.SendAsync(d.Campaign.Event.OrganizerId, "Khoản ủng hộ đã bị hủy", $"Một khoản ủng hộ chờ xác nhận cho đợt '{d.Campaign.Title}' đã bị hủy vì tài khoản volunteer bị khóa.", "DonationCancelled", d.CampaignId);
+                    }
+
                     impact = new
                     {
                         role = "Volunteer",
-                        activeRegistrations = await _context.Registrations.CountAsync(r => r.UserId == id && (r.Status == "Pending" || r.Status == "Confirmed") && !r.IsAttended),
-                        pendingDonations = await _context.IndividualDonations.CountAsync(d => d.UserId == id && d.Status == "PendingConfirmation")
+                        cancelledPendingDonations = pendingDonations.Count
                     };
                 }
             }
+            else
+            {
+                var cancelledCampaigns = await _context.SupportCampaigns
+                    .Include(c => c.Event)
+                    .CountAsync(c => c.Event.OrganizerId == id && c.Status == "Cancelled");
+                var cancelledProposals = await _context.SponsorshipProposals
+                    .CountAsync(p => (p.OrganizerId == id || p.SponsorId == id) && p.Status == "Cancelled");
+                var cancelledEvents = await _context.Events
+                    .CountAsync(e => e.OrganizerId == id && e.Status == "Cancelled");
+
+                impact = new
+                {
+                    role = user.UserType == 1 ? "Organizer" : user.UserType == 2 ? "Sponsor" : "Volunteer",
+                    note = "Tài khoản đã mở lại, nhưng các dữ liệu đã bị hủy khi khóa không được rollback tự động.",
+                    cancelledEvents,
+                    cancelledCampaigns,
+                    cancelledProposals
+                };
+            }
 
             return Ok(new { id = user.Id, isActive = user.IsActive, impact });
+        }
+
+        [HttpPost("users")]
+        [EnableRateLimiting("write-sensitive")]
+        public async Task<IActionResult> CreateUser([FromBody] AdminCreateUserDto dto)
+        {
+            var validation = ValidateAdminCreateUser(dto);
+            if (validation != null) return BadRequest(new { message = validation });
+
+            var username = dto.UserName.Trim();
+            var email = dto.Email.Trim().ToLowerInvariant();
+            var exists = await _context.Users.AnyAsync(u => u.UserName == username || u.Email == email);
+            if (exists) return BadRequest(new { message = "Username or email already exists" });
+
+            var user = new User
+            {
+                UserName = username,
+                Name = string.IsNullOrWhiteSpace(dto.Name) ? username : dto.Name.Trim(),
+                Email = email,
+                Phone = dto.Phone?.Trim() ?? "",
+                Contact = dto.Phone?.Trim() ?? "",
+                Position = "",
+                Image = "",
+                UserType = dto.UserType,
+                IsActive = dto.IsActive ?? true,
+                Created = DateTime.UtcNow
+            };
+            user.Password = TokenHelper.HashPassword(dto.Password, out var salt);
+            user.Salt = salt;
+
+            _context.Users.Add(user);
+            await _context.SaveChangesAsync();
+            await RecordAuditAsync("Admin.User.Create", "User", user.Id, $"UserType={user.UserType};IsActive={user.IsActive}");
+
+            return CreatedAtAction(nameof(GetUsers), new { id = user.Id }, new
+            {
+                user.Id,
+                user.UserName,
+                user.Name,
+                user.Email,
+                user.Phone,
+                user.UserType,
+                user.IsActive
+            });
         }
 
         [HttpGet("volunteer-kyc")]
@@ -122,8 +314,12 @@ namespace BaseCore.APIService.Controllers
         [EnableRateLimiting("write-sensitive")]
         public async Task<IActionResult> ApproveVolunteerKyc(int profileId, [FromBody] AdminReviewDto? dto = null)
         {
-            var profile = await _context.VolunteerProfiles.FindAsync(profileId);
+            var profile = await _context.VolunteerProfiles
+                .Include(p => p.User)
+                .FirstOrDefaultAsync(p => p.Id == profileId);
             if (profile == null) return NotFound();
+            if (profile.KycStatus != "PendingVerification")
+                return BadRequest(new { message = "Chỉ có thể duyệt hồ sơ KYC đang chờ xác minh" });
 
             profile.KycStatus = "Verified";
             profile.KycReviewedAt = DateTime.UtcNow;
@@ -132,6 +328,12 @@ namespace BaseCore.APIService.Controllers
 
             await _context.SaveChangesAsync();
             await RecordAuditAsync("Admin.VolunteerKyc.Approve", "VolunteerProfile", profile.Id, dto?.Note);
+            await _notificationService.SendAsync(
+                profile.UserId,
+                "KYC đã được xác minh",
+                "Hồ sơ xác thực danh tính của bạn đã được duyệt. Bạn có thể đăng ký các sự kiện yêu cầu KYC.",
+                "VolunteerKycApproved",
+                profile.Id);
             return Ok(profile);
         }
 
@@ -139,16 +341,29 @@ namespace BaseCore.APIService.Controllers
         [EnableRateLimiting("write-sensitive")]
         public async Task<IActionResult> RejectVolunteerKyc(int profileId, [FromBody] AdminReviewDto? dto = null)
         {
-            var profile = await _context.VolunteerProfiles.FindAsync(profileId);
+            if (string.IsNullOrWhiteSpace(dto?.Note) || dto.Note.Trim().Length < 10)
+                return BadRequest(new { message = "Vui lòng nhập lý do từ chối KYC tối thiểu 10 ký tự" });
+
+            var profile = await _context.VolunteerProfiles
+                .Include(p => p.User)
+                .FirstOrDefaultAsync(p => p.Id == profileId);
             if (profile == null) return NotFound();
+            if (profile.KycStatus != "PendingVerification")
+                return BadRequest(new { message = "Chỉ có thể từ chối hồ sơ KYC đang chờ xác minh" });
 
             profile.KycStatus = "Rejected";
             profile.KycReviewedAt = DateTime.UtcNow;
             profile.KycReviewedBy = GetCurrentUserId();
-            profile.KycAdminNote = dto?.Note ?? "";
+            profile.KycAdminNote = dto.Note.Trim();
 
             await _context.SaveChangesAsync();
-            await RecordAuditAsync("Admin.VolunteerKyc.Reject", "VolunteerProfile", profile.Id, dto?.Note);
+            await RecordAuditAsync("Admin.VolunteerKyc.Reject", "VolunteerProfile", profile.Id, dto.Note);
+            await _notificationService.SendAsync(
+                profile.UserId,
+                "KYC bị từ chối",
+                $"Hồ sơ xác thực danh tính của bạn chưa đạt yêu cầu. Lý do: {dto.Note.Trim()}",
+                "VolunteerKycRejected",
+                profile.Id);
             return Ok(profile);
         }
 
@@ -191,8 +406,12 @@ namespace BaseCore.APIService.Controllers
         [EnableRateLimiting("write-sensitive")]
         public async Task<IActionResult> ApproveVolunteerSkill(int id, [FromBody] AdminReviewDto? dto = null)
         {
-            var volunteerSkill = await _context.VolunteerSkills.FindAsync(id);
+            var volunteerSkill = await _context.VolunteerSkills
+                .Include(vs => vs.Skill)
+                .FirstOrDefaultAsync(vs => vs.Id == id);
             if (volunteerSkill == null) return NotFound();
+            if (volunteerSkill.VerificationStatus != "PendingVerification")
+                return BadRequest(new { message = "Chỉ có thể duyệt kỹ năng đang chờ xác minh" });
 
             volunteerSkill.VerificationStatus = "Verified";
             volunteerSkill.VerificationReviewedAt = DateTime.UtcNow;
@@ -201,6 +420,12 @@ namespace BaseCore.APIService.Controllers
 
             await _context.SaveChangesAsync();
             await RecordAuditAsync("Admin.VolunteerSkill.Approve", "VolunteerSkill", volunteerSkill.Id, dto?.Note);
+            await _notificationService.SendAsync(
+                volunteerSkill.UserId,
+                "Kỹ năng đã được xác minh",
+                $"Kỹ năng '{volunteerSkill.Skill?.Name ?? "của bạn"}' đã được admin xác minh.",
+                "VolunteerSkillApproved",
+                volunteerSkill.Id);
             return Ok(volunteerSkill);
         }
 
@@ -208,26 +433,46 @@ namespace BaseCore.APIService.Controllers
         [EnableRateLimiting("write-sensitive")]
         public async Task<IActionResult> RejectVolunteerSkill(int id, [FromBody] AdminReviewDto? dto = null)
         {
-            var volunteerSkill = await _context.VolunteerSkills.FindAsync(id);
+            if (string.IsNullOrWhiteSpace(dto?.Note) || dto.Note.Trim().Length < 10)
+                return BadRequest(new { message = "Vui lòng nhập lý do từ chối kỹ năng tối thiểu 10 ký tự" });
+
+            var volunteerSkill = await _context.VolunteerSkills
+                .Include(vs => vs.Skill)
+                .FirstOrDefaultAsync(vs => vs.Id == id);
             if (volunteerSkill == null) return NotFound();
+            if (volunteerSkill.VerificationStatus != "PendingVerification")
+                return BadRequest(new { message = "Chỉ có thể từ chối kỹ năng đang chờ xác minh" });
 
             volunteerSkill.VerificationStatus = "Rejected";
             volunteerSkill.VerificationReviewedAt = DateTime.UtcNow;
             volunteerSkill.VerificationReviewedBy = GetCurrentUserId();
-            volunteerSkill.AdminNote = dto?.Note ?? "";
+            volunteerSkill.AdminNote = dto.Note.Trim();
 
             await _context.SaveChangesAsync();
-            await RecordAuditAsync("Admin.VolunteerSkill.Reject", "VolunteerSkill", volunteerSkill.Id, dto?.Note);
+            await RecordAuditAsync("Admin.VolunteerSkill.Reject", "VolunteerSkill", volunteerSkill.Id, dto.Note);
+            await _notificationService.SendAsync(
+                volunteerSkill.UserId,
+                "Kỹ năng bị từ chối",
+                $"Minh chứng kỹ năng '{volunteerSkill.Skill?.Name ?? "của bạn"}' chưa đạt yêu cầu. Lý do: {dto.Note.Trim()}",
+                "VolunteerSkillRejected",
+                volunteerSkill.Id);
             return Ok(volunteerSkill);
         }
 
         [HttpGet("export/events")]
         [EnableRateLimiting("read-sensitive")]
-        public async Task<IActionResult> ExportEvents([FromQuery] string format = "json")
+        public async Task<IActionResult> ExportEvents([FromQuery] string format = "json", [FromQuery] int maxRows = 5000)
         {
+            maxRows = Math.Clamp(maxRows, 1, 10000);
+            var totalRows = await _context.Events.CountAsync();
+            if (totalRows > maxRows)
+                return BadRequest(new { message = $"Export has {totalRows} rows. Refine filters or raise maxRows up to 10000.", totalRows, maxRows });
+
             var events = await _context.Events
                 .Include(e => e.Category)
                 .Include(e => e.Organizer)
+                .OrderByDescending(e => e.CreatedAt)
+                .Take(maxRows)
                 .Select(e => new
                 {
                     e.Id, e.Title, e.Status, e.Location,
@@ -254,9 +499,16 @@ namespace BaseCore.APIService.Controllers
 
         [HttpGet("export/users")]
         [EnableRateLimiting("read-sensitive")]
-        public async Task<IActionResult> ExportUsers([FromQuery] string format = "json")
+        public async Task<IActionResult> ExportUsers([FromQuery] string format = "json", [FromQuery] int maxRows = 5000)
         {
+            maxRows = Math.Clamp(maxRows, 1, 10000);
+            var totalRows = await _context.Users.CountAsync();
+            if (totalRows > maxRows)
+                return BadRequest(new { message = $"Export has {totalRows} rows. Refine filters or raise maxRows up to 10000.", totalRows, maxRows });
+
             var users = await _context.Users
+                .OrderByDescending(u => u.Id)
+                .Take(maxRows)
                 .Select(u => new { u.Id, u.UserName, u.Name, u.Email, u.UserType, u.IsActive })
                 .ToListAsync();
 
@@ -408,8 +660,9 @@ namespace BaseCore.APIService.Controllers
 
         [HttpGet("export/finance")]
         [EnableRateLimiting("read-sensitive")]
-        public async Task<IActionResult> ExportFinance([FromQuery] string format = "json")
+        public async Task<IActionResult> ExportFinance([FromQuery] string format = "json", [FromQuery] int maxRows = 5000)
         {
+            maxRows = Math.Clamp(maxRows, 1, 10000);
             var campaigns = await _context.SupportCampaigns
                 .Include(c => c.Event)
                 .Select(c => new
@@ -446,6 +699,9 @@ namespace BaseCore.APIService.Controllers
                 })
                 .ToListAsync();
             var rows = campaigns.Concat(proposals).OrderByDescending(x => x.CreatedAt).ToList();
+            if (rows.Count > maxRows)
+                return BadRequest(new { message = $"Export has {rows.Count} rows. Refine filters or raise maxRows up to 10000.", totalRows = rows.Count, maxRows });
+            rows = rows.Take(maxRows).ToList();
 
             if (format.ToLower() == "csv")
             {
@@ -484,14 +740,47 @@ namespace BaseCore.APIService.Controllers
         private static string EscapeCsv(string? value)
         {
             if (string.IsNullOrEmpty(value)) return "";
+            var trimmed = value.TrimStart();
+            if (trimmed.Length > 0 && "=+-@".Contains(trimmed[0]))
+                value = "'" + value;
             if (value.Contains(',') || value.Contains('"') || value.Contains('\n'))
                 return $"\"{value.Replace("\"", "\"\"")}\"";
             return value;
+        }
+
+        private static string? ValidateAdminCreateUser(AdminCreateUserDto dto)
+        {
+            if (dto.UserType is < 0 or > 2)
+                return "Admin-created users can only be Volunteer, Organizer, or Sponsor";
+            if (string.IsNullOrWhiteSpace(dto.UserName) || dto.UserName.Trim().Length is < 3 or > 50)
+                return "Username must be between 3 and 50 characters";
+            if (!Regex.IsMatch(dto.UserName.Trim(), "^[a-zA-Z0-9_-]+$"))
+                return "Username can only contain letters, numbers, underscores, and hyphens";
+            if (string.IsNullOrWhiteSpace(dto.Email) || !Regex.IsMatch(dto.Email.Trim(), "^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$"))
+                return "Valid email is required";
+            if (!string.IsNullOrWhiteSpace(dto.Phone) && !Regex.IsMatch(dto.Phone.Trim(), "^\\+?[0-9\\s.-]{8,20}$"))
+                return "Phone format is invalid";
+            if (string.IsNullOrWhiteSpace(dto.Password) || dto.Password.Length < 8)
+                return "Password must be at least 8 characters";
+            if (!Regex.IsMatch(dto.Password, "[A-Za-z]") || !Regex.IsMatch(dto.Password, "[0-9]"))
+                return "Password must contain at least one letter and one number";
+            return null;
         }
     }
 
     public class AdminReviewDto
     {
         public string? Note { get; set; }
+    }
+
+    public class AdminCreateUserDto
+    {
+        public string UserName { get; set; } = "";
+        public string Name { get; set; } = "";
+        public string Email { get; set; } = "";
+        public string? Phone { get; set; }
+        public string Password { get; set; } = "";
+        public int UserType { get; set; }
+        public bool? IsActive { get; set; }
     }
 }

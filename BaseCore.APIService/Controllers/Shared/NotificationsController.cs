@@ -22,6 +22,8 @@ namespace BaseCore.APIService.Controllers
         {
             if (!int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var userId))
                 return Unauthorized();
+            page = Math.Max(1, page);
+            pageSize = Math.Clamp(pageSize, 1, 100);
             var (items, totalCount) = await _notificationService.GetByUserAsync(userId, page, pageSize);
             return Ok(new { items, totalCount, page, pageSize, totalPages = (int)Math.Ceiling((double)totalCount / pageSize) });
         }

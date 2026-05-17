@@ -40,25 +40,12 @@ namespace BaseCore.APIService.Controllers
         {
             if (!int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var userId))
                 return Unauthorized();
-            if (dto.Amount <= 0)
-                return BadRequest(new { message = "Sponsor amount must be greater than zero" });
 
-            var ev = await _context.Events.FindAsync(eventId);
-            if (ev == null) return NotFound(new { message = "Event not found" });
-            if (ev.Status != "Approved") return BadRequest(new { message = "Only approved events can be sponsored" });
-
-            var sponsor = new EventSponsor
+            await RecordAuditAsync(userId, "Sponsor.Add.BlockedLegacy", "EventSponsor", null, $"EventId={eventId}");
+            return BadRequest(new
             {
-                EventId = eventId,
-                SponsorId = userId,
-                ContributionType = string.IsNullOrWhiteSpace(dto.ContributionType) ? "Financial" : dto.ContributionType.Trim(),
-                Amount = dto.Amount,
-                Note = dto.Note ?? "",
-                SponsoredAt = DateTime.UtcNow
-            };
-            await _sponsorRepo.AddAsync(sponsor);
-            await RecordAuditAsync(userId, "Sponsor.Add", "EventSponsor", sponsor.Id, $"EventId={eventId};Amount={sponsor.Amount:0.##}");
-            return Ok(sponsor);
+                message = "Direct sponsorship is disabled. Please use the sponsorship proposal workflow so organizer and sponsor can approve and record actual received amount."
+            });
         }
 
         [HttpGet("api/sponsors/my"), Authorize(Roles = "Sponsor")]
@@ -101,6 +88,13 @@ namespace BaseCore.APIService.Controllers
             var proposals = await _context.SponsorshipProposals
                 .Where(p => p.EventId == eventId)
                 .ToListAsync();
+            var proposalLegacySponsorIds = proposals
+                .Where(p => p.LegacyEventSponsorId != null)
+                .Select(p => p.LegacyEventSponsorId!.Value)
+                .ToHashSet();
+            var standaloneSponsors = sponsors
+                .Where(s => !proposalLegacySponsorIds.Contains(s.Id))
+                .ToList();
 
             var projectProgress = CalculateProjectProgress(ev);
             var timeline = BuildTrackingTimeline(ev, sponsorship);
@@ -133,8 +127,8 @@ namespace BaseCore.APIService.Controllers
                     attendedVolunteers = registrations.Count(r => r.IsAttended),
                     totalVolunteerHours = registrations.Where(r => r.IsAttended).Sum(r => r.VolunteerHours),
                     certificatesIssued,
-                    sponsorCount = sponsors.Count,
-                    sponsorAmount = sponsors.Sum(s => s.Amount),
+                    sponsorCount = standaloneSponsors.Count,
+                    sponsorAmount = standaloneSponsors.Sum(s => s.Amount),
                     campaignCount = campaigns.Count,
                     confirmedDonationAmount,
                     proposalCount = proposals.Count,

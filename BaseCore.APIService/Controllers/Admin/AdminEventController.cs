@@ -23,7 +23,7 @@ namespace BaseCore.APIService.Controllers
             _auditLogService = auditLogService;
         }
 
-        [HttpGet("export/events")]
+        [HttpGet("export/events-detail")]
         [EnableRateLimiting("read-sensitive")]
         public async Task<IActionResult> ExportEvents([FromQuery] string format = "json")
         {
@@ -79,6 +79,9 @@ namespace BaseCore.APIService.Controllers
         private static string EscapeCsv(string? value)
         {
             if (string.IsNullOrEmpty(value)) return "";
+            var trimmed = value.TrimStart();
+            if (trimmed.Length > 0 && "=+-@".Contains(trimmed[0]))
+                value = "'" + value;
             if (value.Contains(',') || value.Contains('"') || value.Contains('\n'))
             {
                 return $"\"{value.Replace("\"", "\"\"")}\"";

@@ -76,11 +76,11 @@ export default function VerifyCertificate() {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <p className="text-xs text-gray-400 uppercase tracking-wider mb-1">Tình nguyện viên</p>
-                <p className="font-semibold text-gray-900">{cert.user?.name || 'N/A'}</p>
+                <p className="font-semibold text-gray-900">{cert.volunteerName || cert.user?.name || 'N/A'}</p>
               </div>
               <div>
                 <p className="text-xs text-gray-400 uppercase tracking-wider mb-1">Sự kiện</p>
-                <p className="font-semibold text-gray-900">{cert.event?.title || 'N/A'}</p>
+                <p className="font-semibold text-gray-900">{cert.eventTitle || cert.event?.title || 'N/A'}</p>
               </div>
               <div>
                 <p className="text-xs text-gray-400 uppercase tracking-wider mb-1">Giờ tình nguyện</p>

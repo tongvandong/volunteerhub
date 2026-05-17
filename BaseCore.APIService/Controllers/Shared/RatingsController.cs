@@ -16,12 +16,18 @@ namespace BaseCore.APIService.Controllers
         private readonly IRatingRepositoryEF _ratingRepo;
         private readonly MySqlDbContext _context;
         private readonly IAuditLogService _auditLogService;
+        private readonly INotificationService _notificationService;
 
-        public RatingsController(IRatingRepositoryEF ratingRepo, MySqlDbContext context, IAuditLogService auditLogService)
+        public RatingsController(
+            IRatingRepositoryEF ratingRepo,
+            MySqlDbContext context,
+            IAuditLogService auditLogService,
+            INotificationService notificationService)
         {
             _ratingRepo = ratingRepo;
             _context = context;
             _auditLogService = auditLogService;
+            _notificationService = notificationService;
         }
 
         [HttpPost("api/events/{eventId}/ratings"), Authorize]
@@ -37,6 +43,8 @@ namespace BaseCore.APIService.Controllers
             if (exists) return BadRequest(new { message = "Already rated this user for this event" });
 
             if (dto.Score < 1 || dto.Score > 5) return BadRequest(new { message = "Score must be between 1 and 5" });
+            var commentValidation = ValidateRatingComment(dto.Comment);
+            if (commentValidation != null) return BadRequest(new { message = commentValidation });
 
             var ev = await _context.Events.FindAsync(eventId);
             if (ev == null) return NotFound(new { message = "Event not found" });
@@ -63,7 +71,7 @@ namespace BaseCore.APIService.Controllers
                 RaterId = userId,
                 RateeId = dto.RateeId,
                 Score = dto.Score,
-                Comment = dto.Comment ?? "",
+                Comment = dto.Comment?.Trim() ?? "",
                 CreatedAt = DateTime.UtcNow
             };
             await _ratingRepo.AddAsync(rating);
@@ -85,10 +93,34 @@ namespace BaseCore.APIService.Controllers
             return Ok(new { ratings, averageScore = avgScore, totalRatings = ratings.Count });
         }
 
+        [HttpPut("api/ratings/{id}"), Authorize]
+        [EnableRateLimiting("write-sensitive")]
+        public async Task<IActionResult> UpdateRating(int id, [FromBody] RatingUpdateDto dto)
+        {
+            if (!int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var userId))
+                return Unauthorized();
+            var rating = await _context.Ratings.FindAsync(id);
+            if (rating == null) return NotFound();
+            if (rating.RaterId != userId) return Forbid();
+            if (rating.IsHidden) return BadRequest(new { message = "Hidden ratings cannot be edited" });
+            if (dto.Score < 1 || dto.Score > 5) return BadRequest(new { message = "Score must be between 1 and 5" });
+            var commentValidation = ValidateRatingComment(dto.Comment);
+            if (commentValidation != null) return BadRequest(new { message = commentValidation });
+
+            rating.Score = dto.Score;
+            rating.Comment = dto.Comment?.Trim() ?? "";
+            await _context.SaveChangesAsync();
+            await _auditLogService.RecordAsync(userId, "Rating.Update", "Rating", id, $"Score={dto.Score}",
+                HttpContext.Connection.RemoteIpAddress?.ToString());
+            return Ok(rating);
+        }
+
         [HttpGet("api/admin/ratings"), Authorize(Roles = "Admin")]
         [EnableRateLimiting("read-sensitive")]
         public async Task<IActionResult> GetAdminRatings(
             [FromQuery] int? eventId,
+            [FromQuery] int? raterId,
+            [FromQuery] int? rateeId,
             [FromQuery] bool? hidden,
             [FromQuery] int page = 1,
             [FromQuery] int pageSize = 20)
@@ -106,6 +138,14 @@ namespace BaseCore.APIService.Controllers
             if (eventId.HasValue)
             {
                 query = query.Where(r => r.EventId == eventId.Value);
+            }
+            if (raterId.HasValue)
+            {
+                query = query.Where(r => r.RaterId == raterId.Value);
+            }
+            if (rateeId.HasValue)
+            {
+                query = query.Where(r => r.RateeId == rateeId.Value);
             }
 
             if (hidden.HasValue)
@@ -153,7 +193,9 @@ namespace BaseCore.APIService.Controllers
         {
             if (!int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var userId))
                 return Unauthorized();
-            var rating = await _context.Ratings.FindAsync(id);
+            var rating = await _context.Ratings
+                .Include(r => r.Event)
+                .FirstOrDefaultAsync(r => r.Id == id);
             if (rating == null) return NotFound();
 
             rating.IsHidden = true;
@@ -163,6 +205,14 @@ namespace BaseCore.APIService.Controllers
             await _context.SaveChangesAsync();
             await _auditLogService.RecordAsync(userId, "Rating.Hide", "Rating", id, dto?.Reason,
                 HttpContext.Connection.RemoteIpAddress?.ToString());
+            await _notificationService.SendAsync(
+                rating.RaterId,
+                "Đánh giá của bạn đã bị ẩn",
+                string.IsNullOrWhiteSpace(dto?.Reason)
+                    ? $"Admin đã ẩn đánh giá của bạn trong sự kiện '{rating.Event?.Title ?? ""}'."
+                    : $"Admin đã ẩn đánh giá của bạn trong sự kiện '{rating.Event?.Title ?? ""}'. Lý do: {dto.Reason.Trim()}",
+                "RatingHidden",
+                rating.Id);
             return Ok(rating);
         }
 
@@ -200,6 +250,13 @@ namespace BaseCore.APIService.Controllers
                 HttpContext.Connection.RemoteIpAddress?.ToString());
             return Ok(new { message = "Deleted" });
         }
+
+        private static string? ValidateRatingComment(string? comment)
+        {
+            if ((comment?.Trim().Length ?? 0) > 1000)
+                return "Rating comment must be 1000 characters or less";
+            return null;
+        }
     }
 
     public class RatingCreateDto
@@ -212,5 +269,11 @@ namespace BaseCore.APIService.Controllers
     public class RatingModerationDto
     {
         public string? Reason { get; set; }
+    }
+
+    public class RatingUpdateDto
+    {
+        public int Score { get; set; }
+        public string? Comment { get; set; }
     }
 }

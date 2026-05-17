@@ -64,6 +64,7 @@ export default function ManageEvent() {
   const [checkinMsg, setCheckinMsg] = useState('');
   const [checkinLoading, setCheckinLoading] = useState(false);
   const [qrModal, setQrModal] = useState(false);
+  const [qrRotating, setQrRotating] = useState(false);
   const [completing, setCompleting] = useState(false);
   const [shiftModal, setShiftModal] = useState(false);
   const [shiftForm, setShiftForm] = useState({ name: '', startTime: '', endTime: '', maxVolunteers: 10, createChannel: true });
@@ -120,7 +121,7 @@ export default function ManageEvent() {
   const [walkInSaving, setWalkInSaving] = useState(false);
   const [volunteerOptions, setVolunteerOptions] = useState([]);
   const [volunteerSearch, setVolunteerSearch] = useState('');
-  const [walkInForm, setWalkInForm] = useState({ volunteerUserId: '', note: '' });
+  const [walkInForm, setWalkInForm] = useState({ volunteerUserId: '', shiftId: '', note: '' });
   const [manualHours, setManualHours] = useState({});
   const [hoursSaving, setHoursSaving] = useState({});
 
@@ -186,7 +187,7 @@ export default function ManageEvent() {
 
   const openWalkInModal = async () => {
     setVolunteerSearch('');
-    setWalkInForm({ volunteerUserId: '', note: '' });
+    setWalkInForm({ volunteerUserId: '', shiftId: '', note: '' });
     setWalkInModal(true);
     try {
       await loadVolunteerOptions('');
@@ -202,9 +203,18 @@ export default function ManageEvent() {
       return;
     }
 
+    if (shifts.length > 0 && !walkInForm.shiftId) {
+      alert('Vui lÃ²ng chá»n ca cho walk-in');
+      return;
+    }
+
     setWalkInSaving(true);
     try {
-      await registrationApi.walkIn(id, Number(walkInForm.volunteerUserId), walkInForm.note.trim());
+      await registrationApi.walkIn(id, {
+        volunteerUserId: Number(walkInForm.volunteerUserId),
+        shiftId: walkInForm.shiftId ? Number(walkInForm.shiftId) : null,
+        note: walkInForm.note.trim(),
+      });
       await reloadRegistrations();
       setWalkInModal(false);
     } catch (err) {
@@ -227,6 +237,18 @@ export default function ManageEvent() {
       alert(err.response?.data?.message || 'Bổ sung điểm danh thất bại');
     } finally {
       setHoursSaving((prev) => ({ ...prev, [`attend-${registration.id}`]: false }));
+    }
+  };
+
+  const submitCheckOut = async (registration) => {
+    setHoursSaving((prev) => ({ ...prev, [`checkout-${registration.id}`]: true }));
+    try {
+      await registrationApi.checkOut(id, registration.id);
+      await reloadRegistrations();
+    } catch (err) {
+      alert(err.response?.data?.message || 'Check-out tháº¥t báº¡i');
+    } finally {
+      setHoursSaving((prev) => ({ ...prev, [`checkout-${registration.id}`]: false }));
     }
   };
 
@@ -343,6 +365,21 @@ export default function ManageEvent() {
       },
       { timeout: 8000, maximumAge: 30000 }
     );
+  };
+
+  const rotateEventQr = async () => {
+    if (!confirm('Táº¡o mÃ£ QR má»›i? MÃ£ QR cÅ© sáº½ khÃ´ng cÃ²n dÃ¹ng Ä‘á»ƒ Ä‘iá»ƒm danh.')) return;
+    setQrRotating(true);
+    try {
+      const response = await eventApi.rotateQr(id);
+      setEvent((prev) => ({ ...prev, qrCode: response.data?.qrCode || prev?.qrCode }));
+      setCheckinCode('');
+      setCheckinMsg('success:ÄÃ£ táº¡o mÃ£ QR má»›i cho phiÃªn Ä‘iá»ƒm danh.');
+    } catch (err) {
+      alert(err.response?.data?.message || 'KhÃ´ng táº¡o Ä‘Æ°á»£c mÃ£ QR má»›i');
+    } finally {
+      setQrRotating(false);
+    }
   };
 
   const submitVolunteerRating = async (registration) => {
@@ -490,7 +527,7 @@ export default function ManageEvent() {
     setDonationsLoading(true);
     try {
       const r = await supportCampaignApi.getDonations(campaign.id);
-      setDonations(r.data || []);
+      setDonations(r.data?.items || r.data || []);
     } catch (err) {
       alert(err.response?.data?.message || 'Không tải được danh sách ủng hộ');
       setDonationModal(false);
@@ -504,7 +541,7 @@ export default function ManageEvent() {
       if (action === 'confirm') await supportCampaignApi.confirmDonation(donation.id);
       if (action === 'reject') await supportCampaignApi.rejectDonation(donation.id, { reason: 'Organizer rejected' });
       const r = await supportCampaignApi.getDonations(selectedCampaign.id);
-      setDonations(r.data || []);
+      setDonations(r.data?.items || r.data || []);
       await reloadCampaigns();
     } catch (err) {
       alert(err.response?.data?.message || 'Cập nhật donation thất bại');
@@ -561,7 +598,17 @@ export default function ManageEvent() {
     try {
       if (action === 'accept') await sponsorshipProposalApi.accept(proposal.id, { responseMessage: 'Organizer accepted' });
       if (action === 'reject') await sponsorshipProposalApi.reject(proposal.id, { responseMessage: 'Organizer rejected' });
-      if (action === 'received') await sponsorshipProposalApi.received(proposal.id);
+      if (action === 'received') {
+        const defaultAmount = proposal.actualReceivedAmount ?? proposal.amount ?? '';
+        const input = window.prompt('Nhập số tiền thực nhận từ sponsor', defaultAmount ? String(defaultAmount) : '');
+        if (input == null) return;
+        const actualReceivedAmount = Number(input);
+        if (!Number.isFinite(actualReceivedAmount) || actualReceivedAmount <= 0) {
+          alert('Số tiền thực nhận phải lớn hơn 0.');
+          return;
+        }
+        await sponsorshipProposalApi.received(proposal.id, { actualReceivedAmount });
+      }
       if (action === 'cancel') await sponsorshipProposalApi.cancel(proposal.id);
       await reloadProposals();
     } catch (err) {
@@ -824,7 +871,17 @@ export default function ManageEvent() {
                       </td>
                       <td className="px-4 py-3">
                         {r.isAttended ? (
-                          <div className="flex items-center gap-2">
+                          <div className="flex flex-wrap items-center gap-2">
+                            {!r.checkedOutAt && (
+                              <button
+                                type="button"
+                                onClick={() => submitCheckOut(r)}
+                                disabled={!!hoursSaving[`checkout-${r.id}`]}
+                                className="btn-primary btn-sm text-xs"
+                              >
+                                {hoursSaving[`checkout-${r.id}`] ? 'Äang lÆ°u...' : 'Check-out'}
+                              </button>
+                            )}
                             <input
                               type="number"
                               min="0"
@@ -1015,7 +1072,7 @@ export default function ManageEvent() {
                 <option value="">Chọn tình nguyện viên cần điểm danh</option>
                 {confirmed.filter((r) => !r.isAttended).map((r) => (
                   <option key={r.id} value={r.id}>
-                    {(r.user?.name || r.user?.userName || `User #${r.userId}`)}{r.shift?.name ? ` · ${r.shift.name}` : ''}
+                    {(r.user?.name || r.user?.userName || `User #${r.userId}`)}{r.shift ? ` · Ca: ${r.shift.name} (${fmtTime(r.shift.startTime)} - ${fmtTime(r.shift.endTime)})` : ' · Không có ca'}
                   </option>
                 ))}
               </select>
@@ -1066,6 +1123,10 @@ export default function ManageEvent() {
               <p className="text-sm text-gray-500">
                 Volunteer đăng nhập tài khoản của mình, mở đăng ký sự kiện và quét mã này để tự điểm danh.
               </p>
+              <button type="button" onClick={rotateEventQr} disabled={qrRotating} className="btn-secondary inline-flex items-center justify-center gap-2">
+                {qrRotating ? <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary-600 border-t-transparent" /> : <i className="fa-solid fa-rotate" />}
+                Tạo QR mới
+              </button>
             </div>
           </Modal>
 
@@ -1096,6 +1157,25 @@ export default function ManageEvent() {
                   ))}
                 </select>
               </div>
+              {shifts.length > 0 && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Ca làm việc *</label>
+                  <select
+                    value={walkInForm.shiftId}
+                    onChange={(e) => setWalkInForm((prev) => ({ ...prev, shiftId: e.target.value }))}
+                    className="input-field"
+                    required
+                  >
+                    <option value="">-- Chọn ca --</option>
+                    {shifts.map((shift) => (
+                      <option key={shift.id} value={shift.id}>
+                        {shift.title || shift.name || `Ca #${shift.id}`}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="mt-1 text-xs text-gray-500">Sự kiện có ca làm việc nên walk-in phải gắn với ca cụ thể để tính giờ đúng.</p>
+                </div>
+              )}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Ghi chú</label>
                 <textarea

@@ -31,7 +31,19 @@ namespace BaseCore.APIService.Controllers
         public async Task<IActionResult> VerifyCertificate(string code)
         {
             var cert = await _certificateService.GetByCodeAsync(code);
-            return cert == null ? NotFound(new { message = "Certificate not found" }) : Ok(cert);
+            if (cert == null) return NotFound(new { message = "Certificate not found" });
+
+            return Ok(new
+            {
+                cert.CertificateCode,
+                cert.IssuedAt,
+                cert.VolunteerHours,
+                volunteerName = cert.User?.Name ?? cert.User?.UserName,
+                eventTitle = cert.Event?.Title,
+                eventStartDate = cert.Event?.StartDate,
+                eventEndDate = cert.Event?.EndDate,
+                eventLocation = cert.Event?.Location
+            });
         }
 
         [HttpGet("api/certificates/{code}/pdf")]

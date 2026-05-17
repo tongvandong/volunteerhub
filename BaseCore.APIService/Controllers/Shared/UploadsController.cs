@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using System.Security.Claims;
 
 namespace BaseCore.APIService.Controllers
 {
@@ -41,10 +42,14 @@ namespace BaseCore.APIService.Controllers
             if (!AllowedImageExtensions.Contains(extension) || !AllowedImageContentTypes.Contains(file.ContentType))
                 return BadRequest(new { message = "Chỉ hỗ trợ ảnh JPG, PNG, WEBP hoặc GIF." });
 
+            if (!await HasValidMagicBytesAsync(file, extension))
+                return BadRequest(new { message = "Nội dung file ảnh không khớp định dạng." });
+
             var uploadRoot = GetUploadRoot();
             Directory.CreateDirectory(uploadRoot);
 
-            var fileName = $"{DateTime.UtcNow:yyyyMMddHHmmssfff}-{Guid.NewGuid():N}{extension.ToLowerInvariant()}";
+            var ownerId = CurrentUserId() ?? 0;
+            var fileName = $"u{ownerId}-{DateTime.UtcNow:yyyyMMddHHmmssfff}-{Guid.NewGuid():N}{extension.ToLowerInvariant()}";
             var path = Path.Combine(uploadRoot, fileName);
 
             await using (var stream = System.IO.File.Create(path))
@@ -55,6 +60,7 @@ namespace BaseCore.APIService.Controllers
             return Ok(new
             {
                 fileName,
+                uploadedBy = ownerId,
                 url = Url.Action(nameof(GetImage), new { fileName }) ?? $"/api/uploads/images/{fileName}"
             });
         }
@@ -97,11 +103,14 @@ namespace BaseCore.APIService.Controllers
             var extension = Path.GetExtension(file.FileName);
             if (!AllowedFileExtensions.Contains(extension))
                 return BadRequest(new { message = "Dinh dang file khong ho tro" });
+            if (!await HasValidMagicBytesAsync(file, extension))
+                return BadRequest(new { message = "Noi dung file khong khop dinh dang" });
 
             var uploadRoot = GetFileUploadRoot();
             Directory.CreateDirectory(uploadRoot);
 
-            var fileName = $"{DateTime.UtcNow:yyyyMMddHHmmssfff}-{Guid.NewGuid():N}{extension.ToLowerInvariant()}";
+            var ownerId = CurrentUserId() ?? 0;
+            var fileName = $"u{ownerId}-{DateTime.UtcNow:yyyyMMddHHmmssfff}-{Guid.NewGuid():N}{extension.ToLowerInvariant()}";
             var path = Path.Combine(uploadRoot, fileName);
 
             await using (var stream = System.IO.File.Create(path))
@@ -114,6 +123,7 @@ namespace BaseCore.APIService.Controllers
                 url = Url.Action(nameof(GetFile), new { fileName }) ?? $"/api/uploads/files/{fileName}",
                 name = file.FileName,
                 size = file.Length,
+                uploadedBy = ownerId,
                 type = extension.TrimStart('.').ToLowerInvariant()
             });
         }
@@ -155,6 +165,36 @@ namespace BaseCore.APIService.Controllers
         private static string GetFileUploadRoot()
         {
             return Path.Combine(AppContext.BaseDirectory, "wwwroot", "uploads", "files");
+        }
+
+        private int? CurrentUserId()
+        {
+            return int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var userId)
+                ? userId
+                : null;
+        }
+
+        private static async Task<bool> HasValidMagicBytesAsync(IFormFile file, string extension)
+        {
+            var header = new byte[Math.Min(16, (int)file.Length)];
+            await using var stream = file.OpenReadStream();
+            var read = await stream.ReadAsync(header.AsMemory(0, header.Length));
+            if (read < 4) return false;
+
+            extension = extension.ToLowerInvariant();
+            return extension switch
+            {
+                ".jpg" or ".jpeg" => header[0] == 0xFF && header[1] == 0xD8 && header[2] == 0xFF,
+                ".png" => read >= 8 && header[0] == 0x89 && header[1] == 0x50 && header[2] == 0x4E && header[3] == 0x47 &&
+                          header[4] == 0x0D && header[5] == 0x0A && header[6] == 0x1A && header[7] == 0x0A,
+                ".gif" => header[0] == 0x47 && header[1] == 0x49 && header[2] == 0x46 && header[3] == 0x38,
+                ".webp" => read >= 12 && header[0] == 0x52 && header[1] == 0x49 && header[2] == 0x46 && header[3] == 0x46 &&
+                           header[8] == 0x57 && header[9] == 0x45 && header[10] == 0x42 && header[11] == 0x50,
+                ".pdf" => header[0] == 0x25 && header[1] == 0x50 && header[2] == 0x44 && header[3] == 0x46,
+                ".docx" or ".xlsx" => header[0] == 0x50 && header[1] == 0x4B && header[2] == 0x03 && header[3] == 0x04,
+                ".doc" => header[0] == 0xD0 && header[1] == 0xCF && header[2] == 0x11 && header[3] == 0xE0,
+                _ => false
+            };
         }
     }
 }

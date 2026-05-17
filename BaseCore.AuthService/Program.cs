@@ -204,6 +204,31 @@ if (app.Environment.IsDevelopment())
 
 app.UseCors("AllowAll");
 app.UseAuthentication();
+app.Use(async (context, next) =>
+{
+    if (context.User.Identity?.IsAuthenticated == true)
+    {
+        var userIdValue = context.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        if (int.TryParse(userIdValue, out var userId))
+        {
+            var db = context.RequestServices.GetRequiredService<MySqlDbContext>();
+            var isActive = await db.Users
+                .AsNoTracking()
+                .Where(u => u.Id == userId)
+                .Select(u => u.IsActive)
+                .FirstOrDefaultAsync();
+
+            if (!isActive)
+            {
+                context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                await context.Response.WriteAsJsonAsync(new { message = "Account is deactivated" });
+                return;
+            }
+        }
+    }
+
+    await next();
+});
 app.UseRateLimiter();
 app.UseAuthorization();
 app.MapControllers();

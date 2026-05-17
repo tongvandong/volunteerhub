@@ -17,6 +17,7 @@ namespace BaseCore.APIService.Controllers
         }
 
         [HttpGet("api/monitoring/health")]
+        [Authorize(Roles = "Admin")]
         [EnableRateLimiting("read-sensitive")]
         public async Task<IActionResult> Health()
         {
@@ -75,7 +76,12 @@ namespace BaseCore.APIService.Controllers
                 .AsQueryable();
 
             if (!string.IsNullOrWhiteSpace(action))
-                query = query.Where(a => a.Action.Contains(action));
+            {
+                var normalizedAction = action.Trim();
+                query = normalizedAction.EndsWith("*")
+                    ? query.Where(a => a.Action.StartsWith(normalizedAction.TrimEnd('*')))
+                    : query.Where(a => a.Action == normalizedAction);
+            }
             if (!string.IsNullOrWhiteSpace(entityType))
                 query = query.Where(a => a.EntityType == entityType);
 
@@ -106,6 +112,25 @@ namespace BaseCore.APIService.Controllers
                 pageSize,
                 totalPages = (int)Math.Ceiling((double)totalCount / pageSize)
             });
+        }
+
+        [HttpDelete("api/admin/audit-logs/retention"), Authorize(Roles = "Admin")]
+        [EnableRateLimiting("write-sensitive")]
+        public async Task<IActionResult> CleanupAuditLogs([FromQuery] int keepDays = 180)
+        {
+            keepDays = Math.Clamp(keepDays, 30, 3650);
+            var cutoff = DateTime.UtcNow.AddDays(-keepDays);
+            var oldLogs = await _context.AuditLogs
+                .Where(a => a.CreatedAtUtc < cutoff)
+                .ToListAsync();
+
+            if (oldLogs.Count > 0)
+            {
+                _context.AuditLogs.RemoveRange(oldLogs);
+                await _context.SaveChangesAsync();
+            }
+
+            return Ok(new { deleted = oldLogs.Count, keepDays, cutoff });
         }
     }
 }

@@ -39,27 +39,12 @@ namespace BaseCore.Services.Authen
             if (user == null)
                 return null;
 
-            // verify password using hash or plain text
-            bool isValidPassword = false;
-
-            if (user.Salt != null && user.Salt.Length > 0)
-            {
-                // Hashed password
-                isValidPassword = TokenHelper.IsValidPassword(password, user.Salt, user.Password);
-            }
-            else
-            {
-                // Plain text password (for seeded/legacy users)
-                isValidPassword = (user.Password == password);
-            }
-
-            if (!isValidPassword)
-            {
-                Console.WriteLine($"Password verification failed for user: {username}");
+            if (user.Salt == null || user.Salt.Length == 0)
                 return null;
-            }
 
-            Console.WriteLine($"User authenticated successfully: {username}");
+            var isValidPassword = TokenHelper.IsValidPassword(password, user.Salt, user.Password);
+            if (!isValidPassword)
+                return null;
 
             // authentication successful
             return user;
@@ -80,17 +65,10 @@ namespace BaseCore.Services.Authen
             if (user == null)
                 return null;
 
-            bool isValidPassword = false;
+            if (user.Salt == null || user.Salt.Length == 0)
+                return null;
 
-            if (user.Salt != null && user.Salt.Length > 0)
-            {
-                isValidPassword = TokenHelper.IsValidPassword(password, user.Salt, user.Password);
-            }
-            else
-            {
-                isValidPassword = user.Password == password;
-            }
-
+            var isValidPassword = TokenHelper.IsValidPassword(password, user.Salt, user.Password);
             return isValidPassword ? user : null;
         }
 

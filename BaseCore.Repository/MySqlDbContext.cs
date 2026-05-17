@@ -219,6 +219,7 @@ namespace BaseCore.Repository
                 entity.Property(e => e.Location).HasMaxLength(300).IsRequired(false);
                 entity.Property(e => e.Latitude).HasPrecision(9, 6);
                 entity.Property(e => e.Longitude).HasPrecision(9, 6);
+                entity.Property(e => e.CheckInRadiusKm).HasPrecision(5, 2).HasDefaultValue(0.5m);
                 entity.Property(e => e.RequiredSkillIds).HasMaxLength(500).IsRequired(false);
                 entity.Property(e => e.Status).HasMaxLength(50).IsRequired(false);
                 entity.Property(e => e.ImageUrl).HasMaxLength(500).IsRequired(false);
@@ -772,7 +773,7 @@ namespace BaseCore.Repository
                     Location = "Đà Nẵng", Latitude = 16.0544m, Longitude = 108.2022m,
                     StartDate = new DateTime(2025, 9, 5, 6, 0, 0), EndDate = new DateTime(2025, 9, 5, 12, 0, 0),
                     MinParticipants = 20, MaxParticipants = 100, CurrentParticipants = 1, RequiresKyc = false, Status = "Approved",
-                    CategoryId = 2, OrganizerId = 2, ImageUrl = "", QrCode = "EVT-2025-0002",
+                    CategoryId = 2, OrganizerId = 2, ImageUrl = "", QrCode = "EVT-SEED-2-9f4c1b7d2e6a4c8ba5d0f3e1a2b7c6d5",
                     RequiredSkillIds = "[]", CreatedAt = new DateTime(2025, 7, 10)
                 },
                 new Entities.Event
@@ -781,7 +782,7 @@ namespace BaseCore.Repository
                     Location = "TP. Hồ Chí Minh", Latitude = 10.8231m, Longitude = 106.6297m,
                     StartDate = new DateTime(2025, 6, 1, 8, 0, 0), EndDate = new DateTime(2025, 6, 30, 17, 0, 0),
                     MinParticipants = 5, MaxParticipants = 30, CurrentParticipants = 1, RequiresKyc = false, Status = "Completed",
-                    CategoryId = 4, OrganizerId = 2, ImageUrl = "", QrCode = "EVT-2025-0003",
+                    CategoryId = 4, OrganizerId = 2, ImageUrl = "", QrCode = "EVT-SEED-3-6a1e5c9b0d4f43e8a7c2b5d9f1e0a3c4",
                     RequiredSkillIds = "[3,6]", CreatedAt = new DateTime(2025, 5, 1)
                 }
             );

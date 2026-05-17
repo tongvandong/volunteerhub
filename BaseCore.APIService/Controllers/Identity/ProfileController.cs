@@ -6,6 +6,7 @@ using BaseCore.Entities;
 using BaseCore.Repository.EFCore;
 using BaseCore.Services.VolunteerHub;
 using System.Security.Claims;
+using System.Text.RegularExpressions;
 
 namespace BaseCore.APIService.Controllers
 {
@@ -52,7 +53,35 @@ namespace BaseCore.APIService.Controllers
         {
             var profile = await _profileRepo.GetByUserIdAsync(userId);
             var skills = await _profileRepo.GetSkillsByUserIdAsync(userId);
-            return Ok(new { profile, skills });
+            if (profile == null) return NotFound(new { message = "Profile not found" });
+
+            return Ok(new
+            {
+                profile = new
+                {
+                    profile.Id,
+                    profile.UserId,
+                    profile.TotalVolunteerHours,
+                    profile.Bio,
+                    profile.AvatarUrl,
+                    profile.KycStatus,
+                    user = profile.User == null ? null : new
+                    {
+                        profile.User.Id,
+                        profile.User.Name,
+                        profile.User.UserName,
+                        profile.User.UserType
+                    }
+                },
+                skills = skills.Select(s => new
+                {
+                    s.Id,
+                    s.SkillId,
+                    s.Level,
+                    s.VerificationStatus,
+                    skill = s.Skill == null ? null : new { s.Skill.Id, s.Skill.Name, s.Skill.Category }
+                })
+            });
         }
 
         [HttpPut("api/profile")]
@@ -62,25 +91,28 @@ namespace BaseCore.APIService.Controllers
             if (!int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var userId))
                 return Unauthorized();
 
+            var validation = ValidateProfileUpdate(dto);
+            if (validation != null) return BadRequest(new { message = validation });
+
             var profile = await _profileRepo.GetByUserIdAsync(userId);
             if (profile == null)
             {
                 profile = new VolunteerProfile { UserId = userId };
-                profile.BloodType = dto.BloodType ?? "";
-                profile.Languages = dto.Languages ?? "";
-                profile.Interests = dto.Interests ?? "";
-                profile.Bio = dto.Bio ?? "";
-                profile.AvatarUrl = dto.AvatarUrl ?? "";
+                profile.BloodType = dto.BloodType?.Trim() ?? "";
+                profile.Languages = dto.Languages?.Trim() ?? "";
+                profile.Interests = dto.Interests?.Trim() ?? "";
+                profile.Bio = dto.Bio?.Trim() ?? "";
+                profile.AvatarUrl = dto.AvatarUrl?.Trim() ?? "";
                 profile.KycStatus = "Unverified";
                 await _profileRepo.AddAsync(profile);
             }
             else
             {
-                profile.BloodType = dto.BloodType ?? profile.BloodType;
-                profile.Languages = dto.Languages ?? profile.Languages;
-                profile.Interests = dto.Interests ?? profile.Interests;
-                profile.Bio = dto.Bio ?? profile.Bio;
-                profile.AvatarUrl = dto.AvatarUrl ?? profile.AvatarUrl;
+                profile.BloodType = dto.BloodType?.Trim() ?? profile.BloodType;
+                profile.Languages = dto.Languages?.Trim() ?? profile.Languages;
+                profile.Interests = dto.Interests?.Trim() ?? profile.Interests;
+                profile.Bio = dto.Bio?.Trim() ?? profile.Bio;
+                profile.AvatarUrl = dto.AvatarUrl?.Trim() ?? profile.AvatarUrl;
                 await _profileRepo.UpdateAsync(profile);
             }
             await RecordAuditAsync(userId, "Profile.Update", "VolunteerProfile", profile.Id);
@@ -104,6 +136,12 @@ namespace BaseCore.APIService.Controllers
                 profile = new VolunteerProfile { UserId = userId, BloodType = "", Languages = "", Interests = "", Bio = "", AvatarUrl = "" };
                 await _profileRepo.AddAsync(profile);
             }
+            if (!IsInternalUploadUrl(dto.IdentityFrontImageUrl) ||
+                !IsInternalUploadUrl(dto.IdentityBackImageUrl) ||
+                !IsInternalUploadUrl(dto.PortraitImageUrl))
+                return BadRequest(new { message = "KYC images must be uploaded through the system" });
+            if (profile.KycStatus == "Verified" && !dto.ConfirmReverify)
+                return BadRequest(new { message = "Your KYC is already verified. Confirm re-verification before replacing identity images." });
 
             profile.IdentityFrontImageUrl = dto.IdentityFrontImageUrl.Trim();
             profile.IdentityBackImageUrl = dto.IdentityBackImageUrl.Trim();
@@ -127,15 +165,18 @@ namespace BaseCore.APIService.Controllers
             var profile = await _profileRepo.GetByUserIdAsync(userId);
             var skills = await _profileRepo.GetSkillsByUserIdAsync(userId);
             var registrations = await _registrationRepo.GetByUserAsync(userId);
+            var passportRegistrations = registrations
+                .Where(r => !string.Equals(r.Event?.Status, "Cancelled", StringComparison.OrdinalIgnoreCase))
+                .ToList();
             var certificates = await _certificateRepo.GetByUserAsync(userId);
 
             return Ok(new
             {
                 profile,
                 skills,
-                totalEvents = registrations.Count(r => r.IsAttended),
+                totalEvents = passportRegistrations.Count(r => r.IsAttended),
                 totalHours = profile?.TotalVolunteerHours ?? 0,
-                registrations,
+                registrations = passportRegistrations,
                 certificates
             });
         }
@@ -218,6 +259,20 @@ namespace BaseCore.APIService.Controllers
                 return Unauthorized();
             try
             {
+                if (dto.SkillId <= 0) return BadRequest(new { message = "Skill is required" });
+                var skill = await _skillRepo.GetByIdAsync(dto.SkillId);
+                if (skill == null) return NotFound(new { message = "Skill not found" });
+
+                var existingSkills = await _profileRepo.GetSkillsByUserIdAsync(userId);
+                if (existingSkills.Any(s => s.SkillId == dto.SkillId))
+                    return BadRequest(new { message = "Skill already exists in profile" });
+                if (!string.IsNullOrWhiteSpace(dto.EvidenceUrl) && !IsInternalUploadUrl(dto.EvidenceUrl))
+                    return BadRequest(new { message = "Evidence must be uploaded through the system" });
+                var levelError = ValidateSkillLevel(dto.Level);
+                if (levelError != null) return BadRequest(new { message = levelError });
+                if ((dto.VerificationNote?.Trim().Length ?? 0) > 500)
+                    return BadRequest(new { message = "Verification note must be 500 characters or less" });
+
                 var hasEvidence = !string.IsNullOrWhiteSpace(dto.EvidenceUrl);
                 var vs = new VolunteerSkill
                 {
@@ -257,6 +312,11 @@ namespace BaseCore.APIService.Controllers
                 return BadRequest(new { message = "Vui lòng upload hoặc nhập minh chứng kỹ năng." });
 
             var skills = await _profileRepo.GetSkillsByUserIdAsync(userId);
+            if (!IsInternalUploadUrl(dto.EvidenceUrl))
+                return BadRequest(new { message = "Evidence must be uploaded through the system" });
+            if ((dto.VerificationNote?.Trim().Length ?? 0) > 500)
+                return BadRequest(new { message = "Verification note must be 500 characters or less" });
+
             var vs = skills.FirstOrDefault(s => s.SkillId == skillId);
             if (vs == null) return NotFound(new { message = "Skill not found in profile" });
 
@@ -301,6 +361,42 @@ namespace BaseCore.APIService.Controllers
 
             return null;
         }
+
+        private static string? ValidateProfileUpdate(ProfileUpdateDto dto)
+        {
+            if (!string.IsNullOrWhiteSpace(dto.BloodType) &&
+                !new[] { "A", "B", "AB", "O", "A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-" }.Contains(dto.BloodType.Trim(), StringComparer.OrdinalIgnoreCase))
+                return "Blood type is invalid";
+            if ((dto.Languages?.Trim().Length ?? 0) > 300)
+                return "Languages must be 300 characters or less";
+            if ((dto.Interests?.Trim().Length ?? 0) > 300)
+                return "Interests must be 300 characters or less";
+            if ((dto.Bio?.Trim().Length ?? 0) > 1000)
+                return "Bio must be 1000 characters or less";
+            if (!string.IsNullOrWhiteSpace(dto.AvatarUrl) && !IsInternalUploadUrl(dto.AvatarUrl))
+                return "Avatar must be uploaded through the system";
+
+            return null;
+        }
+
+        private static string? ValidateSkillLevel(string? level)
+        {
+            if (string.IsNullOrWhiteSpace(level)) return null;
+            return new[] { "Beginner", "Intermediate", "Expert" }.Contains(level.Trim(), StringComparer.OrdinalIgnoreCase)
+                ? null
+                : "Skill level is invalid";
+        }
+
+        private static bool IsInternalUploadUrl(string? value)
+        {
+            if (string.IsNullOrWhiteSpace(value)) return false;
+            var trimmed = value.Trim();
+            if (trimmed.Length > 500) return false;
+            if (trimmed.Contains('\\')) return false;
+            if (Regex.IsMatch(trimmed, @"^[a-zA-Z][a-zA-Z0-9+.-]*:")) return false;
+            return trimmed.StartsWith("/uploads/", StringComparison.OrdinalIgnoreCase) ||
+                   trimmed.StartsWith("/api/uploads/", StringComparison.OrdinalIgnoreCase);
+        }
     }
 
     public class ProfileUpdateDto
@@ -317,6 +413,7 @@ namespace BaseCore.APIService.Controllers
         public string IdentityFrontImageUrl { get; set; } = "";
         public string IdentityBackImageUrl { get; set; } = "";
         public string PortraitImageUrl { get; set; } = "";
+        public bool ConfirmReverify { get; set; } = false;
     }
 
     public class SkillDto

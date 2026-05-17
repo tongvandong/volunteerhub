@@ -146,9 +146,23 @@ namespace BaseCore.Services.VolunteerHub
         {
             var ev = await _context.Events.FindAsync(eventId)
                 ?? throw new Exception("Event not found");
+            if (ev.Status != "Pending") throw new Exception("Only pending events can be approved");
+            if (ev.EndDate <= DateTime.UtcNow) throw new Exception("Cannot approve an event that has already ended");
+
+            var organizer = await _context.Users.FindAsync(ev.OrganizerId)
+                ?? throw new Exception("Organizer not found");
+            if (!organizer.IsActive || organizer.UserType != 1)
+                throw new Exception("Organizer account is not active");
+
+            var verified = await _context.OrganizerVerifications
+                .Where(v => v.OrganizerId == ev.OrganizerId)
+                .Select(v => v.Status)
+                .FirstOrDefaultAsync();
+            if (verified != "Verified")
+                throw new Exception("Organizer must be legally verified before event approval");
 
             ev.Status = "Approved";
-            ev.QrCode = $"EVT-{DateTime.UtcNow.Year}-{eventId:D4}";
+            ev.QrCode = $"EVT-{eventId}-{Guid.NewGuid():N}";
 
             // Auto-create channel
             var exists = await _context.Channels.AnyAsync(c => c.EventId == eventId && c.ParentChannelId == null);
@@ -177,6 +191,10 @@ namespace BaseCore.Services.VolunteerHub
         {
             var ev = await _context.Events.FindAsync(eventId)
                 ?? throw new Exception("Event not found");
+            if (ev.Status != "Pending") throw new Exception("Only pending events can be rejected");
+            if (string.IsNullOrWhiteSpace(reason) || reason.Trim().Length < 10)
+                throw new Exception("Reject reason must be at least 10 characters");
+
             ev.Status = "Rejected";
             ev.RejectReason = reason?.Trim() ?? "";
             await _context.SaveChangesAsync();
@@ -231,14 +249,25 @@ namespace BaseCore.Services.VolunteerHub
             ev.CancelReason = reason?.Trim() ?? "";
             ev.CancelledAt = DateTime.UtcNow;
 
-            // Close active support campaigns (only Open). Draft/Closed/Reported stay as-is.
-            var openCampaigns = await _context.SupportCampaigns
-                .Where(c => c.EventId == eventId && c.Status == "Open")
+            // Close active support campaigns and cancel pending donations so money workflows do not hang.
+            var activeCampaigns = await _context.SupportCampaigns
+                .Where(c => c.EventId == eventId && (c.Status == "Open" || c.Status == "Draft"))
                 .ToListAsync();
-            foreach (var c in openCampaigns)
+            foreach (var c in activeCampaigns)
             {
                 c.Status = "Closed";
                 c.UpdatedAt = DateTime.UtcNow;
+            }
+
+            var pendingDonations = await _context.IndividualDonations
+                .Include(d => d.Campaign)
+                .Where(d => d.Campaign.EventId == eventId && d.Status == "PendingConfirmation")
+                .ToListAsync();
+            foreach (var donation in pendingDonations)
+            {
+                donation.Status = "Cancelled";
+                donation.RejectedReason = "Event cancelled";
+                donation.UpdatedAt = DateTime.UtcNow;
             }
 
             // Auto-cancel sponsorship proposals that are still Pending or Accepted (but not Received/Reported).
@@ -260,6 +289,12 @@ namespace BaseCore.Services.VolunteerHub
             var confirmedVolunteerIds = await _context.Registrations
                 .Where(r => r.EventId == eventId && r.Status == "Confirmed" && !r.IsAttended)
                 .Select(r => r.UserId)
+                .ToListAsync();
+
+            var confirmedDonorIds = await _context.IndividualDonations
+                .Where(d => d.Campaign.EventId == eventId && d.Status == "Confirmed")
+                .Select(d => d.UserId)
+                .Distinct()
                 .ToListAsync();
 
             // Collect sponsor ids that had active proposals to notify them of the cancellation too.
@@ -284,6 +319,25 @@ namespace BaseCore.Services.VolunteerHub
             foreach (var sid in sponsorIdsToNotify)
             {
                 await _notificationService.SendAsync(sid, "Sự kiện bị hủy", message, "EventCancelled", eventId);
+            }
+
+            foreach (var donorId in confirmedDonorIds)
+            {
+                await _notificationService.SendAsync(
+                    donorId,
+                    "Sự kiện có khoản ủng hộ đã bị hủy",
+                    $"{message} Bạn đã có khoản ủng hộ được xác nhận cho sự kiện này. Vui lòng theo dõi báo cáo hoặc liên hệ ban tổ chức để biết phương án xử lý.",
+                    "EventCancelled",
+                    eventId);
+            }
+            foreach (var donation in pendingDonations)
+            {
+                await _notificationService.SendAsync(
+                    donation.UserId,
+                    "Khoản ủng hộ chờ xác nhận đã bị hủy",
+                    $"Sự kiện '{ev.Title}' đã bị hủy nên khoản ủng hộ chờ xác nhận cho đợt '{donation.Campaign.Title}' đã được hủy tự động. Vui lòng liên hệ ban tổ chức nếu bạn đã chuyển tiền.",
+                    "DonationCancelled",
+                    donation.CampaignId);
             }
 
             return ev;

@@ -12,6 +12,7 @@ namespace BaseCore.Entities
         public string Location { get; set; }
         public decimal? Latitude { get; set; }
         public decimal? Longitude { get; set; }
+        public decimal CheckInRadiusKm { get; set; } = 0.5m;
         public DateTime StartDate { get; set; }
         public DateTime EndDate { get; set; }
         public int MinParticipants { get; set; } = 1;

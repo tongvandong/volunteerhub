@@ -23,7 +23,7 @@ namespace BaseCore.APIService.Controllers
             _auditLogService = auditLogService;
         }
 
-        [HttpGet("finance/overview")]
+        [HttpGet("finance/overview-detail")]
         public async Task<IActionResult> GetFinanceOverview()
         {
             var donationConfirmedAmount = await _context.IndividualDonations
@@ -156,7 +156,7 @@ namespace BaseCore.APIService.Controllers
             return Ok(items);
         }
 
-        [HttpGet("export/finance")]
+        [HttpGet("export/finance-detail")]
         [EnableRateLimiting("read-sensitive")]
         public async Task<IActionResult> ExportFinance([FromQuery] string format = "json")
         {
@@ -229,6 +229,9 @@ namespace BaseCore.APIService.Controllers
         private static string EscapeCsv(string? value)
         {
             if (string.IsNullOrEmpty(value)) return "";
+            var trimmed = value.TrimStart();
+            if (trimmed.Length > 0 && "=+-@".Contains(trimmed[0]))
+                value = "'" + value;
             if (value.Contains(',') || value.Contains('"') || value.Contains('\n'))
             {
                 return $"\"{value.Replace("\"", "\"\"")}\"";

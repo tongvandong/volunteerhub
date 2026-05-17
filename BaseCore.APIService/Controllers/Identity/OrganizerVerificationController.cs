@@ -14,11 +14,16 @@ namespace BaseCore.APIService.Controllers
     {
         private readonly MySqlDbContext _context;
         private readonly IAuditLogService _auditLogService;
+        private readonly INotificationService _notificationService;
 
-        public OrganizerVerificationController(MySqlDbContext context, IAuditLogService auditLogService)
+        public OrganizerVerificationController(
+            MySqlDbContext context,
+            IAuditLogService auditLogService,
+            INotificationService notificationService)
         {
             _context = context;
             _auditLogService = auditLogService;
+            _notificationService = notificationService;
         }
 
         [HttpGet("api/organizer/verification")]
@@ -112,9 +117,11 @@ namespace BaseCore.APIService.Controllers
                 .Include(v => v.Organizer)
                 .FirstOrDefaultAsync(v => v.Id == id);
             if (verification == null) return NotFound(new { message = "Verification request not found" });
+            if (verification.Status != "PendingVerification")
+                return BadRequest(new { message = "Chỉ có thể duyệt hồ sơ tổ chức đang chờ xác minh" });
 
             verification.Status = "Verified";
-            verification.AdminNote = dto.Note?.Trim() ?? "";
+            verification.AdminNote = dto?.Note?.Trim() ?? "";
             verification.RejectReason = "";
             verification.VerifiedAt = DateTime.UtcNow;
             verification.VerifiedBy = adminId;
@@ -122,6 +129,12 @@ namespace BaseCore.APIService.Controllers
 
             await _context.SaveChangesAsync();
             await RecordAuditAsync(adminId, "OrganizerVerification.Approve", "OrganizerVerification", verification.Id, $"OrganizerId={verification.OrganizerId}");
+            await _notificationService.SendAsync(
+                verification.OrganizerId,
+                "Hồ sơ tổ chức đã được xác minh",
+                $"Hồ sơ tổ chức '{verification.OrganizationName}' đã được duyệt. Bạn có thể tạo và gửi sự kiện để admin duyệt.",
+                "OrganizerVerificationApproved",
+                verification.Id);
 
             return Ok(ToResponse(verification));
         }
@@ -145,13 +158,15 @@ namespace BaseCore.APIService.Controllers
         private async Task<IActionResult> ReviewAsNeedsAction(int id, OrganizerVerificationReviewDto dto, string status, string action)
         {
             if (!TryGetUserId(out var adminId)) return Unauthorized();
-            if (string.IsNullOrWhiteSpace(dto.Note))
+            if (string.IsNullOrWhiteSpace(dto?.Note))
                 return BadRequest(new { message = "Vui lòng nhập lý do để organizer biết cần xử lý gì." });
 
             var verification = await _context.OrganizerVerifications
                 .Include(v => v.Organizer)
                 .FirstOrDefaultAsync(v => v.Id == id);
             if (verification == null) return NotFound(new { message = "Verification request not found" });
+            if (verification.Status != "PendingVerification")
+                return BadRequest(new { message = "Chỉ có thể xử lý hồ sơ tổ chức đang chờ xác minh" });
 
             verification.Status = status;
             verification.AdminNote = dto.Note.Trim();
@@ -162,6 +177,14 @@ namespace BaseCore.APIService.Controllers
 
             await _context.SaveChangesAsync();
             await RecordAuditAsync(adminId, action, "OrganizerVerification", verification.Id, $"OrganizerId={verification.OrganizerId}");
+            await _notificationService.SendAsync(
+                verification.OrganizerId,
+                status == "Rejected" ? "Hồ sơ tổ chức bị từ chối" : "Hồ sơ tổ chức cần bổ sung",
+                status == "Rejected"
+                    ? $"Hồ sơ tổ chức '{verification.OrganizationName}' bị từ chối. Lý do: {dto.Note.Trim()}"
+                    : $"Hồ sơ tổ chức '{verification.OrganizationName}' cần bổ sung thông tin. Ghi chú: {dto.Note.Trim()}",
+                status == "Rejected" ? "OrganizerVerificationRejected" : "OrganizerVerificationChangesRequested",
+                verification.Id);
 
             return Ok(ToResponse(verification));
         }

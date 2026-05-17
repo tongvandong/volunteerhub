@@ -128,7 +128,7 @@ function VolunteerCheckInModal({ registration, onClose, onDone }) {
 
         <div className="space-y-2">
           <label className="block text-sm font-medium text-gray-700">Mã điểm danh dự phòng</label>
-          <input value={code} onChange={(e) => setCode(e.target.value)} className="input-field text-center font-mono tracking-widest" placeholder="VD: EVT-2025-0002" />
+          <input value={code} onChange={(e) => setCode(e.target.value)} className="input-field text-center font-mono tracking-widest" placeholder="Nhập mã QR do organizer hiển thị" />
         </div>
 
         {message && (
@@ -277,6 +277,7 @@ export default function MyRegistrations() {
         : registration
     )));
     setCheckinTarget(null);
+    alert(`ÄÃ£ ghi nháº­n check-in. Giá» tÃ¬nh nguyá»‡n hiá»‡n táº¡i: ${updated.volunteerHours || 0}h. Giá» thá»±c táº¿ sáº½ cáº­p nháº­t khi ban tá»• chá»©c check-out.`);
   };
 
   const filtered = filter === 'all'
@@ -395,6 +396,12 @@ export default function MyRegistrations() {
                     <button type="button" onClick={() => setCheckinTarget(registration)} className="btn-primary btn-sm text-xs">
                       <i className="fa-solid fa-qrcode mr-1" /> Điểm danh
                     </button>
+                  )}
+
+                  {registration.status === 'Confirmed' && !registration.isAttended && registration.event?.status !== 'Approved' && (
+                    <span className="rounded-full border border-gray-200 bg-gray-50 px-2.5 py-1 text-xs font-medium text-gray-500">
+                      Chưa mở điểm danh
+                    </span>
                   )}
 
                   {canRequestCancel && !registration.cancelRequested && (

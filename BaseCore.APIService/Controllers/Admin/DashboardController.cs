@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using BaseCore.Repository;
 using BaseCore.Repository.EFCore;
+using BaseCore.Services.VolunteerHub;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 
@@ -13,10 +14,12 @@ namespace BaseCore.APIService.Controllers
     public class DashboardController : ControllerBase
     {
         private readonly MySqlDbContext _context;
+        private readonly IEventService _eventService;
 
-        public DashboardController(MySqlDbContext context)
+        public DashboardController(MySqlDbContext context, IEventService eventService)
         {
             _context = context;
+            _eventService = eventService;
         }
 
         [HttpGet]
@@ -28,29 +31,61 @@ namespace BaseCore.APIService.Controllers
 
             if (role == "Admin")
             {
+                var staleCutoff = DateTime.UtcNow.AddDays(-7);
                 var totalUsers = await _context.Users.CountAsync();
                 var pendingEvents = await _context.Events.CountAsync(e => e.Status == "Pending");
                 var totalEvents = await _context.Events.CountAsync();
                 var totalRegistrations = await _context.Registrations.CountAsync();
                 var totalCertificates = await _context.Certificates.CountAsync();
-                return Ok(new { totalUsers, pendingEvents, totalEvents, totalRegistrations, totalCertificates });
+                var pendingKyc = await _context.VolunteerProfiles.CountAsync(p => p.KycStatus == "PendingVerification");
+                var pendingOrganizerVerifications = await _context.OrganizerVerifications.CountAsync(v => v.Status == "PendingVerification");
+                var pendingSkillVerifications = await _context.VolunteerSkills.CountAsync(vs => vs.VerificationStatus == "PendingVerification");
+                var staleDonations = await _context.IndividualDonations.CountAsync(d => d.Status == "PendingConfirmation" && d.CreatedAt <= staleCutoff);
+                var failedCertificateJobs = await _context.CertificateJobs.CountAsync(j => j.Status == "Failed");
+                var pendingCertificateJobs = await _context.CertificateJobs.CountAsync(j => j.Status == "Pending");
+
+                return Ok(new
+                {
+                    totalUsers,
+                    pendingEvents,
+                    totalEvents,
+                    totalRegistrations,
+                    totalCertificates,
+                    inbox = new
+                    {
+                        pendingEvents,
+                        pendingKyc,
+                        pendingOrganizerVerifications,
+                        pendingSkillVerifications,
+                        staleDonations,
+                        failedCertificateJobs,
+                        pendingCertificateJobs
+                    }
+                });
             }
             else if (role == "Organizer")
             {
-                var myEvents = await _context.Events.Where(e => e.OrganizerId == userId).ToListAsync();
-                var eventIds = myEvents.Select(e => e.Id).ToList();
+                var eventIds = await _context.Events
+                    .Where(e => e.OrganizerId == userId)
+                    .Select(e => e.Id)
+                    .ToListAsync();
                 var pendingRegistrations = await _context.Registrations
                     .CountAsync(r => eventIds.Contains(r.EventId) && r.Status == "Pending");
                 var totalVolunteers = await _context.Registrations
                     .CountAsync(r => eventIds.Contains(r.EventId) && r.Status == "Confirmed");
+                var recentEvents = await _context.Events
+                    .Where(e => e.OrganizerId == userId)
+                    .OrderByDescending(e => e.CreatedAt)
+                    .Take(5)
+                    .ToListAsync();
                 return Ok(new
                 {
-                    totalEvents = myEvents.Count,
-                    approvedEvents = myEvents.Count(e => e.Status == "Approved"),
-                    completedEvents = myEvents.Count(e => e.Status == "Completed"),
+                    totalEvents = await _context.Events.CountAsync(e => e.OrganizerId == userId),
+                    approvedEvents = await _context.Events.CountAsync(e => e.OrganizerId == userId && e.Status == "Approved"),
+                    completedEvents = await _context.Events.CountAsync(e => e.OrganizerId == userId && e.Status == "Completed"),
                     pendingRegistrations,
                     totalVolunteers,
-                    recentEvents = myEvents.OrderByDescending(e => e.CreatedAt).Take(5)
+                    recentEvents
                 });
             }
             else if (role == "Sponsor")
@@ -75,11 +110,11 @@ namespace BaseCore.APIService.Controllers
                     .OrderByDescending(ub => ub.AwardedAt)
                     .Take(5)
                     .ToListAsync();
-                var upcomingEvents = await _context.Events
-                    .Where(e => e.Status == "Approved" && e.StartDate > DateTime.UtcNow)
+                var upcomingEvents = (await _eventService.GetRecommendedAsync(userId))
+                    .Where(e => e.StartDate > DateTime.UtcNow)
                     .OrderBy(e => e.StartDate)
                     .Take(5)
-                    .ToListAsync();
+                    .ToList();
                 return Ok(new
                 {
                     totalRegistrations = myRegistrations.Count,

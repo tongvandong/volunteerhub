@@ -8,11 +8,13 @@ namespace BaseCore.Services.VolunteerHub
     {
         private readonly MySqlDbContext _context;
         private readonly INotificationService _notificationService;
+        private readonly IBadgeService _badgeService;
 
-        public RegistrationService(MySqlDbContext context, INotificationService notificationService)
+        public RegistrationService(MySqlDbContext context, INotificationService notificationService, IBadgeService badgeService)
         {
             _context = context;
             _notificationService = notificationService;
+            _badgeService = badgeService;
         }
 
         public async Task<Registration> RegisterAsync(int eventId, int userId, int? shiftId, string? note)
@@ -20,6 +22,9 @@ namespace BaseCore.Services.VolunteerHub
             var ev = await _context.Events.FindAsync(eventId)
                 ?? throw new Exception("Event not found");
             if (ev.Status != "Approved") throw new Exception("Event is not open for registration");
+            var now = DateTime.UtcNow;
+            if (now >= ev.StartDate) throw new Exception("Registration is closed because the event has already started");
+            if (now >= ev.EndDate) throw new Exception("Registration is closed because the event has ended");
             if (ev.CurrentParticipants >= ev.MaxParticipants) throw new Exception("Event is full");
             if (ev.RequiresKyc)
             {
@@ -60,8 +65,10 @@ namespace BaseCore.Services.VolunteerHub
                 existing.Note = note ?? "";
                 existing.RegisteredAt = DateTime.UtcNow;
                 existing.ConfirmedAt = null;
+                existing.CancelledAt = null;
                 existing.IsAttended = false;
                 existing.AttendedAt = null;
+                existing.CheckedOutAt = null;
                 existing.VolunteerHours = 0;
                 ev.CurrentParticipants++;
                 await _context.SaveChangesAsync();
@@ -99,15 +106,30 @@ namespace BaseCore.Services.VolunteerHub
         public async Task WithdrawAsync(int eventId, int userId)
         {
             var reg = await _context.Registrations
+                .Include(r => r.Event)
                 .FirstOrDefaultAsync(r => r.EventId == eventId && r.UserId == userId)
                 ?? throw new Exception("Registration not found");
             if (reg.Status == "Confirmed") throw new Exception("Cannot withdraw a confirmed registration");
+            if (reg.Status == "Cancelled") return;
 
-            var ev = await _context.Events.FindAsync(eventId);
+            var ev = reg.Event ?? await _context.Events.FindAsync(eventId);
             if (ev != null && ev.CurrentParticipants > 0) ev.CurrentParticipants--;
 
-            _context.Registrations.Remove(reg);
+            reg.Status = "Cancelled";
+            reg.CancelledAt = DateTime.UtcNow;
+            reg.CancelReason = "Withdrawn by volunteer";
+            reg.CancelRequested = false;
+            reg.CancelRequestedAt = null;
             await _context.SaveChangesAsync();
+
+            if (ev != null)
+            {
+                var volunteer = await _context.Users.FindAsync(userId);
+                await _notificationService.SendAsync(ev.OrganizerId,
+                    "Volunteer rút đăng ký",
+                    $"{volunteer?.Name ?? volunteer?.UserName ?? "Volunteer"} đã rút đăng ký khỏi sự kiện '{ev.Title}'.",
+                    "RegistrationWithdrawn", eventId);
+            }
         }
 
         public async Task<Registration> RequestCancelAsync(int eventId, int userId, string? reason)
@@ -119,6 +141,7 @@ namespace BaseCore.Services.VolunteerHub
             if (reg.Status != "Confirmed") throw new Exception("Only confirmed registrations can request cancellation");
             if (reg.IsAttended) throw new Exception("Cannot request cancellation after check-in");
             if (reg.Event.Status == "Completed" || reg.Event.Status == "Cancelled") throw new Exception("Event is no longer active");
+            if (reg.CancelRequested) throw new Exception("A cancellation request is already pending");
 
             reg.CancelRequested = true;
             reg.CancelRequestedAt = DateTime.UtcNow;
@@ -164,6 +187,7 @@ namespace BaseCore.Services.VolunteerHub
 
             var wasCancelRequest = reg.CancelRequested;
             reg.Status = "Cancelled";
+            reg.CancelledAt = DateTime.UtcNow;
             reg.CancelRequested = false;
             var ev = await _context.Events.FindAsync(reg.EventId);
             if (ev != null && ev.CurrentParticipants > 0) ev.CurrentParticipants--;
@@ -187,17 +211,27 @@ namespace BaseCore.Services.VolunteerHub
                 ?? throw new Exception("Registration not found");
             if (reg.EventId != eventId) throw new Exception("Registration not found in this event");
             if (reg.Event.OrganizerId != organizerId) throw new Exception("Not authorized");
+            if (reg.Event.Status != "Approved") throw new Exception("Event is not open for check-in");
             if (reg.Status != "Confirmed") throw new Exception("Registration is not confirmed");
+            if (reg.IsAttended) throw new Exception("Already checked in");
 
-            var qrValid = !string.IsNullOrWhiteSpace(qrCode) && reg.Event.QrCode == qrCode.Trim();
-            var gpsValid = IsWithinEventRadius(reg.Event, latitude, longitude);
-            if (!qrValid && !gpsValid) throw new Exception("Invalid QR code or GPS location");
+            ValidateCheckInWindow(reg);
+            ValidateCheckInProof(reg.Event, qrCode, latitude, longitude);
 
             reg.IsAttended = true;
             reg.AttendedAt = DateTime.UtcNow;
-            reg.VolunteerHours = CalculateVolunteerHours(reg);
+            reg.CheckedOutAt = null;
+            reg.VolunteerHours = 0;
+            reg.CancelRequested = false;
+            reg.CancelRequestedAt = null;
+            reg.CancelReason = "";
 
             await _context.SaveChangesAsync();
+            await RefreshVolunteerProgressAsync(reg.UserId, evaluateBadges: false);
+            await _notificationService.SendAsync(reg.UserId,
+                "ÄÃ£ ghi nháº­n check-in",
+                $"Ban tá»• chá»©c Ä‘Ã£ ghi nháº­n báº¡n check-in cho sá»± kiá»‡n '{reg.Event.Title}'.",
+                "RegistrationCheckIn", reg.Id);
             return reg;
         }
 
@@ -211,31 +245,120 @@ namespace BaseCore.Services.VolunteerHub
             if (reg.Status != "Confirmed") throw new Exception("Registration is not confirmed");
             if (reg.IsAttended) throw new Exception("Already checked in");
 
-            var qrValid = !string.IsNullOrWhiteSpace(qrCode) && reg.Event.QrCode == qrCode.Trim();
-            var gpsValid = IsWithinEventRadius(reg.Event, latitude, longitude);
-            if (!qrValid && !gpsValid) throw new Exception("Invalid QR code or GPS location");
+            ValidateCheckInWindow(reg);
+            ValidateCheckInProof(reg.Event, qrCode, latitude, longitude);
 
             reg.IsAttended = true;
             reg.AttendedAt = DateTime.UtcNow;
-            reg.VolunteerHours = CalculateVolunteerHours(reg);
+            reg.CheckedOutAt = null;
+            reg.VolunteerHours = 0;
+            reg.CancelRequested = false;
+            reg.CancelRequestedAt = null;
+            reg.CancelReason = "";
 
             await _context.SaveChangesAsync();
+            await RefreshVolunteerProgressAsync(reg.UserId, evaluateBadges: false);
             return reg;
         }
 
-        private static decimal CalculateVolunteerHours(Registration reg)
+        private static decimal CalculateVolunteerHours(Registration reg, DateTime? attendedAt = null)
         {
-            // Prefer shift duration if registration is tied to a specific shift
-            if (reg.Shift != null && reg.Shift.EndTime > reg.Shift.StartTime)
-                return (decimal)(reg.Shift.EndTime - reg.Shift.StartTime).TotalHours;
-            if (reg.Event != null && reg.Event.EndDate > reg.Event.StartDate)
-                return (decimal)(reg.Event.EndDate - reg.Event.StartDate).TotalHours;
-            return 0m;
+            var start = reg.Shift?.StartTime ?? reg.Event?.StartDate;
+            var end = reg.Shift?.EndTime ?? reg.Event?.EndDate;
+            if (!start.HasValue || !end.HasValue || end <= start) return 0m;
+            if (!attendedAt.HasValue)
+                return (decimal)(end.Value - start.Value).TotalHours;
+
+            var effectiveStart = attendedAt.Value > start.Value ? attendedAt.Value : start.Value;
+            if (effectiveStart >= end.Value) return 0m;
+            return (decimal)(end.Value - effectiveStart).TotalHours;
+        }
+
+        private static decimal CalculateActualVolunteerHours(Registration reg, DateTime checkedOutAt)
+        {
+            if (!reg.AttendedAt.HasValue) return 0m;
+            var start = reg.Shift?.StartTime ?? reg.Event?.StartDate;
+            var end = reg.Shift?.EndTime ?? reg.Event?.EndDate;
+            if (!start.HasValue || !end.HasValue || end <= start) return 0m;
+
+            var effectiveStart = reg.AttendedAt.Value > start.Value ? reg.AttendedAt.Value : start.Value;
+            var effectiveEnd = checkedOutAt < end.Value ? checkedOutAt : end.Value;
+            if (effectiveEnd <= effectiveStart) return 0m;
+            return (decimal)(effectiveEnd - effectiveStart).TotalHours;
+        }
+
+        private static void ValidateCheckInWindow(Registration reg)
+        {
+            var now = DateTime.UtcNow;
+            if (reg.Shift != null)
+            {
+                if (now < reg.Shift.StartTime.AddMinutes(-15) || now > reg.Shift.EndTime.AddMinutes(30))
+                    throw new Exception("Check-in is outside the registered shift window");
+                return;
+            }
+
+            if (reg.Event == null) throw new Exception("Event not found");
+            if (now < reg.Event.StartDate.AddMinutes(-30) || now > reg.Event.EndDate.AddHours(2))
+                throw new Exception("Check-in is outside the event attendance window");
+        }
+
+        private static void ValidateCheckInProof(Entities.Event ev, string? qrCode, decimal? latitude, decimal? longitude)
+        {
+            if (!string.IsNullOrWhiteSpace(ev.QrCode))
+            {
+                var qrValid = !string.IsNullOrWhiteSpace(qrCode) && string.Equals(ev.QrCode, qrCode.Trim(), StringComparison.Ordinal);
+                if (!qrValid) throw new Exception("Invalid QR code");
+                return;
+            }
+
+            if (!IsWithinEventRadius(ev, latitude, longitude))
+                throw new Exception("Invalid GPS location");
+        }
+
+        private static decimal MaxAllowedVolunteerHours(Registration reg)
+        {
+            var scheduled = CalculateVolunteerHours(reg);
+            return Math.Max(1m, Math.Round(scheduled * 1.5m, 2));
+        }
+
+        private static void ValidateVolunteerHours(Registration reg, decimal hours)
+        {
+            var max = MaxAllowedVolunteerHours(reg);
+            if (hours < 0 || hours > max)
+                throw new Exception($"Hours must be between 0 and {max:0.##} for this event/shift");
+        }
+
+        private async Task RefreshVolunteerProgressAsync(int userId, bool evaluateBadges = true)
+        {
+            var profile = await _context.VolunteerProfiles.FirstOrDefaultAsync(p => p.UserId == userId);
+            if (profile == null) return;
+
+            profile.TotalVolunteerHours = await _context.Registrations
+                .Where(r => r.UserId == userId && r.IsAttended)
+                .SumAsync(r => (decimal?)r.VolunteerHours) ?? 0m;
+            await _context.SaveChangesAsync();
+
+            if (evaluateBadges)
+                await _badgeService.CheckAndAwardAsync(userId);
+        }
+
+        private async Task SyncCertificateHoursAsync(Registration reg)
+        {
+            var certificate = await _context.Certificates
+                .FirstOrDefaultAsync(c => c.UserId == reg.UserId && c.EventId == reg.EventId);
+            if (certificate == null) return;
+
+            certificate.VolunteerHours = reg.VolunteerHours;
+            await _context.SaveChangesAsync();
         }
 
         private static bool IsWithinEventRadius(Entities.Event ev, decimal? latitude, decimal? longitude)
         {
             if (!latitude.HasValue || !longitude.HasValue || !ev.Latitude.HasValue || !ev.Longitude.HasValue)
+                return false;
+            if (latitude.Value < -90 || latitude.Value > 90 || ev.Latitude.Value < -90 || ev.Latitude.Value > 90)
+                return false;
+            if (longitude.Value < -180 || longitude.Value > 180 || ev.Longitude.Value < -180 || ev.Longitude.Value > 180)
                 return false;
 
             var distanceKm = HaversineKm(
@@ -244,7 +367,7 @@ namespace BaseCore.Services.VolunteerHub
                 (double)ev.Latitude.Value,
                 (double)ev.Longitude.Value);
 
-            return distanceKm <= 0.5;
+            return !double.IsNaN(distanceKm) && distanceKm <= (double)ev.CheckInRadiusKm;
         }
 
         private static double HaversineKm(double lat1, double lon1, double lat2, double lon2)
@@ -260,9 +383,39 @@ namespace BaseCore.Services.VolunteerHub
 
         private static double ToRadians(double degrees) => degrees * Math.PI / 180;
 
-        public async Task<Registration> WalkInAsync(int eventId, int volunteerUserId, int organizerId, string? note)
+        public async Task<Registration> CheckOutAsync(int eventId, int registrationId, int organizerId)
         {
-            var ev = await _context.Events.FindAsync(eventId)
+            var reg = await _context.Registrations.Include(r => r.Event).Include(r => r.Shift)
+                .FirstOrDefaultAsync(r => r.Id == registrationId)
+                ?? throw new Exception("Registration not found");
+            if (reg.EventId != eventId) throw new Exception("Registration not found in this event");
+            if (reg.Event.OrganizerId != organizerId) throw new Exception("Not authorized");
+            if (reg.Event.Status != "Approved" && reg.Event.Status != "Completed")
+                throw new Exception("Event must be approved or completed to check out");
+            if (reg.Status != "Confirmed") throw new Exception("Registration is not confirmed");
+            if (!reg.IsAttended || !reg.AttendedAt.HasValue) throw new Exception("Volunteer has not checked in");
+            if (reg.CheckedOutAt.HasValue) return reg;
+
+            var checkedOutAt = DateTime.UtcNow;
+            if (checkedOutAt < reg.AttendedAt.Value)
+                throw new Exception("Check-out cannot be before check-in");
+
+            reg.CheckedOutAt = checkedOutAt;
+            reg.VolunteerHours = CalculateActualVolunteerHours(reg, checkedOutAt);
+
+            await _context.SaveChangesAsync();
+            await SyncCertificateHoursAsync(reg);
+            await RefreshVolunteerProgressAsync(reg.UserId);
+            await _notificationService.SendAsync(reg.UserId,
+                "ÄÃ£ ghi nháº­n check-out",
+                $"Ban tá»• chá»©c Ä‘Ã£ ghi nháº­n check-out cho sá»± kiá»‡n '{reg.Event.Title}' vá»›i {reg.VolunteerHours:0.##} giá» tÃ¬nh nguyá»‡n.",
+                "RegistrationCheckOut", reg.Id);
+            return reg;
+        }
+
+        public async Task<Registration> WalkInAsync(int eventId, int volunteerUserId, int organizerId, int? shiftId, string? note)
+        {
+            var ev = await _context.Events.Include(e => e.WorkShifts).FirstOrDefaultAsync(e => e.Id == eventId)
                 ?? throw new Exception("Event not found");
             if (ev.OrganizerId != organizerId) throw new Exception("Not authorized");
             if (ev.Status != "Approved") throw new Exception("Event is not open for walk-in check-in");
@@ -272,27 +425,50 @@ namespace BaseCore.Services.VolunteerHub
             if (!volunteer.IsActive) throw new Exception("Volunteer account is not active");
             if (volunteer.UserType != 0) throw new Exception("Target user is not a volunteer");
 
+            WorkShift? shift = null;
+            if (shiftId.HasValue)
+            {
+                shift = ev.WorkShifts.FirstOrDefault(s => s.Id == shiftId.Value)
+                    ?? throw new Exception("Shift not found");
+            }
+            else if (ev.WorkShifts.Count > 0)
+            {
+                throw new Exception("Walk-in must choose a shift for events that have shifts");
+            }
+
             var existing = await _context.Registrations
+                .Include(r => r.Event)
+                .Include(r => r.Shift)
                 .FirstOrDefaultAsync(r => r.EventId == eventId && r.UserId == volunteerUserId);
             var attendedAt = DateTime.UtcNow;
-            var hours = ev.EndDate > ev.StartDate ? (decimal)(ev.EndDate - ev.StartDate).TotalHours : 0m;
+            var windowReg = new Registration { Event = ev, Shift = shift };
+            ValidateCheckInWindow(windowReg);
 
             if (existing != null)
             {
                 if (existing.IsAttended) return existing;
                 if (existing.Status == "Cancelled")
                 {
-                    // Re-activate cancelled registration for walk-in
-                    if (ev.CurrentParticipants < ev.MaxParticipants) ev.CurrentParticipants++;
+                    ev.CurrentParticipants++;
                 }
+                existing.ShiftId = shiftId;
+                existing.Shift = shift;
                 existing.Status = "Confirmed";
                 existing.ConfirmedAt = existing.ConfirmedAt ?? attendedAt;
                 existing.IsAttended = true;
                 existing.AttendedAt = attendedAt;
-                existing.VolunteerHours = hours;
+                existing.CheckedOutAt = null;
+                existing.VolunteerHours = 0;
                 existing.CancelRequested = false;
+                existing.CancelRequestedAt = null;
+                existing.CancelReason = "";
                 existing.Note = string.IsNullOrWhiteSpace(note) ? existing.Note : note.Trim();
                 await _context.SaveChangesAsync();
+                await RefreshVolunteerProgressAsync(existing.UserId, evaluateBadges: false);
+                await _notificationService.SendAsync(existing.UserId,
+                    "ÄÄƒng kÃ½ táº¡i chá»— Ä‘Ã£ Ä‘Æ°á»£c ghi nháº­n",
+                    $"Ban tá»• chá»©c Ä‘Ã£ ghi nháº­n báº¡n tham gia táº¡i chá»— cho sá»± kiá»‡n '{ev.Title}'.",
+                    "RegistrationWalkIn", existing.Id);
                 return existing;
             }
 
@@ -300,18 +476,27 @@ namespace BaseCore.Services.VolunteerHub
             {
                 EventId = eventId,
                 UserId = volunteerUserId,
+                ShiftId = shiftId,
+                Event = ev,
+                Shift = shift,
                 Status = "Confirmed",
                 Note = note?.Trim() ?? "Walk-in",
                 RegisteredAt = attendedAt,
                 ConfirmedAt = attendedAt,
                 IsAttended = true,
                 AttendedAt = attendedAt,
-                VolunteerHours = hours
+                CheckedOutAt = null,
+                VolunteerHours = 0
             };
             _context.Registrations.Add(reg);
             // Walk-in bypasses capacity check to support on-site reality
             ev.CurrentParticipants++;
             await _context.SaveChangesAsync();
+            await RefreshVolunteerProgressAsync(reg.UserId, evaluateBadges: false);
+            await _notificationService.SendAsync(reg.UserId,
+                "ÄÄƒng kÃ½ táº¡i chá»— Ä‘Ã£ Ä‘Æ°á»£c ghi nháº­n",
+                $"Ban tá»• chá»©c Ä‘Ã£ táº¡o Ä‘Äƒng kÃ½ táº¡i chá»— cho báº¡n á»Ÿ sá»± kiá»‡n '{ev.Title}'.",
+                "RegistrationWalkIn", reg.Id);
             return reg;
         }
 
@@ -327,35 +512,50 @@ namespace BaseCore.Services.VolunteerHub
                 throw new Exception("Event must be approved or completed to record attendance");
 
             // Grace window: allow manual attend up to 7 days after EndDate
+            if (DateTime.UtcNow < reg.Event.EndDate)
+                throw new Exception("Manual attendance can only be recorded after the event ends");
             if (DateTime.UtcNow > reg.Event.EndDate.AddDays(7))
                 throw new Exception("Manual attendance window (7 days after event) has closed");
 
             if (reg.IsAttended && !hoursOverride.HasValue) return reg;
+            if (hoursOverride.HasValue) ValidateVolunteerHours(reg, hoursOverride.Value);
 
             reg.IsAttended = true;
             reg.AttendedAt = reg.AttendedAt ?? DateTime.UtcNow;
+            reg.CheckedOutAt = reg.CheckedOutAt ?? (reg.Shift?.EndTime ?? reg.Event.EndDate);
             var defaultHours = CalculateVolunteerHours(reg);
             reg.VolunteerHours = hoursOverride.HasValue && hoursOverride.Value >= 0
                 ? hoursOverride.Value
                 : (reg.VolunteerHours > 0 ? reg.VolunteerHours : defaultHours);
 
             await _context.SaveChangesAsync();
+            await SyncCertificateHoursAsync(reg);
+            await RefreshVolunteerProgressAsync(reg.UserId);
+            await _notificationService.SendAsync(reg.UserId,
+                "ÄÃ£ bá»• sung Ä‘iá»ƒm danh",
+                $"Ban tá»• chá»©c Ä‘Ã£ bá»• sung Ä‘iá»ƒm danh cho sá»± kiá»‡n '{reg.Event.Title}' vá»›i {reg.VolunteerHours:0.##} giá» tÃ¬nh nguyá»‡n.",
+                "RegistrationManualAttend", reg.Id);
             return reg;
         }
 
         public async Task<Registration> AdjustHoursAsync(int eventId, int registrationId, int organizerId, decimal hours)
         {
-            if (hours < 0 || hours > 24 * 60) throw new Exception("Hours must be between 0 and 1440");
-
-            var reg = await _context.Registrations.Include(r => r.Event)
+            var reg = await _context.Registrations.Include(r => r.Event).Include(r => r.Shift)
                 .FirstOrDefaultAsync(r => r.Id == registrationId)
                 ?? throw new Exception("Registration not found");
             if (reg.EventId != eventId) throw new Exception("Registration not found in this event");
             if (reg.Event.OrganizerId != organizerId) throw new Exception("Not authorized");
             if (!reg.IsAttended) throw new Exception("Cannot adjust hours for a volunteer who did not check in");
+            ValidateVolunteerHours(reg, hours);
 
             reg.VolunteerHours = hours;
             await _context.SaveChangesAsync();
+            await SyncCertificateHoursAsync(reg);
+            await RefreshVolunteerProgressAsync(reg.UserId);
+            await _notificationService.SendAsync(reg.UserId,
+                "Giá» tÃ¬nh nguyá»‡n Ä‘Ã£ Ä‘Æ°á»£c cáº­p nháº­t",
+                $"Ban tá»• chá»©c Ä‘Ã£ cáº­p nháº­t giá» tÃ¬nh nguyá»‡n cá»§a báº¡n á»Ÿ sá»± kiá»‡n '{reg.Event.Title}' thÃ nh {reg.VolunteerHours:0.##} giá».",
+                "RegistrationHoursAdjusted", reg.Id);
             return reg;
         }
 
