@@ -141,10 +141,13 @@ export default function LandingPage() {
 
   const stats = useMemo(() => {
     const totalSlots = featuredEvents.reduce((sum, event) => sum + (event.maxParticipants || 0), 0);
+    const totalParticipants = featuredEvents.reduce((sum, event) => sum + (event.currentParticipants || 0), 0);
 
     return [
-      { label: 'Sự kiện đang mở', value: featuredEvents.length ? `${featuredEvents.length}+` : '...' },
-      { label: 'Suất tham gia nổi bật', value: totalSlots ? `${totalSlots}+` : '...' },
+      { label: 'Sự kiện đang mở', value: featuredEvents.length ? `${featuredEvents.length}+` : '...', icon: 'fa-calendar-days' },
+      { label: 'Suất tham gia', value: totalSlots ? `${totalSlots}+` : '...', icon: 'fa-users' },
+      { label: 'Đã đăng ký', value: totalParticipants ? `${totalParticipants}+` : '...', icon: 'fa-user-check' },
+      { label: 'Vai trò hỗ trợ', value: '4', icon: 'fa-layer-group' },
     ];
   }, [featuredEvents]);
 
@@ -189,7 +192,8 @@ export default function LandingPage() {
           <div className="mt-14 grid max-w-5xl grid-cols-2 gap-3 md:grid-cols-4">
             {stats.map((item) => (
               <div key={item.label} className="rounded-lg border border-white/25 bg-slate-950/36 p-4 text-white shadow-lg backdrop-blur">
-                <div className="text-2xl font-extrabold" style={{ textShadow: '0 2px 14px rgba(0, 0, 0, 0.38)' }}>{item.value}</div>
+                <i className={`fa-solid ${item.icon} text-white/60 text-sm`} />
+                <div className="mt-1 text-2xl font-extrabold" style={{ textShadow: '0 2px 14px rgba(0, 0, 0, 0.38)' }}>{item.value}</div>
                 <div className="mt-1 text-sm font-semibold text-white/90">{item.label}</div>
               </div>
             ))}
@@ -286,6 +290,67 @@ export default function LandingPage() {
           </div>
         )}
       </section>
+
+      {/* CTA Section */}
+      <section className="bg-gradient-to-br from-blue-700 via-blue-600 to-indigo-700">
+        <div className="mx-auto max-w-4xl px-5 py-16 text-center sm:px-8">
+          <h2 className="text-3xl font-extrabold text-white sm:text-4xl">Sẵn sàng tạo tác động?</h2>
+          <p className="mx-auto mt-4 max-w-2xl text-lg leading-8 text-blue-100">
+            Dù bạn là tình nguyện viên muốn đóng góp, ban tổ chức cần nhân sự, hay nhà tài trợ tìm chương trình ý nghĩa — VolunteerHub là nơi bắt đầu.
+          </p>
+          <div className="mt-8 flex flex-wrap justify-center gap-3">
+            <Link to={isAuthenticated ? '/dashboard' : '/register'} className="inline-flex items-center justify-center rounded-xl bg-white px-6 py-3 font-bold text-blue-700 shadow-lg transition hover:-translate-y-0.5 hover:bg-blue-50 no-underline">
+              <i className="fa-solid fa-rocket mr-2" />
+              {isAuthenticated ? 'Vào dashboard' : 'Tạo tài khoản miễn phí'}
+            </Link>
+            <Link to="/events" className="inline-flex items-center justify-center rounded-xl border border-white/30 bg-white/10 px-6 py-3 font-bold text-white shadow-lg backdrop-blur transition hover:-translate-y-0.5 hover:bg-white/20 no-underline">
+              <i className="fa-solid fa-compass mr-2" />
+              Khám phá sự kiện
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer className="border-t border-slate-200 bg-white">
+        <div className="mx-auto max-w-7xl px-5 py-10 sm:px-8">
+          <div className="grid gap-8 md:grid-cols-3">
+            <div>
+              <div className="flex items-center gap-2">
+                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-700 text-white">
+                  <i className="fa-solid fa-hand-holding-heart text-sm" />
+                </div>
+                <span className="text-lg font-extrabold text-slate-900">VolunteerHub</span>
+              </div>
+              <p className="mt-3 text-sm leading-6 text-slate-600">
+                Nền tảng kết nối tình nguyện viên, ban tổ chức và nhà tài trợ. Mọi đóng góp đều được ghi nhận.
+              </p>
+            </div>
+            <div>
+              <h4 className="text-sm font-bold uppercase tracking-wider text-slate-500">Liên kết</h4>
+              <ul className="mt-3 space-y-2 text-sm">
+                <li><Link to="/events" className="text-slate-600 hover:text-blue-700 no-underline">Sự kiện</Link></li>
+                <li><Link to="/login" className="text-slate-600 hover:text-blue-700 no-underline">Đăng nhập</Link></li>
+                <li><Link to="/register" className="text-slate-600 hover:text-blue-700 no-underline">Đăng ký</Link></li>
+              </ul>
+            </div>
+            <div>
+              <h4 className="text-sm font-bold uppercase tracking-wider text-slate-500">Thông tin</h4>
+              <ul className="mt-3 space-y-2 text-sm text-slate-600">
+                <li>Đồ án thực tập — CNTT59</li>
+                <li>Học viện Kỹ thuật Mật mã</li>
+                <li className="flex items-center gap-2">
+                  <i className="fa-brands fa-github" />
+                  <a href="https://github.com/taoladong/volunteerhub" target="_blank" rel="noopener noreferrer" className="text-slate-600 hover:text-blue-700 no-underline">GitHub Repository</a>
+                </li>
+              </ul>
+            </div>
+          </div>
+          <div className="mt-8 border-t border-slate-100 pt-6 text-center text-sm text-slate-500">
+            © {new Date().getFullYear()} VolunteerHub · CNTT59 - Học viện Kỹ thuật Mật mã
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }
