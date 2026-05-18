@@ -265,7 +265,11 @@ export default function EventDetail() {
     : 0;
   const activeRegistration = myRegistration?.status === 'Cancelled' ? null : myRegistration;
   const kycSatisfied = !event.requiresKyc || myProfile?.kycStatus === 'Verified';
-  const canRegister = isAuthenticated && isVolunteer() && event.status === 'Approved' && !activeRegistration && kycSatisfied;
+  const now = new Date();
+  const eventStarted = event.startDate && new Date(event.startDate) <= now;
+  const eventEnded = event.endDate && new Date(event.endDate) <= now;
+  const isOngoing = event.status === 'Approved' && eventStarted && !eventEnded;
+  const canRegister = isAuthenticated && isVolunteer() && event.status === 'Approved' && !eventStarted && !activeRegistration && kycSatisfied;
   const canWithdraw = activeRegistration?.status === 'Pending';
   const selectedShift = shifts.find((s) => String(s.id) === String(selectedShiftId));
   const financialItems = impact ? [...(impact.supportCampaigns || []), ...(impact.receivedSponsorships || [])] : [];
@@ -304,6 +308,12 @@ export default function EventDetail() {
           {event.cancelReason && (
             <p className="mt-1 ml-6">Lý do: {event.cancelReason}</p>
           )}
+        </div>
+      )}
+      {isOngoing && (
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4 text-sm text-amber-800 flex items-center gap-2">
+          <i className="fa-solid fa-play-circle" />
+          <span>Sự kiện đang diễn ra. Không nhận đăng ký mới.</span>
         </div>
       )}
 

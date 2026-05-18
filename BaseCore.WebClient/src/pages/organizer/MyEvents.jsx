@@ -116,12 +116,21 @@ export default function MyEvents() {
                 <div className="flex items-center gap-2 mb-1 flex-wrap">
                   <h3 className="text-sm font-semibold text-gray-900 truncate">{event.title}</h3>
                   <StatusBadge status={event.status} />
+                  {event.status === 'Approved' && new Date(event.startDate) <= new Date() && new Date(event.endDate) > new Date() && (
+                    <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-medium">Đang diễn ra</span>
+                  )}
                 </div>
                 <div className="flex flex-wrap gap-3 text-xs text-gray-400">
                   <span><i className="fa-solid fa-calendar mr-1" />{fmt(event.startDate)}</span>
                   {event.location && <span><i className="fa-solid fa-location-dot mr-1" />{event.location}</span>}
                   <span><i className="fa-solid fa-users mr-1" />{event.currentParticipants}/{event.maxParticipants}</span>
                 </div>
+                {event.status === 'Approved' && new Date(event.endDate) <= new Date() && (
+                  <p className="text-xs text-red-600 mt-1 font-medium"><i className="fa-solid fa-triangle-exclamation mr-1" />Sự kiện đã kết thúc. Hãy hoàn thành hoặc hủy.</p>
+                )}
+                {event.status === 'Approved' && new Date(event.startDate) <= new Date() && new Date(event.endDate) > new Date() && (event.currentParticipants || 0) < (event.minParticipants || 1) && (
+                  <p className="text-xs text-amber-600 mt-1 font-medium"><i className="fa-solid fa-circle-exclamation mr-1" />Đang diễn ra với ít người hơn dự kiến ({event.currentParticipants}/{event.minParticipants} tối thiểu).</p>
+                )}
               </div>
 
               <div className="flex flex-wrap items-center gap-2 flex-shrink-0">

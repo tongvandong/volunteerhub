@@ -18,7 +18,13 @@ export default function EventCard({ event, distance }) {
   const pct = event.maxParticipants > 0
     ? Math.min(100, Math.round(((event.currentParticipants || 0) / event.maxParticipants) * 100)) : 0;
   const full = pct >= 100;
-  const st = STATUS_LABEL[event.status] || { label: event.status, bg: '#f1f5f9', color: '#64748b', border: '#e2e8f0' };
+
+  const now = new Date();
+  const startDate = event.startDate ? new Date(event.startDate) : null;
+  const isOngoing = event.status === 'Approved' && startDate && startDate <= now;
+  const st = isOngoing
+    ? { label: 'Đang diễn ra', bg: 'rgba(245,158,11,0.12)', color: '#92400e', border: 'rgba(245,158,11,0.28)' }
+    : (STATUS_LABEL[event.status] || { label: event.status, bg: '#f1f5f9', color: '#64748b', border: '#e2e8f0' });
 
   return (
     <Link to={`/events/${event.id}`} style={{ textDecoration: 'none', display: 'block', width: '100%', maxWidth: '100%', minWidth: 0 }}>

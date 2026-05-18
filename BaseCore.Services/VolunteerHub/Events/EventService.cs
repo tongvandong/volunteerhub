@@ -36,7 +36,15 @@ namespace BaseCore.Services.VolunteerHub
                     (e.Location != null && e.Location.ToLower().Contains(kw)));
             }
             if (categoryId.HasValue) query = query.Where(e => e.CategoryId == categoryId.Value);
-            if (!string.IsNullOrEmpty(status)) query = query.Where(e => e.Status == status);
+            if (!string.IsNullOrEmpty(status))
+            {
+                query = query.Where(e => e.Status == status);
+                // For public listing: hide Approved events that have already ended
+                if (status == "Approved")
+                {
+                    query = query.Where(e => e.EndDate > DateTime.UtcNow);
+                }
+            }
             if (startDateFrom.HasValue) query = query.Where(e => e.StartDate >= startDateFrom.Value);
 
             if (skillId.HasValue && skillId.Value == 0)
