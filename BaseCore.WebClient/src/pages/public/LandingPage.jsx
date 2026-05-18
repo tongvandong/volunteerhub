@@ -338,7 +338,7 @@ export default function LandingPage() {
               <h4 className="text-sm font-bold uppercase tracking-wider text-slate-500">Thông tin</h4>
               <ul className="mt-3 space-y-2 text-sm text-slate-600">
                 <li>Đồ án thực tập — CNTT59</li>
-                <li>Học viện Kỹ thuật Mật mã</li>
+                <li>Học viện Kỹ thuật Quân sự</li>
                 <li className="flex items-center gap-2">
                   <i className="fa-brands fa-github" />
                   <a href="https://github.com/taoladong/volunteerhub" target="_blank" rel="noopener noreferrer" className="text-slate-600 hover:text-blue-700 no-underline">GitHub Repository</a>
@@ -347,7 +347,7 @@ export default function LandingPage() {
             </div>
           </div>
           <div className="mt-8 border-t border-slate-100 pt-6 text-center text-sm text-slate-500">
-            © {new Date().getFullYear()} VolunteerHub · CNTT59 - Học viện Kỹ thuật Mật mã
+            © {new Date().getFullYear()} VolunteerHub · CNTT59 - Học viện Kỹ thuật Quân sự
           </div>
         </div>
       </footer>
