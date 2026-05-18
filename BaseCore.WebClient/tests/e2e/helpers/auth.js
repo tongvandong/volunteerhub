@@ -11,9 +11,18 @@ export const ACCOUNTS = {
 };
 
 /**
- * Đăng nhập qua UI. Mặc định dùng tài khoản organizer.
+ * Đường dẫn storageState đã được globalSetup tạo sẵn.
+ * Test có thể dùng:
+ *   test.use({ storageState: storageStateFor('organizer') });
+ */
+export function storageStateFor(role) {
+  return `tests/.auth/${role}.json`;
+}
+
+/**
+ * Đăng nhập qua UI (chỉ dùng khi cần test luồng login UI cụ thể).
  * Form login dùng input "identifier" (email hoặc username) + password.
- * Sau khi gọi xong, page đã có token trong localStorage và đã navigate khỏi /login.
+ * Mặc định các test nên dùng storageState (đã login sẵn) thay vì hàm này.
  */
 export async function login(page, role = 'organizer') {
   const acc = ACCOUNTS[role];
@@ -22,7 +31,6 @@ export async function login(page, role = 'organizer') {
   await page.goto('/login');
   await page.waitForLoadState('domcontentloaded');
 
-  // Form login chỉ có 2 input: text (identifier) và password.
   await page.locator('input[type="text"]').first().fill(acc.username);
   await page.locator('input[type="password"]').first().fill(acc.password);
 

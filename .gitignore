@@ -44,6 +44,10 @@ Context/e2e-screenshots/
 playwright-report/
 test-results/
 coverage/
+BaseCore.WebClient/tests/.auth/
+BaseCore.WebClient/full-run.json
+BaseCore.WebClient/fails.txt
+BaseCore.WebClient/parse-fails.ps1
 
 # OS files
 Thumbs.db
