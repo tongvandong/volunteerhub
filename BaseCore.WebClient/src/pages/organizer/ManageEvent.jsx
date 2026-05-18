@@ -42,7 +42,8 @@ function translateAction(action) {
 
 function toDateTimeLocal(dt) {
   if (!dt) return '';
-  const date = new Date(dt);
+  const raw = String(dt);
+  const date = new Date(raw.endsWith('Z') || raw.includes('+') ? raw : raw + 'Z');
   if (!Number.isFinite(date.getTime())) return '';
   const offsetDate = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
   return offsetDate.toISOString().slice(0, 16);
