@@ -316,8 +316,20 @@ namespace BaseCore.Services.VolunteerHub
             var existing = await _context.Channels.FirstOrDefaultAsync(c => c.ShiftId == shiftId);
             if (existing != null) return existing;
 
-            var parentChannel = await _context.Channels.FirstOrDefaultAsync(c => c.EventId == shift.EventId && c.ParentChannelId == null)
-                ?? throw new Exception("Parent channel not found");
+            var parentChannel = await _context.Channels.FirstOrDefaultAsync(c => c.EventId == shift.EventId && c.ParentChannelId == null);
+            if (parentChannel == null)
+            {
+                // Parent channel not yet created (event not approved yet) — create it now
+                parentChannel = new Channel
+                {
+                    EventId = shift.EventId,
+                    Name = shift.Event.Title ?? "Kênh sự kiện",
+                    IsActive = true,
+                    CreatedAt = DateTime.UtcNow
+                };
+                _context.Channels.Add(parentChannel);
+                await _context.SaveChangesAsync();
+            }
 
             var subChannel = new Channel
             {
