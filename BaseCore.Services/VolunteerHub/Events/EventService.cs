@@ -39,7 +39,12 @@ namespace BaseCore.Services.VolunteerHub
             if (!string.IsNullOrEmpty(status)) query = query.Where(e => e.Status == status);
             if (startDateFrom.HasValue) query = query.Where(e => e.StartDate >= startDateFrom.Value);
 
-            if (skillId.HasValue)
+            if (skillId.HasValue && skillId.Value == 0)
+            {
+                // skillId=0 means "no skill required" — filter events with empty/null RequiredSkillIds
+                query = query.Where(e => e.RequiredSkillIds == null || e.RequiredSkillIds == "" || e.RequiredSkillIds == "[]");
+            }
+            else if (skillId.HasValue)
             {
                 query = query.Where(e => e.RequiredSkillIds != null && e.RequiredSkillIds != "" && e.RequiredSkillIds != "[]");
             }
@@ -51,7 +56,7 @@ namespace BaseCore.Services.VolunteerHub
                 query = query.Where(e => e.Location != null && e.Location.ToLower().Contains(loc));
             }
 
-            if (skillId.HasValue)
+            if (skillId.HasValue && skillId.Value != 0)
             {
                 var candidates = await query.OrderByDescending(e => e.CreatedAt).ToListAsync();
                 var filtered = candidates

@@ -382,7 +382,8 @@ export default function EventList() {
               {/* Skill */}
               <select className="event-list-filter-select input-field" value={filters.skillId} onChange={e => set('skillId', e.target.value)}
                 style={{ width: 'auto', minWidth: 140, fontSize: 13 }}>
-                <option value="">Kỹ năng cần có</option>
+                <option value="">Tất cả kỹ năng</option>
+                <option value="0">Không yêu cầu kỹ năng</option>
                 {skills.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
               </select>
 
