@@ -310,47 +310,6 @@ export default function LandingPage() {
           </div>
         </div>
       </section>
-
-      {/* Footer */}
-      <footer className="border-t border-slate-200 bg-white">
-        <div className="mx-auto max-w-7xl px-5 py-10 sm:px-8">
-          <div className="grid gap-8 md:grid-cols-3">
-            <div>
-              <div className="flex items-center gap-2">
-                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-700 text-white">
-                  <i className="fa-solid fa-hand-holding-heart text-sm" />
-                </div>
-                <span className="text-lg font-extrabold text-slate-900">VolunteerHub</span>
-              </div>
-              <p className="mt-3 text-sm leading-6 text-slate-600">
-                Nền tảng kết nối tình nguyện viên, ban tổ chức và nhà tài trợ. Mọi đóng góp đều được ghi nhận.
-              </p>
-            </div>
-            <div>
-              <h4 className="text-sm font-bold uppercase tracking-wider text-slate-500">Liên kết</h4>
-              <ul className="mt-3 space-y-2 text-sm">
-                <li><Link to="/events" className="text-slate-600 hover:text-blue-700 no-underline">Sự kiện</Link></li>
-                <li><Link to="/login" className="text-slate-600 hover:text-blue-700 no-underline">Đăng nhập</Link></li>
-                <li><Link to="/register" className="text-slate-600 hover:text-blue-700 no-underline">Đăng ký</Link></li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="text-sm font-bold uppercase tracking-wider text-slate-500">Thông tin</h4>
-              <ul className="mt-3 space-y-2 text-sm text-slate-600">
-                <li>Đồ án thực tập — CNTT59</li>
-                <li>Học viện Kỹ thuật Quân sự</li>
-                <li className="flex items-center gap-2">
-                  <i className="fa-brands fa-github" />
-                  <a href="https://github.com/taoladong/volunteerhub" target="_blank" rel="noopener noreferrer" className="text-slate-600 hover:text-blue-700 no-underline">GitHub Repository</a>
-                </li>
-              </ul>
-            </div>
-          </div>
-          <div className="mt-8 border-t border-slate-100 pt-6 text-center text-sm text-slate-500">
-            © {new Date().getFullYear()} VolunteerHub · CNTT59 - Học viện Kỹ thuật Quân sự
-          </div>
-        </div>
-      </footer>
     </div>
   );
 }

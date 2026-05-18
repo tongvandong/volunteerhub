@@ -122,36 +122,47 @@ export default function PublicLayout({ children }) {
 
       <footer style={{ background: '#181d26' }}>
         <div className="max-w-7xl mx-auto px-5 sm:px-8 py-10">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
+          <div className="grid gap-8 md:grid-cols-3">
             <div>
-              <div className="flex items-center gap-2.5 mb-2">
-                <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: '#1b61c9' }}>
-                  <i className="fa-solid fa-leaf text-white" style={{ fontSize: 11 }} />
+              <div className="flex items-center gap-2.5 mb-3">
+                <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: '#1b61c9' }}>
+                  <i className="fa-solid fa-hand-holding-heart text-white" style={{ fontSize: 12 }} />
                 </div>
                 <span className="font-bold text-white text-base">VolunteerHub</span>
               </div>
-              <p className="text-sm" style={{ color: 'rgba(255,255,255,0.45)' }}>
-                Kết nối tình nguyện viên với cộng đồng
+              <p className="text-sm leading-6" style={{ color: 'rgba(255,255,255,0.5)' }}>
+                Nền tảng kết nối tình nguyện viên, ban tổ chức và nhà tài trợ. Mọi đóng góp đều được ghi nhận.
               </p>
             </div>
-            <div className="flex flex-col items-start sm:items-end gap-1">
-              <div className="flex gap-4 text-sm">
+            <div>
+              <h4 className="text-xs font-bold uppercase tracking-wider mb-3" style={{ color: 'rgba(255,255,255,0.4)' }}>Liên kết</h4>
+              <div className="flex flex-col gap-2 text-sm">
                 {navLinks.map((link) => (
                   <Link
                     key={link.to}
                     to={link.to}
-                    style={{ color: 'rgba(255,255,255,0.55)', textDecoration: 'none' }}
+                    style={{ color: 'rgba(255,255,255,0.6)', textDecoration: 'none' }}
                     onMouseEnter={(e) => (e.currentTarget.style.color = '#7aaaf5')}
-                    onMouseLeave={(e) => (e.currentTarget.style.color = 'rgba(255,255,255,0.55)')}
+                    onMouseLeave={(e) => (e.currentTarget.style.color = 'rgba(255,255,255,0.6)')}
                   >
                     {link.label}
                   </Link>
                 ))}
               </div>
-              <p className="text-xs" style={{ color: 'rgba(255,255,255,0.28)' }}>
-                © 2026 VolunteerHub · CNTT59 - MTA
-              </p>
             </div>
+            <div>
+              <h4 className="text-xs font-bold uppercase tracking-wider mb-3" style={{ color: 'rgba(255,255,255,0.4)' }}>Thông tin</h4>
+              <div className="flex flex-col gap-2 text-sm" style={{ color: 'rgba(255,255,255,0.5)' }}>
+                <span>Đồ án thực tập — CNTT59</span>
+                <span>Học viện Kỹ thuật Quân sự</span>
+                <a href="https://github.com/taoladong/volunteerhub" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 hover:text-blue-400 transition-colors" style={{ color: 'rgba(255,255,255,0.5)', textDecoration: 'none' }}>
+                  <i className="fa-brands fa-github" /> GitHub Repository
+                </a>
+              </div>
+            </div>
+          </div>
+          <div className="mt-8 pt-6 text-center text-xs" style={{ borderTop: '1px solid rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.3)' }}>
+            © {new Date().getFullYear()} VolunteerHub · CNTT59 - Học viện Kỹ thuật Quân sự
           </div>
         </div>
       </footer>
