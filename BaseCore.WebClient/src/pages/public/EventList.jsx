@@ -606,24 +606,20 @@ export default function EventList() {
 
       {/* ════════ STATS ══════════════════════════════════════ */}
       <section style={{ background: '#181d26' }}>
-        <div style={{ maxWidth: 1280, margin: '0 auto', padding: '56px 24px' }}>
-          <p style={{
-            textAlign: 'center', fontWeight: 600, marginBottom: 40,
-            color: 'rgba(255,255,255,0.32)', letterSpacing: '0.2em', fontSize: 11, textTransform: 'uppercase',
-          }}>
-            Con số ấn tượng
-          </p>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 32 }}>
+        <div style={{ maxWidth: 1280, margin: '0 auto', padding: '24px 24px' }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '24px 48px', alignItems: 'center' }}>
             {stats.map((s, i) => (
-              <div key={i} style={{ textAlign: 'center' }}>
+              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <div style={{
-                  width: 48, height: 48, borderRadius: 16, background: `${s.color}22`,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 14px',
+                  width: 36, height: 36, borderRadius: 10, background: `${s.color}22`,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
                 }}>
-                  <i className={`fa-solid ${s.icon}`} style={{ color: s.color, fontSize: 20 }} />
+                  <i className={`fa-solid ${s.icon}`} style={{ color: s.color, fontSize: 14 }} />
                 </div>
-                <div style={{ fontSize: 32, fontWeight: 800, color: '#fff', marginBottom: 6 }}>{s.value}</div>
-                <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.45)' }}>{s.label}</div>
+                <div>
+                  <div style={{ fontSize: 20, fontWeight: 800, color: '#fff', lineHeight: 1.2 }}>{s.value}</div>
+                  <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)' }}>{s.label}</div>
+                </div>
               </div>
             ))}
           </div>
