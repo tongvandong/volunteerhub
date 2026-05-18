@@ -368,17 +368,6 @@ export default function EventList() {
                   className="input-field" style={{ paddingLeft: 34, fontSize: 13 }} />
               </div>
 
-              {/* Location */}
-              <div className="event-list-filter-field" style={{ position: 'relative', minWidth: 140 }}>
-                <i className="fa-solid fa-location-dot" style={{
-                  position: 'absolute', left: 11, top: '50%', transform: 'translateY(-50%)',
-                  color: '#1b61c9', fontSize: 12,
-                }} />
-                <input type="text" placeholder="Địa điểm..." value={filters.location}
-                  onChange={e => set('location', e.target.value)}
-                  className="input-field" style={{ paddingLeft: 30, fontSize: 13, width: 150 }} />
-              </div>
-
               {/* Skill */}
               <select className="event-list-filter-select input-field" value={filters.skillId} onChange={e => set('skillId', e.target.value)}
                 style={{ width: 'auto', minWidth: 140, fontSize: 13 }}>
@@ -522,7 +511,7 @@ export default function EventList() {
                   <i className="fa-solid fa-calendar-xmark" style={{ color: '#1b61c9', fontSize: 24 }} />
                 </div>
                 <p style={{ color: 'rgba(4,14,32,0.50)', fontWeight: 500 }}>Không tìm thấy sự kiện phù hợp</p>
-                <button onClick={() => { setFilters(f => ({ ...f, keyword: '', categoryId: '', skillId: '', location: '', page: 1 })); setActiveTab(''); }}
+                <button onClick={() => { setFilters(f => ({ ...f, keyword: '', categoryId: '', skillId: '', page: 1 })); setActiveTab(''); }}
                   className="btn-secondary btn-sm" style={{ marginTop: 16 }}>
                   Xóa bộ lọc
                 </button>
