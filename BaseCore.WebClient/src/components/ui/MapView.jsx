@@ -1,5 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import 'leaflet/dist/leaflet.css';
+import 'leaflet.markercluster/dist/MarkerCluster.css';
+import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
 
 const MONTH_COLORS = [
   '#0891b2', '#7c3aed', '#059669', '#0ea5e9', '#e11d48', '#d97706',
@@ -27,6 +29,7 @@ export default function MapView({ events, height = 480, userCoords = null }) {
 
     const init = async () => {
       const L = (await import('leaflet')).default;
+      await import('leaflet.markercluster');
 
       if (!mounted || mapRef.current) return;
 
@@ -41,7 +44,28 @@ export default function MapView({ events, height = 480, userCoords = null }) {
         maxZoom: 18,
       }).addTo(map);
 
-      markerLayerRef.current = L.layerGroup().addTo(map);
+      markerLayerRef.current = L.markerClusterGroup({
+        maxClusterRadius: 50,
+        spiderfyOnMaxZoom: true,
+        showCoverageOnHover: false,
+        zoomToBoundsOnClick: true,
+        iconCreateFunction: (cluster) => {
+          const count = cluster.getChildCount();
+          const size = count < 10 ? 36 : count < 50 ? 44 : 52;
+          return L.divIcon({
+            html: `<div style="
+              width:${size}px;height:${size}px;border-radius:50%;
+              background:#1b61c9;border:3px solid #fff;
+              box-shadow:0 2px 8px rgba(0,0,0,0.3);
+              display:flex;align-items:center;justify-content:center;
+              color:#fff;font-weight:700;font-size:${count < 10 ? 13 : 14}px;
+            ">${count}</div>`,
+            className: '',
+            iconSize: [size, size],
+            iconAnchor: [size / 2, size / 2],
+          });
+        },
+      }).addTo(map);
     };
 
     init();
