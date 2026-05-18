@@ -21,6 +21,7 @@ export default function MapView({ events, height = 480, userCoords = null }) {
   const containerRef = useRef(null);
   const mapRef = useRef(null);
   const markerLayerRef = useRef(null);
+  const userMarkerRef = useRef(null);
   const leafletRef = useRef(null);
   const didAutoCenterUserRef = useRef(false);
 
@@ -93,6 +94,11 @@ export default function MapView({ events, height = 480, userCoords = null }) {
 
     markerLayer.clearLayers();
 
+    if (userMarkerRef.current) {
+      map.removeLayer(userMarkerRef.current);
+      userMarkerRef.current = null;
+    }
+
     const eventsWithCoords = (events || []).filter((e) => e.latitude && e.longitude);
     const bounds = [];
 
@@ -162,9 +168,10 @@ export default function MapView({ events, height = 480, userCoords = null }) {
         iconAnchor: [10, 10],
       });
 
-      L.marker([userCoords.lat, userCoords.lng], { icon: userIcon })
-        .addTo(markerLayer)
+      const um = L.marker([userCoords.lat, userCoords.lng], { icon: userIcon })
+        .addTo(map)
         .bindPopup('<b>Vị trí của bạn</b>');
+      userMarkerRef.current = um;
 
       bounds.push([userCoords.lat, userCoords.lng]);
 
