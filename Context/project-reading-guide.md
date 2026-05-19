@@ -56,7 +56,8 @@ Gateway route (Ocelot, priority-based):
 
 - `/api/auth/*`, `/api/profile/*`, `/api/users/*`, `/api/skills/*`, `/api/Roles/*`, `/api/organizer/verification/*`, `/api/uploads/*`, `/api/notifications/*`, `/api/badges`, `/api/my-badges`, `/api/admin/users/*`, `/api/admin/volunteer-kyc/*`, `/api/admin/volunteer-skill-verifications/*`, `/api/admin/organizer-verifications/*`, `/api/admin/monitoring/*`, `/api/admin/audit-logs`, `/api/admin/export/users` -> **AuthService** `5002`
 - `/api/events/{eventId}/support-campaigns/*`, `/api/events/{eventId}/sponsors/*`, `/api/events/{eventId}/sponsor-milestones/*`, `/api/events/{eventId}/sponsorship-proposals/*`, `/api/support-campaigns/*`, `/api/donations/*`, `/api/sponsors/*`, `/api/sponsorship-proposals/*`, `/api/admin/finance/*`, `/api/admin/export/finance` -> **FinanceService** `5004`
-- `/api/events/*`, `/api/event-categories/*`, `/api/my-registrations`, `/api/certificates/*`, `/api/channels/*`, `/api/dashboard/*`, `/api/admin/export/events` -> **EventService** `5003`
+- `/api/events/*`, `/api/event-categories/*`, `/api/my-registrations`, `/api/certificates/*`, `/api/channels/*`, `/api/dashboard/*` -> **EventService** `5003`
+- `/api/admin/export/events` -> **APIService** `5001`
 - `/api/*` còn lại -> **Legacy APIService** `5001` (fallback, priority thấp nhất)
 
 Frontend cũ tạo axios client với:

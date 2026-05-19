@@ -160,6 +160,8 @@ namespace BaseCore.APIService.Controllers
             if (!TryGetUserId(out var adminId)) return Unauthorized();
             if (string.IsNullOrWhiteSpace(dto?.Note))
                 return BadRequest(new { message = "Vui lòng nhập lý do để organizer biết cần xử lý gì." });
+            if (dto.Note.Trim().Length < 10)
+                return BadRequest(new { message = "Lý do phải có ít nhất 10 ký tự." });
 
             var verification = await _context.OrganizerVerifications
                 .Include(v => v.Organizer)

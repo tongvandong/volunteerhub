@@ -209,7 +209,7 @@ namespace BaseCore.APIService.Controllers
             var participantError = ValidateParticipants(dto.MinParticipants, dto.MaxParticipants);
             if (participantError != null)
                 return BadRequest(new { message = participantError });
-            var dateError = ValidateEventDates(dto.StartDate, dto.EndDate);
+            var dateError = ValidateEventDates(dto.StartDate, dto.EndDate, requireFutureStart: true);
             if (dateError != null)
                 return BadRequest(new { message = dateError });
             var radiusError = ValidateCheckInRadius(dto.CheckInRadiusKm);
@@ -257,6 +257,8 @@ namespace BaseCore.APIService.Controllers
                 return BadRequest(new { message = participantError });
             var nextStartDate = dto.StartDate ?? ev.StartDate;
             var nextEndDate = dto.EndDate ?? ev.EndDate;
+            if (dto.StartDate.HasValue && dto.StartDate.Value < DateTime.UtcNow.AddMinutes(-5))
+                return BadRequest(new { message = "Event start time cannot be in the past." });
             var dateError = ValidateEventDates(nextStartDate, nextEndDate);
             if (dateError != null)
                 return BadRequest(new { message = dateError });
@@ -642,12 +644,14 @@ namespace BaseCore.APIService.Controllers
             return null;
         }
 
-        private static string? ValidateEventDates(DateTime startDate, DateTime endDate)
+        private static string? ValidateEventDates(DateTime startDate, DateTime endDate, bool requireFutureStart = false)
         {
             if (startDate == default || endDate == default)
                 return "Event start and end time are required.";
             if (endDate <= startDate)
                 return "Event end time must be after start time.";
+            if (requireFutureStart && startDate < DateTime.UtcNow.AddMinutes(-5))
+                return "Event start time cannot be in the past.";
 
             return null;
         }

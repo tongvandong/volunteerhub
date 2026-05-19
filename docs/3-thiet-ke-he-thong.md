@@ -74,7 +74,7 @@ Frontend gọi `/api/*` → Vite proxy về Gateway (5000) → Ocelot route theo
 | 160 | `/api/events/*`, `/api/event-categories/*`, `/api/my-registrations`, `/api/certificates/*`, `/api/channels/*`, `/api/ratings/*` | Event 5003 |
 | 150 | `/api/dashboard/*` | Event 5003 |
 | 140 | `/api/support-campaigns/*`, `/api/donations/*`, `/api/sponsors/*`, `/api/sponsorship-proposals/*`, `/api/admin/finance/*`, `/api/admin/export/finance` | Finance 5004 |
-| 130 | `/api/admin/export/events` | Event 5003 |
+| 130 | `/api/admin/export/events` | API 5001 |
 | 130 | `/api/admin/export/users` | Identity 5002 |
 | 1 | `/api/*` (fallback) | Legacy 5001 |
 

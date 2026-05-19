@@ -394,7 +394,7 @@ namespace BaseCore.Services.VolunteerHub
                 throw new Exception("Event must be approved or completed to check out");
             if (reg.Status != "Confirmed") throw new Exception("Registration is not confirmed");
             if (!reg.IsAttended || !reg.AttendedAt.HasValue) throw new Exception("Volunteer has not checked in");
-            if (reg.CheckedOutAt.HasValue) return reg;
+            if (reg.CheckedOutAt.HasValue) throw new Exception("Volunteer has already checked out");
 
             var checkedOutAt = DateTime.UtcNow;
             if (checkedOutAt < reg.AttendedAt.Value)

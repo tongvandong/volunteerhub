@@ -168,7 +168,7 @@ Kiem tra:
 - `/api/support-campaigns/...` -> FinanceService `5004`
 - `/api/sponsorship-proposals/...` -> FinanceService `5004`
 - `/api/admin/finance/overview` -> FinanceService `5004`
-- `/api/admin/export/events` -> EventService `5003`
+- `/api/admin/export/events` -> APIService `5001`
 - fallback `/api/{everything}` -> APIService `5001`
 
 Pass khi route khong tra 404/502 sai.
