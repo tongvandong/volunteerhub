@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { profileApi } from '../../services/api';
 
 const NAV = {
   Volunteer: [
@@ -63,6 +64,7 @@ export default function MainLayout({ children }) {
   const location = useLocation();
   const navigate = useNavigate();
   const [isMobile, setIsMobile] = useState(false);
+  const [avatarUrl, setAvatarUrl] = useState('');
   const [sidebarOpen, setSidebarOpen] = useState(() => (
     typeof window === 'undefined' ? true : window.innerWidth >= 768
   ));
@@ -88,6 +90,34 @@ export default function MainLayout({ children }) {
     return () => window.removeEventListener('resize', syncLayout);
   }, []);
 
+  useEffect(() => {
+    if (user?.role !== 'Volunteer') {
+      setAvatarUrl('');
+      return undefined;
+    }
+
+    let alive = true;
+    profileApi
+      .getMyProfile()
+      .then((response) => {
+        if (alive) setAvatarUrl(response.data?.profile?.avatarUrl || '');
+      })
+      .catch(() => {
+        if (alive) setAvatarUrl('');
+      });
+
+    const syncAvatar = (event) => {
+      setAvatarUrl(event.detail?.avatarUrl || '');
+    };
+
+    window.addEventListener('volunteerhub:profile-updated', syncAvatar);
+
+    return () => {
+      alive = false;
+      window.removeEventListener('volunteerhub:profile-updated', syncAvatar);
+    };
+  }, [user?.role, user?.id]);
+
   const closeSidebarOnMobile = () => {
     if (isMobile) {
       setSidebarOpen(false);
@@ -101,6 +131,24 @@ export default function MainLayout({ children }) {
 
   const initials = user?.name?.charAt(0)?.toUpperCase() || 'U';
   const roleBadge = ROLE_BADGE[user?.role] || { bg: 'rgba(255,255,255,0.15)', color: '#fff' };
+  const avatarFallback = (
+    <span className="flex h-full w-full items-center justify-center">{initials}</span>
+  );
+  const renderAvatar = (className) => (
+    <div
+      className={`${className} rounded-full overflow-hidden flex items-center justify-center text-white font-semibold flex-shrink-0`}
+      style={{ background: '#1b61c9' }}
+    >
+      {avatarUrl ? (
+        <img
+          src={avatarUrl}
+          alt=""
+          className="h-full w-full object-cover"
+          onError={() => setAvatarUrl('')}
+        />
+      ) : avatarFallback}
+    </div>
+  );
 
   return (
     <div className="relative flex h-screen overflow-hidden" style={{ background: '#f8fafc' }}>
@@ -130,12 +178,7 @@ export default function MainLayout({ children }) {
 
         <div className="px-4 py-3.5" style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
           <div className="flex items-center gap-3">
-            <div
-              className="w-8 h-8 rounded-full flex items-center justify-center text-white font-semibold text-sm flex-shrink-0"
-              style={{ background: '#1b61c9' }}
-            >
-              {initials}
-            </div>
+            {renderAvatar('w-8 h-8 text-sm')}
             <div className="min-w-0">
               <p className="text-white text-[13px] font-medium truncate leading-tight">{user?.name}</p>
               <span
@@ -220,12 +263,7 @@ export default function MainLayout({ children }) {
           </Link>
 
           <div className="flex items-center gap-2.5">
-            <div
-              className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-semibold"
-              style={{ background: '#1b61c9' }}
-            >
-              {initials}
-            </div>
+            {renderAvatar('w-7 h-7 text-xs')}
             <span className="text-[13px] font-medium hidden sm:block" style={{ color: '#181d26', letterSpacing: '0.07px' }}>
               {user?.name}
             </span>

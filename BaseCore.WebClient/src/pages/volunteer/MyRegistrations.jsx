@@ -277,7 +277,7 @@ export default function MyRegistrations() {
         : registration
     )));
     setCheckinTarget(null);
-    alert(`ÄÃ£ ghi nháº­n check-in. Giá» tÃ¬nh nguyá»‡n hiá»‡n táº¡i: ${updated.volunteerHours || 0}h. Giá» thá»±c táº¿ sáº½ cáº­p nháº­t khi ban tá»• chá»©c check-out.`);
+    alert(`Đã ghi nhận check-in. Giờ tình nguyện hiện tại: ${updated.volunteerHours || 0}h. Giờ thực tế sẽ cập nhật khi ban tổ chức check-out.`);
   };
 
   const filtered = filter === 'all'

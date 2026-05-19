@@ -40,7 +40,12 @@ namespace BaseCore.APIService.Controllers
             [FromQuery] int? skillId, [FromQuery] string? location,
             [FromQuery] int page = 1, [FromQuery] int pageSize = 10)
         {
-            var (items, totalCount) = await _eventService.SearchAsync(keyword, categoryId, status, startDateFrom, page, pageSize, skillId, location);
+            // Chỉ Admin được phép xem tất cả status (Pending/Rejected/Cancelled).
+            // Anon/Volunteer/Organizer/Sponsor: nếu không truyền status → backend force public listing.
+            var isAdmin = User?.IsInRole("Admin") == true;
+            var (items, totalCount) = await _eventService.SearchAsync(
+                keyword, categoryId, status, startDateFrom, page, pageSize, skillId, location,
+                publicOnly: !isAdmin);
             return Ok(new { items, totalCount, page, pageSize, totalPages = (int)Math.Ceiling((double)totalCount / pageSize) });
         }
 
@@ -530,7 +535,44 @@ namespace BaseCore.APIService.Controllers
             if (role != "Admin" && ev.OrganizerId != userId) return Forbid();
 
             var regs = await _registrationService.GetByEventAsync(id);
-            return Ok(regs);
+            var userIds = regs.Select(r => r.UserId).Distinct().ToList();
+            var volunteerSkills = await _context.VolunteerSkills
+                .Include(vs => vs.Skill)
+                .Where(vs => userIds.Contains(vs.UserId))
+                .Select(vs => new
+                {
+                    vs.UserId,
+                    vs.SkillId,
+                    skillName = vs.Skill != null ? vs.Skill.Name : "",
+                    skillCategory = vs.Skill != null ? vs.Skill.Category : "",
+                    vs.Level,
+                    vs.VerificationStatus
+                })
+                .ToListAsync();
+
+            var result = regs.Select(r => new
+            {
+                r.Id,
+                r.EventId,
+                r.UserId,
+                r.Status,
+                r.RegisteredAt,
+                r.AttendedAt,
+                r.CheckedOutAt,
+                r.VolunteerHours,
+                r.IsAttended,
+                r.CancelRequested,
+                r.CancelRequestedAt,
+                r.CancelReason,
+                r.CancelledAt,
+                r.ShiftId,
+                r.Note,
+                r.User,
+                r.Shift,
+                volunteerSkills = volunteerSkills.Where(vs => vs.UserId == r.UserId).ToList()
+            });
+
+            return Ok(result);
         }
 
         [HttpGet("{id}/history"), Authorize]

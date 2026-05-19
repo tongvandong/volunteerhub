@@ -3,6 +3,7 @@ import { profileApi, profileSkillApi, skillApi } from '../../services/api';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import Modal from '../../components/ui/Modal';
 import ImageUploadField from '../../components/ui/ImageUploadField';
+import AvatarUploadField from '../../components/ui/AvatarUploadField';
 
 const LEVEL_COLOR = {
   Beginner: 'bg-yellow-100 text-yellow-700',
@@ -32,9 +33,11 @@ export default function MyProfile() {
   const [saving, setSaving] = useState(false);
   const [kycSaving, setKycSaving] = useState(false);
   const [showSkillModal, setShowSkillModal] = useState(false);
+  const [verificationModal, setVerificationModal] = useState(null);
   const [form, setForm] = useState({ bloodType: '', languages: '', interests: '', bio: '', avatarUrl: '' });
   const [kycForm, setKycForm] = useState(emptyKyc);
   const [skillForm, setSkillForm] = useState({ skillId: '', level: 'Beginner', evidenceUrl: '', verificationNote: '' });
+  const [verificationForm, setVerificationForm] = useState({ evidenceUrl: '', verificationNote: '' });
   const [msg, setMsg] = useState('');
 
   const loadProfile = async () => {
@@ -71,6 +74,7 @@ export default function MyProfile() {
     try {
       const res = await profileApi.updateProfile(form);
       setProfile(res.data);
+      window.dispatchEvent(new CustomEvent('volunteerhub:profile-updated', { detail: res.data }));
       setMsg('Đã lưu hồ sơ thành công.');
       setTimeout(() => setMsg(''), 3000);
     } catch {
@@ -117,6 +121,32 @@ export default function MyProfile() {
     setSkills((prev) => prev.filter((s) => s.skillId !== skillId));
   };
 
+  const openSkillVerification = (skill) => {
+    setVerificationModal(skill);
+    setVerificationForm({
+      evidenceUrl: skill.evidenceUrl || '',
+      verificationNote: skill.verificationNote || '',
+    });
+  };
+
+  const submitSkillVerification = async () => {
+    if (!verificationModal || !verificationForm.evidenceUrl) {
+      alert('Vui lòng upload minh chứng trước khi gửi xác minh.');
+      return;
+    }
+
+    try {
+      await profileSkillApi.submitVerification(verificationModal.skillId, verificationForm);
+      await loadProfile();
+      setVerificationModal(null);
+      setVerificationForm({ evidenceUrl: '', verificationNote: '' });
+      setMsg('Đã gửi minh chứng kỹ năng. Admin sẽ kiểm tra và duyệt sau.');
+      setTimeout(() => setMsg(''), 3000);
+    } catch (err) {
+      alert(err.response?.data?.message || 'Gửi minh chứng thất bại.');
+    }
+  };
+
   if (loading) return <LoadingSpinner />;
 
   const availableSkills = allSkills.filter((s) => !skills.find((vs) => vs.skillId === s.id));
@@ -135,21 +165,13 @@ export default function MyProfile() {
       </div>
 
       <div className="card p-6">
-        <div className="flex items-start gap-5 mb-5">
-          <div className="w-16 h-16 rounded-2xl bg-primary-100 flex items-center justify-center flex-shrink-0 overflow-hidden">
-            {form.avatarUrl ? (
-              <img src={form.avatarUrl} alt="" className="w-full h-full object-cover" />
-            ) : (
-              <i className="fa-solid fa-user text-primary-400 text-2xl" />
-            )}
-          </div>
-          <div className="flex-1 max-w-md">
-            <ImageUploadField
+        <div className="mb-5 max-w-xl">
+          <div className="w-full">
+            <AvatarUploadField
               label="Ảnh đại diện"
               value={form.avatarUrl}
               onChange={(url) => setForm({ ...form, avatarUrl: url })}
-              helper="Upload ảnh từ máy để cập nhật avatar hồ sơ."
-              compact
+              helper="Chọn ảnh từ máy, căn khuôn mặt vào vòng tròn rồi lưu hồ sơ."
             />
           </div>
         </div>
@@ -262,11 +284,21 @@ export default function MyProfile() {
           <div className="flex flex-wrap gap-2">
             {skills.map((vs) => {
               const verifyStatus = VERIFY_STATUS[vs.verificationStatus || 'SelfDeclared'] || VERIFY_STATUS.SelfDeclared;
+              const canSubmitEvidence = ['SelfDeclared', 'Rejected'].includes(vs.verificationStatus || 'SelfDeclared');
               return (
                 <div key={vs.id} className="flex items-center gap-1.5 bg-gray-50 border border-gray-200 px-3 py-1.5 rounded-full group">
                   <span className="text-sm font-medium text-gray-700">{vs.skill?.name}</span>
                   <span className={`text-xs px-1.5 py-0.5 rounded-full ${LEVEL_COLOR[vs.level]}`}>{vs.level}</span>
                   <span className={`text-xs px-1.5 py-0.5 rounded-full ${verifyStatus.className}`}>{verifyStatus.label}</span>
+                  {canSubmitEvidence && (
+                    <button
+                      type="button"
+                      onClick={() => openSkillVerification(vs)}
+                      className="ml-1 rounded-full bg-primary-50 px-2 py-0.5 text-xs font-medium text-primary-700 hover:bg-primary-100"
+                    >
+                      Gửi minh chứng
+                    </button>
+                  )}
                   <button onClick={() => removeSkill(vs.skillId)} className="ml-1 text-gray-300 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity">
                     <i className="fa-solid fa-xmark text-xs" />
                   </button>
@@ -327,6 +359,41 @@ export default function MyProfile() {
                 </button>
               ))}
             </div>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal
+        open={Boolean(verificationModal)}
+        onClose={() => setVerificationModal(null)}
+        title="Gửi minh chứng kỹ năng"
+        footer={(
+          <>
+            <button onClick={() => setVerificationModal(null)} className="btn-secondary">Hủy</button>
+            <button onClick={submitSkillVerification} className="btn-primary">Gửi admin duyệt</button>
+          </>
+        )}
+      >
+        <div className="space-y-3">
+          <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+            Kỹ năng không có minh chứng sẽ chỉ là “Tự khai”. Upload chứng chỉ/ảnh minh chứng để chuyển sang trạng thái “Chờ xác minh”.
+          </div>
+          <ImageUploadField
+            label="Minh chứng kỹ năng"
+            value={verificationForm.evidenceUrl}
+            onChange={(url) => setVerificationForm({ ...verificationForm, evidenceUrl: url })}
+            helper="Ví dụ: chứng chỉ, ảnh bằng cấp, xác nhận tham gia khóa học hoặc tài liệu tương đương."
+            compact
+          />
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Ghi chú gửi admin</label>
+            <textarea
+              rows={3}
+              value={verificationForm.verificationNote}
+              onChange={(e) => setVerificationForm({ ...verificationForm, verificationNote: e.target.value })}
+              className="input-field resize-none"
+              placeholder="Mô tả ngắn về minh chứng này..."
+            />
           </div>
         </div>
       </Modal>

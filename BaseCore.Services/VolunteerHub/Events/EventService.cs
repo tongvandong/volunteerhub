@@ -20,7 +20,7 @@ namespace BaseCore.Services.VolunteerHub
 
         public async Task<(List<Entities.Event> Items, int TotalCount)> SearchAsync(
             string? keyword, int? categoryId, string? status,
-            DateTime? startDateFrom, int page, int pageSize, int? skillId = null, string? location = null)
+            DateTime? startDateFrom, int page, int pageSize, int? skillId = null, string? location = null, bool publicOnly = true)
         {
             var query = _context.Events
                 .Include(e => e.Category)
@@ -44,6 +44,14 @@ namespace BaseCore.Services.VolunteerHub
                 {
                     query = query.Where(e => e.EndDate > DateTime.UtcNow);
                 }
+            }
+            else if (publicOnly)
+            {
+                // Mặc định public listing: chỉ Approved (chưa hết hạn) hoặc Completed.
+                // Pending/Rejected/Cancelled bị ẩn để tránh leak event chưa duyệt.
+                query = query.Where(e =>
+                    (e.Status == "Approved" && e.EndDate > DateTime.UtcNow) ||
+                    e.Status == "Completed");
             }
             if (startDateFrom.HasValue) query = query.Where(e => e.StartDate >= startDateFrom.Value);
 

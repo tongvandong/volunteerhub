@@ -53,6 +53,18 @@ function money(value) {
   return new Intl.NumberFormat('vi-VN').format(Number(value) || 0) + 'đ';
 }
 
+const SKILL_VERIFY_STATUS = {
+  SelfDeclared: { label: 'Tự khai', className: 'bg-gray-100 text-gray-600 border-gray-200' },
+  PendingVerification: { label: 'Chờ xác minh', className: 'bg-amber-50 text-amber-700 border-amber-200' },
+  Verified: { label: 'Đã xác minh', className: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+  Rejected: { label: 'Bị từ chối', className: 'bg-red-50 text-red-700 border-red-200' },
+};
+
+function SkillVerifyPill({ value }) {
+  const status = SKILL_VERIFY_STATUS[value || 'SelfDeclared'] || SKILL_VERIFY_STATUS.SelfDeclared;
+  return <span className={`rounded-full border px-1.5 py-0.5 text-[11px] font-semibold ${status.className}`}>{status.label}</span>;
+}
+
 export default function ManageEvent() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -105,6 +117,9 @@ export default function ManageEvent() {
     sponsorBenefits: '',
     attachmentUrl: '',
   });
+  const [receivedProposal, setReceivedProposal] = useState(null);
+  const [receivedAmount, setReceivedAmount] = useState('');
+  const [receivedSaving, setReceivedSaving] = useState(false);
   const [financialReportModal, setFinancialReportModal] = useState(false);
   const [financialReportTarget, setFinancialReportTarget] = useState(null);
   const [financialReportType, setFinancialReportType] = useState('');
@@ -205,7 +220,7 @@ export default function ManageEvent() {
     }
 
     if (shifts.length > 0 && !walkInForm.shiftId) {
-      alert('Vui lÃ²ng chá»n ca cho walk-in');
+      alert('Vui lòng chọn ca cho walk-in');
       return;
     }
 
@@ -247,7 +262,7 @@ export default function ManageEvent() {
       await registrationApi.checkOut(id, registration.id);
       await reloadRegistrations();
     } catch (err) {
-      alert(err.response?.data?.message || 'Check-out tháº¥t báº¡i');
+      alert(err.response?.data?.message || 'Check-out thất bại');
     } finally {
       setHoursSaving((prev) => ({ ...prev, [`checkout-${registration.id}`]: false }));
     }
@@ -369,15 +384,15 @@ export default function ManageEvent() {
   };
 
   const rotateEventQr = async () => {
-    if (!confirm('Táº¡o mÃ£ QR má»›i? MÃ£ QR cÅ© sáº½ khÃ´ng cÃ²n dÃ¹ng Ä‘á»ƒ Ä‘iá»ƒm danh.')) return;
+    if (!confirm('Tạo mã QR mới? Mã QR cũ sẽ không còn dùng để điểm danh.')) return;
     setQrRotating(true);
     try {
       const response = await eventApi.rotateQr(id);
       setEvent((prev) => ({ ...prev, qrCode: response.data?.qrCode || prev?.qrCode }));
       setCheckinCode('');
-      setCheckinMsg('success:ÄÃ£ táº¡o mÃ£ QR má»›i cho phiÃªn Ä‘iá»ƒm danh.');
+      setCheckinMsg('success:Đã tạo mã QR mới cho phiên điểm danh.');
     } catch (err) {
-      alert(err.response?.data?.message || 'KhÃ´ng táº¡o Ä‘Æ°á»£c mÃ£ QR má»›i');
+      alert(err.response?.data?.message || 'Không tạo được mã QR mới');
     } finally {
       setQrRotating(false);
     }
@@ -600,20 +615,37 @@ export default function ManageEvent() {
       if (action === 'accept') await sponsorshipProposalApi.accept(proposal.id, { responseMessage: 'Organizer accepted' });
       if (action === 'reject') await sponsorshipProposalApi.reject(proposal.id, { responseMessage: 'Organizer rejected' });
       if (action === 'received') {
-        const defaultAmount = proposal.actualReceivedAmount ?? proposal.amount ?? '';
-        const input = window.prompt('Nhập số tiền thực nhận từ sponsor', defaultAmount ? String(defaultAmount) : '');
-        if (input == null) return;
-        const actualReceivedAmount = Number(input);
-        if (!Number.isFinite(actualReceivedAmount) || actualReceivedAmount <= 0) {
-          alert('Số tiền thực nhận phải lớn hơn 0.');
-          return;
-        }
-        await sponsorshipProposalApi.received(proposal.id, { actualReceivedAmount });
+        setReceivedProposal(proposal);
+        setReceivedAmount(String(proposal.actualReceivedAmount ?? proposal.amount ?? proposal.offeredAmount ?? proposal.requestedAmount ?? ''));
+        return;
       }
       if (action === 'cancel') await sponsorshipProposalApi.cancel(proposal.id);
       await reloadProposals();
     } catch (err) {
       alert(err.response?.data?.message || 'Cập nhật proposal thất bại');
+    }
+  };
+
+  const submitReceivedProposal = async (e) => {
+    e.preventDefault();
+    if (!receivedProposal) return;
+
+    const actualReceivedAmount = Number(receivedAmount);
+    if (!Number.isFinite(actualReceivedAmount) || actualReceivedAmount <= 0) {
+      alert('Số tiền thực nhận phải lớn hơn 0.');
+      return;
+    }
+
+    setReceivedSaving(true);
+    try {
+      await sponsorshipProposalApi.received(receivedProposal.id, { actualReceivedAmount });
+      await reloadProposals();
+      setReceivedProposal(null);
+      setReceivedAmount('');
+    } catch (err) {
+      alert(err.response?.data?.message || 'Cập nhật proposal thất bại');
+    } finally {
+      setReceivedSaving(false);
     }
   };
 
@@ -828,6 +860,16 @@ export default function ManageEvent() {
                         </div>
                         {r.note && <p className="text-xs text-gray-400 italic mt-0.5">"{r.note}"</p>}
                         {r.shift?.name && <p className="text-xs text-primary-600 mt-0.5">Ca: {r.shift.name}</p>}
+                        {r.volunteerSkills?.length > 0 && (
+                          <div className="mt-2 flex max-w-md flex-wrap gap-1.5">
+                            {r.volunteerSkills.map((skill) => (
+                              <span key={`${r.id}-${skill.skillId}`} className="inline-flex items-center gap-1 rounded-full border border-gray-200 bg-white px-2 py-0.5 text-xs text-gray-700">
+                                <span className="font-medium">{skill.skillName || `Skill #${skill.skillId}`}</span>
+                                <SkillVerifyPill value={skill.verificationStatus} />
+                              </span>
+                            ))}
+                          </div>
+                        )}
                         {r.cancelRequested && r.status !== 'Cancelled' && (
                           <div className="mt-2 inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-800">
                             <i className="fa-solid fa-hourglass-half" /> Đang chờ hủy
@@ -880,7 +922,7 @@ export default function ManageEvent() {
                                 disabled={!!hoursSaving[`checkout-${r.id}`]}
                                 className="btn-primary btn-sm text-xs"
                               >
-                                {hoursSaving[`checkout-${r.id}`] ? 'Äang lÆ°u...' : 'Check-out'}
+                                {hoursSaving[`checkout-${r.id}`] ? 'Đang lưu...' : 'Check-out'}
                               </button>
                             )}
                             <input
@@ -1197,32 +1239,6 @@ export default function ManageEvent() {
             </form>
           </Modal>
 
-          <Modal isOpen={cancelEventModal} onClose={() => setCancelEventModal(false)} title="Hủy sự kiện" size="md">
-            <form onSubmit={submitCancelEvent} className="space-y-4">
-              <div className="rounded-lg border border-red-100 bg-red-50 p-3 text-sm text-red-700">
-                <i className="fa-solid fa-circle-exclamation mr-1" />
-                Hệ thống sẽ dừng nhận đăng ký mới và đánh dấu sự kiện là đã hủy.
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Lý do hủy</label>
-                <textarea
-                  rows={4}
-                  value={cancelEventReason}
-                  onChange={(e) => setCancelEventReason(e.target.value)}
-                  className="input-field resize-none"
-                  placeholder="Ví dụ: thời tiết xấu, thay đổi kế hoạch, địa điểm không khả dụng..."
-                />
-              </div>
-              <div className="flex justify-end gap-3 pt-2">
-                <button type="button" onClick={() => setCancelEventModal(false)} className="btn-secondary">Đóng</button>
-                <button type="submit" disabled={cancelEventSaving} className="btn-danger flex items-center gap-2">
-                  {cancelEventSaving && <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />}
-                  Xác nhận hủy
-                </button>
-              </div>
-            </form>
-          </Modal>
-
           {attended.length > 0 && (
             <div>
               <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">Đã điểm danh ({attended.length})</h3>
@@ -1244,6 +1260,32 @@ export default function ManageEvent() {
           )}
         </div>
       )}
+
+      <Modal isOpen={cancelEventModal} onClose={() => setCancelEventModal(false)} title="Hủy sự kiện" size="md">
+        <form onSubmit={submitCancelEvent} className="space-y-4">
+          <div className="rounded-lg border border-red-100 bg-red-50 p-3 text-sm text-red-700">
+            <i className="fa-solid fa-circle-exclamation mr-1" />
+            Hệ thống sẽ dừng nhận đăng ký mới và đánh dấu sự kiện là đã hủy.
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Lý do hủy</label>
+            <textarea
+              rows={4}
+              value={cancelEventReason}
+              onChange={(e) => setCancelEventReason(e.target.value)}
+              className="input-field resize-none"
+              placeholder="Ví dụ: thời tiết xấu, thay đổi kế hoạch, địa điểm không khả dụng..."
+            />
+          </div>
+          <div className="flex justify-end gap-3 pt-2">
+            <button type="button" onClick={() => setCancelEventModal(false)} className="btn-secondary">Đóng</button>
+            <button type="submit" disabled={cancelEventSaving} className="btn-danger flex items-center gap-2">
+              {cancelEventSaving && <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />}
+              Xác nhận hủy
+            </button>
+          </div>
+        </form>
+      </Modal>
 
       {tab === 'campaigns' && (
         <div className="space-y-4">
@@ -1552,6 +1594,35 @@ export default function ManageEvent() {
                 <button type="submit" disabled={proposalSaving || sponsorUsers.length === 0} className="btn-primary flex items-center gap-2">
                   {proposalSaving && <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />}
                   Gửi lời mời
+                </button>
+              </div>
+            </form>
+          </Modal>
+
+          <Modal isOpen={!!receivedProposal} onClose={() => setReceivedProposal(null)} title="Xác nhận tiền tài trợ đã nhận" size="md">
+            <form onSubmit={submitReceivedProposal} className="space-y-4">
+              <div className="rounded-lg border border-primary-100 bg-primary-50 p-3 text-sm text-primary-800">
+                <p className="font-semibold">{receivedProposal?.title}</p>
+                <p className="mt-1">Sponsor: {receivedProposal?.sponsorName || '-'}</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Số tiền thực nhận *</label>
+                <input
+                  type="number"
+                  min="1"
+                  step="1000"
+                  value={receivedAmount}
+                  onChange={(e) => setReceivedAmount(e.target.value)}
+                  className="input-field"
+                  required
+                />
+                <p className="mt-1 text-xs text-gray-500">Nhập đúng số tiền đã nhận thực tế từ sponsor. Số này sẽ dùng trong báo cáo tài chính.</p>
+              </div>
+              <div className="flex justify-end gap-3 pt-2">
+                <button type="button" onClick={() => setReceivedProposal(null)} className="btn-secondary" disabled={receivedSaving}>Hủy</button>
+                <button type="submit" className="btn-primary flex items-center gap-2" disabled={receivedSaving}>
+                  {receivedSaving && <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />}
+                  Xác nhận đã nhận
                 </button>
               </div>
             </form>

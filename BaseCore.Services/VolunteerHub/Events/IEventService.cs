@@ -6,7 +6,7 @@ namespace BaseCore.Services.VolunteerHub
     {
         Task<(List<Entities.Event> Items, int TotalCount)> SearchAsync(
             string? keyword, int? categoryId, string? status,
-            DateTime? startDateFrom, int page, int pageSize, int? skillId = null, string? location = null);
+            DateTime? startDateFrom, int page, int pageSize, int? skillId = null, string? location = null, bool publicOnly = true);
         Task<List<Entities.Event>> GetByOrganizerAsync(int organizerId);
         Task<List<Entities.Event>> GetRecommendedAsync(int userId);
         Task<Entities.Event?> GetByIdAsync(int id);

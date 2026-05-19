@@ -25,7 +25,7 @@ export default function Passport() {
       <div className="card overflow-hidden">
         <div className="bg-gradient-to-r from-primary-700 to-primary-500 p-6 text-white">
           <div className="flex items-center gap-4">
-            <div className="w-16 h-16 rounded-2xl bg-white/20 flex items-center justify-center overflow-hidden flex-shrink-0">
+            <div className="w-16 h-16 rounded-full bg-white/20 flex items-center justify-center overflow-hidden flex-shrink-0">
               {profile?.avatarUrl
                 ? <img src={profile.avatarUrl} alt="" className="w-full h-full object-cover" />
                 : <i className="fa-solid fa-user text-white text-2xl" />}

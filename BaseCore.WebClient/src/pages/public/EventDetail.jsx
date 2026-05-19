@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
 import { eventApi, registrationApi, sponsorApi, skillApi, profileApi, supportCampaignApi } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
 import StatusBadge from '../../components/ui/StatusBadge';
@@ -50,6 +50,7 @@ function EventImage({ src, title }) {
 
 export default function EventDetail() {
   const { id } = useParams();
+  const location = useLocation();
   const { isAuthenticated, isVolunteer, isSponsor } = useAuth();
   const navigate = useNavigate();
   const [event, setEvent] = useState(null);
@@ -253,7 +254,7 @@ export default function EventDetail() {
         <i className="fa-solid fa-calendar-xmark text-5xl text-gray-300 mb-4 block" />
         <h2 className="text-lg font-semibold text-gray-700 mb-2">Không tìm thấy sự kiện</h2>
         <p className="text-gray-400 text-sm mb-6">Sự kiện không tồn tại hoặc đã bị xóa.</p>
-        <Link to="/" className="btn-primary inline-flex items-center gap-2">
+        <Link to="/events" className="btn-primary inline-flex items-center gap-2">
           <i className="fa-solid fa-arrow-left" /> Quay lại danh sách
         </Link>
       </div>
@@ -275,10 +276,12 @@ export default function EventDetail() {
   const financialItems = impact ? [...(impact.supportCampaigns || []), ...(impact.receivedSponsorships || [])] : [];
   const financialReports = financialItems.filter((x) => x.reportSummary);
   const hasFinancialActivity = impact && (Number(impact.financialConfirmedAmount) || 0) > 0;
+  const rawReturnTo = new URLSearchParams(location.search).get('returnTo');
+  const backTo = rawReturnTo && rawReturnTo.startsWith('/') && !rawReturnTo.startsWith('//') ? rawReturnTo : '/events';
 
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
-      <Link to="/" className="text-sm text-gray-500 hover:text-primary-600 mb-4 inline-flex items-center gap-1">
+      <Link to={backTo} className="text-sm text-gray-500 hover:text-primary-600 mb-4 inline-flex items-center gap-1">
         <i className="fa-solid fa-arrow-left" /> Quay lại danh sách
       </Link>
 

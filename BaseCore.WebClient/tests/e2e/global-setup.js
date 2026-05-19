@@ -13,6 +13,16 @@ export const storageStatePath = (role) => path.join(STORAGE_DIR, `${role}.json`)
 export default async function globalSetup() {
   if (!fs.existsSync(STORAGE_DIR)) fs.mkdirSync(STORAGE_DIR, { recursive: true });
 
+  // Kiểm tra xem tất cả storageState đã tồn tại chưa (từ run trước).
+  // Nếu đã có đủ → skip login để tránh rate-limit.
+  const allExist = Object.keys(ACCOUNTS).every((role) =>
+    fs.existsSync(storageStatePath(role))
+  );
+  if (allExist) {
+    console.log('[globalSetup] Reusing existing storageState files (skip login)');
+    return;
+  }
+
   const apiContext = await request.newContext({ baseURL: BASE_URL });
 
   for (const role of Object.keys(ACCOUNTS)) {

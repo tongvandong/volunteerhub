@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import Modal from '../../components/ui/Modal';
 import StatusBadge from '../../components/ui/StatusBadge';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
@@ -56,15 +57,32 @@ function RejectEventModal({ event, onClose, onSubmit, saving }) {
 }
 
 export default function AdminEvents() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const initialStatus = searchParams.get('status') || 'Pending';
+  const initialPage = Math.max(1, Number(searchParams.get('page')) || 1);
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState('Pending');
-  const [page, setPage] = useState(1);
+  const [filter, setFilter] = useState(initialStatus);
+  const [page, setPage] = useState(initialPage);
   const [totalPages, setTotalPages] = useState(1);
   const [actionLoading, setActionLoading] = useState({});
   const [rejectTarget, setRejectTarget] = useState(null);
 
-  const load = (nextPage = 1, status = filter) => {
+  const buildReturnTo = (nextPage = page, status = filter) => {
+    const params = new URLSearchParams();
+    if (status && status !== 'Pending') params.set('status', status);
+    if (nextPage > 1) params.set('page', String(nextPage));
+    const query = params.toString();
+    return `/admin/events${query ? `?${query}` : ''}`;
+  };
+
+  const syncUrl = (nextPage, status) => {
+    const url = buildReturnTo(nextPage, status);
+    const query = url.includes('?') ? url.split('?')[1] : '';
+    setSearchParams(query, { replace: true });
+  };
+
+  const load = (nextPage = page, status = filter) => {
     setLoading(true);
     const params = { page: nextPage, pageSize: 15 };
     if (status !== 'all') params.status = status;
@@ -80,8 +98,22 @@ export default function AdminEvents() {
   };
 
   useEffect(() => {
-    load(1, filter);
-  }, [filter]);
+    load(initialPage, initialStatus);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const changeFilter = (status) => {
+    setFilter(status);
+    setPage(1);
+    syncUrl(1, status);
+    load(1, status);
+  };
+
+  const changePage = (nextPage) => {
+    setPage(nextPage);
+    syncUrl(nextPage, filter);
+    load(nextPage, filter);
+  };
 
   const setAction = (id, value) => setActionLoading((prev) => ({ ...prev, [id]: value }));
 
@@ -154,6 +186,7 @@ export default function AdminEvents() {
     { key: 'Cancelled', label: 'Đã hủy' },
     { key: 'all', label: 'Tất cả' },
   ];
+  const returnTo = buildReturnTo();
 
   return (
     <div className="space-y-5">
@@ -164,7 +197,7 @@ export default function AdminEvents() {
           <button
             key={item.key}
             type="button"
-            onClick={() => setFilter(item.key)}
+            onClick={() => changeFilter(item.key)}
             className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
               filter === item.key ? 'bg-primary-600 text-white' : 'bg-white border border-gray-200 text-gray-600 hover:border-primary-300'
             }`}
@@ -212,9 +245,9 @@ export default function AdminEvents() {
                   <td className="px-4 py-3"><StatusBadge status={event.status} /></td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-1.5 justify-end flex-wrap">
-                      <a href={`/events/${event.id}`} target="_blank" rel="noopener noreferrer" className="btn-secondary btn-sm text-xs flex items-center gap-1" title="Xem chi tiết sự kiện">
+                      <Link to={`/events/${event.id}?returnTo=${encodeURIComponent(returnTo)}`} className="btn-secondary btn-sm text-xs flex items-center gap-1" title="Xem chi tiết sự kiện">
                         <i className="fa-solid fa-eye" /> Xem
-                      </a>
+                      </Link>
 
                       {event.status === 'Pending' && (
                         <>
@@ -260,7 +293,7 @@ export default function AdminEvents() {
       )}
 
       {totalPages > 1 && (
-        <Pagination currentPage={page} totalPages={totalPages} onPageChange={(nextPage) => load(nextPage)} />
+        <Pagination currentPage={page} totalPages={totalPages} onPageChange={changePage} />
       )}
 
       <RejectEventModal
