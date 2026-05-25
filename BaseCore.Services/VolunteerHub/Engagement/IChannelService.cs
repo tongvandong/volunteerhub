@@ -12,7 +12,7 @@ namespace BaseCore.Services.VolunteerHub
         Task DeletePostAsync(int channelId, int postId, int userId, bool isAdmin);
         Task<Post> TogglePinAsync(int channelId, int postId, int organizerId, bool isAdmin);
         Task<bool> ToggleLikeAsync(int channelId, int postId, int userId);
-        Task<List<Comment>> GetCommentsAsync(int postId);
+        Task<List<Comment>> GetCommentsAsync(int channelId, int postId);
         Task<Comment> AddCommentAsync(int channelId, int postId, int authorId, string content, int? parentCommentId);
         Task DeleteCommentAsync(int channelId, int postId, int commentId, int userId, bool isAdmin);
         Task<bool> CanAccessChannelAsync(int channelId, int userId);

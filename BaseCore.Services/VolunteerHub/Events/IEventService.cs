@@ -20,6 +20,7 @@ namespace BaseCore.Services.VolunteerHub
         Task<Entities.Event> CancelAsync(int eventId, int? organizerId, string? reason); // Organizer/Admin: -> Cancelled + cascade
         Task NotifyEventChangeAsync(int eventId, string reason); // Notify confirmed volunteers and active sponsors
         Task<Entities.Event> UncompleteAsync(int eventId); // Admin only: Completed -> Approved + revoke certificates
-        Task<int> AutoCompleteOverdueAsync(); // Admin trigger: complete Approved events past EndDate
+        Task<int> AutoCompleteOverdueAsync(); // Complete Approved events past EndDate only when confirmed volunteers meet minimum
+        Task<int> NotifyUnderstaffedUpcomingAsync(); // Notify organizers 1 day before StartDate if confirmed volunteers are below minimum
     }
 }

@@ -5,7 +5,14 @@ const authStorage = {
   getRefreshToken: () => localStorage.getItem('refreshToken'),
   getUser: () => {
     const raw = localStorage.getItem('user');
-    return raw ? JSON.parse(raw) : null;
+    if (!raw) return null;
+
+    try {
+      return JSON.parse(raw);
+    } catch {
+      localStorage.removeItem('user');
+      return null;
+    }
   },
   setAuth: ({ token, refreshToken, user }) => {
     if (token) {
@@ -35,6 +42,13 @@ const api = axios.create({
 });
 
 api.interceptors.request.use((config) => {
+  if (config.skipAuth) {
+    if (config.headers?.Authorization) {
+      delete config.headers.Authorization;
+    }
+    return config;
+  }
+
   const token = authStorage.getToken();
 
   if (token) {
@@ -66,7 +80,7 @@ const refreshAccessToken = async () => {
 
   if (!refreshPromise) {
     refreshPromise = api
-      .post('/auth/refresh', { refreshToken }, { skipAuthRefresh: true })
+      .post('/auth/refresh', { refreshToken }, { skipAuth: true, skipAuthRefresh: true })
       .then((response) => {
         const payload = response.data;
         const nextToken = payload?.token || payload?.accessToken;
@@ -84,8 +98,14 @@ const refreshAccessToken = async () => {
         return nextToken;
       })
       .catch((error) => {
-        authStorage.clear();
-        window.location.href = '/login';
+        const status = error?.response?.status;
+        const currentRefreshToken = authStorage.getRefreshToken();
+
+        if ((status === 400 || status === 401 || status === 403) && currentRefreshToken === refreshToken) {
+          authStorage.clear();
+          window.location.href = '/login';
+        }
+
         throw error;
       })
       .finally(() => {
@@ -129,12 +149,12 @@ export const authApi = {
     api.post('/auth/login', {
       email: identifier,
       password,
-    }),
-  register: (data) => api.post('/auth/register', data),
+    }, { skipAuth: true, skipAuthRefresh: true }),
+  register: (data) => api.post('/auth/register', data, { skipAuth: true, skipAuthRefresh: true }),
   me: () => api.get('/auth/me'),
-  refresh: (refreshToken) => api.post('/auth/refresh', { refreshToken }),
+  refresh: (refreshToken) => api.post('/auth/refresh', { refreshToken }, { skipAuth: true, skipAuthRefresh: true }),
   logout: (refreshToken) =>
-    api.post('/auth/logout', refreshToken ? { refreshToken } : undefined),
+    api.post('/auth/logout', refreshToken ? { refreshToken } : undefined, { skipAuthRefresh: true }),
 };
 
 export const eventApi = {

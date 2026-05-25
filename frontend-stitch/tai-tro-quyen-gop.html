@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Sponsorships &amp; Campaigns | VolunteerHub</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "primary": "#0d9488", // Social Impact Teal
+                    "on-primary": "#ffffff",
+                    "primary-container": "#ccfbf1",
+                    "on-primary-container": "#134e4a",
+                    "secondary": "#0f766e",
+                    "background": "#f8fafc", // Softer slate background
+                    "surface": "#ffffff",
+                    "surface-container-low": "#f1f5f9",
+                    "surface-container": "#e2e8f0",
+                    "surface-container-high": "#cbd5e1",
+                    "on-surface": "#0f172a",
+                    "on-surface-variant": "#475569",
+                    "outline": "#94a3b8",
+                    "outline-variant": "#e2e8f0",
+                    "error": "#ef4444",
+                    "error-container": "#fee2e2"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.5rem",
+                    "lg": "0.75rem",
+                    "xl": "1rem",
+                    "2xl": "1.5rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "stack-sm": "8px",
+                    "gutter": "24px",
+                    "stack-lg": "32px",
+                    "stack-md": "16px",
+                    "container-padding-desktop": "40px",
+                    "container-padding-mobile": "20px",
+                    "base": "8px"
+            },
+            "fontFamily": {
+                    "headline-lg": ["Plus Jakarta Sans"],
+                    "body-md": ["Plus Jakarta Sans"],
+                    "body-lg": ["Plus Jakarta Sans"],
+                    "headline-xl-mobile": ["Plus Jakarta Sans"],
+                    "headline-xl": ["Plus Jakarta Sans"],
+                    "headline-md": ["Plus Jakarta Sans"],
+                    "label-md": ["Inter"],
+                    "label-sm": ["Inter"]
+            },
+            "fontSize": {
+                    "headline-lg": ["30px", {"lineHeight": "38px", "letterSpacing": "-0.01em", "fontWeight": "700"}],
+                    "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                    "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}],
+                    "headline-xl-mobile": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                    "headline-xl": ["40px", {"lineHeight": "48px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                    "headline-md": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
+                    "label-md": ["14px", {"lineHeight": "20px", "letterSpacing": "0.02em", "fontWeight": "600"}],
+                    "label-sm": ["12px", {"lineHeight": "16px", "fontWeight": "500"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .active-nav-bg {
+            background-color: #f0fdfa; /* light teal */
+            color: #0d9488;
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 5px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+        .soft-shadow {
+            box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.05);
+        }
+    </style>
+</head>
+<body class="bg-background text-on-surface min-h-screen font-body-md selection:bg-primary-container selection:text-on-primary-container">
+<!-- Side Navigation Shell -->
+<aside class="hidden md:flex flex-col h-screen w-64 fixed left-0 top-0 z-50 border-r border-outline-variant bg-white">
+<div class="px-8 py-10">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-primary text-4xl" data-weight="fill">volunteer_activism</span>
+<div>
+<h1 class="font-headline-md text-[20px] font-extrabold text-on-surface leading-tight tracking-tight">VolunteerHub</h1>
+<p class="font-label-sm text-on-surface-variant text-[11px] uppercase tracking-widest">Empowered Altruism</p>
+</div>
+</div>
+</div>
+<nav class="flex-1 px-4 space-y-1.5">
+<a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-surface-container-low rounded-xl transition-all group" href="#">
+<span class="material-symbols-outlined text-outline group-hover:text-primary transition-colors">dashboard</span>
+<span class="font-label-md">Dashboard</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-surface-container-low rounded-xl transition-all group" href="#">
+<span class="material-symbols-outlined text-outline group-hover:text-primary transition-colors">event</span>
+<span class="font-label-md">Events</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-primary font-bold active-nav-bg rounded-xl group" href="#">
+<span class="material-symbols-outlined" data-weight="fill">monitoring</span>
+<span class="font-label-md">Analytics</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-surface-container-low rounded-xl transition-all group" href="#">
+<span class="material-symbols-outlined text-outline group-hover:text-primary transition-colors">group</span>
+<span class="font-label-md">Community</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-surface-container-low rounded-xl transition-all group" href="#">
+<span class="material-symbols-outlined text-outline group-hover:text-primary transition-colors">settings</span>
+<span class="font-label-md">Settings</span>
+</a>
+</nav>
+<div class="px-4 py-6 border-t border-outline-variant/30">
+<button class="w-full bg-primary text-on-primary py-3 px-4 rounded-xl font-label-md flex items-center justify-center gap-2 hover:opacity-90 hover:shadow-lg hover:shadow-primary/20 transition-all">
+<span class="material-symbols-outlined text-[20px]" data-weight="fill">favorite</span>
+            Support Mission
+        </button>
+</div>
+<div class="px-4 pb-8 space-y-1">
+<a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-surface-container-low rounded-xl transition-colors" href="#">
+<span class="material-symbols-outlined text-outline">help</span>
+<span class="font-label-md">Help</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-error hover:bg-error-container/40 rounded-xl transition-colors" href="#">
+<span class="material-symbols-outlined">logout</span>
+<span class="font-label-md">Logout</span>
+</a>
+</div>
+</aside>
+<!-- Main Content Area -->
+<main class="md:ml-64 flex flex-col min-h-screen">
+<!-- Top Navigation -->
+<header class="flex justify-between items-center w-full px-8 py-5 z-40 bg-white/80 backdrop-blur-md sticky top-0 border-b border-outline-variant">
+<div class="flex items-center gap-6 flex-1">
+<div class="relative w-full max-w-md hidden lg:block">
+<span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline">search</span>
+<input class="w-full pl-12 pr-4 py-2.5 bg-surface-container-low rounded-full border-none focus:ring-2 focus:ring-primary/10 font-body-md text-on-surface placeholder:text-outline" placeholder="Search sponsorships..." type="text"/>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<button class="p-2.5 text-on-surface-variant hover:bg-surface-container-low rounded-full transition-all relative">
+<span class="material-symbols-outlined">notifications</span>
+<span class="absolute top-2.5 right-2.5 w-2 h-2 bg-error rounded-full ring-2 ring-white"></span>
+</button>
+<div class="h-8 w-[1px] bg-outline-variant mx-2"></div>
+<div class="flex items-center gap-3 cursor-pointer group px-2 py-1.5 rounded-full hover:bg-surface-container-low transition-all">
+<img alt="Alex Rivera" class="w-9 h-9 rounded-full object-cover ring-2 ring-primary/10 group-hover:ring-primary/30 transition-all" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAZgaYYPCSAwJH1FLAXvE3Y3wHf-natcvaZ-BpqNqGGs49xbItXmb1FSZieQy8yHye-ODI8YFlWtbly6X5wujzSguzJ35J05I3R8YJKx0lDj72Z6BgBT8GXX_Rdmgw9m2Ec8FkU6WCeLh0eTbUrZ2otpgjSziscj2e0iXWblDtJ0DZACha8HILSI_OhzDAmNBAFujrS6eVfxrtUlwwp0khmiEzrOXTLwNQYiIzKwBY9D5B0RqW9chyGP35-9mji4hL1GY4bnb2Cjis"/>
+<div class="hidden sm:block">
+<p class="font-label-md text-on-surface text-[13px]">Alex Rivera</p>
+<p class="font-label-sm text-primary text-[10px] uppercase font-bold tracking-tighter">Lead Organizer</p>
+</div>
+</div>
+</div>
+</header>
+<!-- Page Content -->
+<div class="p-gutter lg:p-container-padding-desktop space-y-stack-lg max-w-7xl mx-auto w-full">
+<!-- Header & Primary Actions -->
+<div class="flex flex-col md:flex-row md:items-end justify-between gap-gutter">
+<div>
+<nav class="flex items-center gap-2 text-on-surface-variant font-label-sm mb-3">
+<span class="hover:text-primary cursor-pointer transition-colors">Organization</span>
+<span class="material-symbols-outlined text-[14px]">chevron_right</span>
+<span class="text-primary font-bold">Financials</span>
+</nav>
+<h2 class="font-headline-xl text-headline-xl text-on-surface tracking-tight">Sponsorships &amp; Campaigns</h2>
+<p class="font-body-lg text-on-surface-variant max-w-2xl mt-3 leading-relaxed">Manage your high-impact corporate partnerships and grassroots fundraising initiatives in one unified command center.</p>
+</div>
+<div class="flex flex-wrap gap-3">
+<button class="flex items-center gap-2 px-5 py-2.5 rounded-xl border border-outline-variant text-on-surface font-label-md hover:bg-surface-container-low transition-all">
+<span class="material-symbols-outlined text-[20px]">description</span>
+                    Financial Report
+                </button>
+<button class="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-on-primary font-label-md hover:shadow-lg hover:shadow-primary/20 transition-all">
+<span class="material-symbols-outlined text-[20px]">add_circle</span>
+                    Create Campaign
+                </button>
+<button class="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary-container text-on-primary-container font-label-md hover:opacity-90 transition-all">
+<span class="material-symbols-outlined text-[20px]">send</span>
+                    Request Sponsorship
+                </button>
+</div>
+</div>
+<!-- Bento Grid Stats Section -->
+<div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+<div class="md:col-span-1 bg-white p-6 rounded-2xl soft-shadow border border-outline-variant/50">
+<p class="font-label-sm text-on-surface-variant uppercase tracking-widest mb-1 opacity-70">Total Funded</p>
+<h3 class="font-headline-md text-3xl text-on-surface">$124,500</h3>
+<div class="mt-4 flex items-center gap-1.5 text-teal-600 font-label-sm bg-teal-50 w-fit px-2 py-0.5 rounded-full">
+<span class="material-symbols-outlined text-[16px]">trending_up</span>
+<span>12% growth</span>
+</div>
+</div>
+<div class="md:col-span-1 bg-white p-6 rounded-2xl soft-shadow border border-outline-variant/50">
+<p class="font-label-sm text-on-surface-variant uppercase tracking-widest mb-1 opacity-70">Active Partners</p>
+<h3 class="font-headline-md text-3xl text-on-surface">42</h3>
+<div class="mt-4 flex items-center gap-1.5 text-on-surface font-label-sm bg-surface-container-low w-fit px-2 py-0.5 rounded-full">
+<span class="material-symbols-outlined text-[16px]">handshake</span>
+<span>4 pending</span>
+</div>
+</div>
+<div class="md:col-span-2 bg-gradient-to-br from-primary to-secondary p-7 rounded-2xl soft-shadow flex items-center justify-between overflow-hidden relative group">
+<div class="relative z-10">
+<p class="font-label-sm text-white/80 uppercase tracking-widest mb-1">Campaign Performance</p>
+<h3 class="font-headline-md text-3xl text-white">89% Efficiency</h3>
+<p class="text-white/70 font-body-md mt-2 max-w-[280px]">Fundraising ROI is at an all-time high this quarter.</p>
+</div>
+<span class="material-symbols-outlined text-[140px] text-white/10 absolute -right-6 -bottom-6 group-hover:rotate-12 transition-transform duration-500">insights</span>
+</div>
+</div>
+<!-- Main Interactive Sections -->
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-gutter">
+<!-- Section 1: Sponsorship Proposals Table -->
+<section class="lg:col-span-8 bg-white rounded-2xl soft-shadow border border-outline-variant/50 flex flex-col overflow-hidden">
+<div class="px-6 py-5 border-b border-outline-variant/30 flex justify-between items-center">
+<h4 class="font-headline-md text-[20px] text-on-surface">Sponsorship Proposals</h4>
+<button class="text-primary font-label-md flex items-center gap-1 hover:gap-2 transition-all">
+                        View Archive <span class="material-symbols-outlined text-[18px]">arrow_forward</span>
+</button>
+</div>
+<div class="overflow-x-auto custom-scrollbar">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-surface-container-low/30">
+<th class="px-6 py-4 font-label-sm text-on-surface-variant uppercase tracking-wider">Sponsor</th>
+<th class="px-6 py-4 font-label-sm text-on-surface-variant uppercase tracking-wider">Proposed Amount</th>
+<th class="px-6 py-4 font-label-sm text-on-surface-variant uppercase tracking-wider">Status</th>
+<th class="px-6 py-4 font-label-sm text-on-surface-variant uppercase tracking-wider text-right">Action</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-outline-variant/30">
+<!-- Accepted -->
+<tr class="hover:bg-surface-container-low/40 transition-colors group">
+<td class="px-6 py-5">
+<div class="flex items-center gap-4">
+<div class="w-11 h-11 rounded-xl bg-primary-container flex items-center justify-center text-primary">
+<span class="material-symbols-outlined">corporate_fare</span>
+</div>
+<div>
+<p class="font-label-md text-on-surface">Global Tech Industries</p>
+<p class="font-label-sm text-on-surface-variant">Annual Platinum Partner</p>
+</div>
+</div>
+</td>
+<td class="px-6 py-5 font-label-md text-on-surface">$50,000</td>
+<td class="px-6 py-5">
+<span class="inline-flex items-center px-3 py-1 rounded-full bg-teal-100 text-teal-800 font-label-sm text-[10px] uppercase font-bold tracking-widest border border-teal-200/50">
+                                        Accepted
+                                    </span>
+</td>
+<td class="px-6 py-5 text-right">
+<button class="p-2 text-outline hover:text-primary hover:bg-primary/5 rounded-full transition-all">
+<span class="material-symbols-outlined">more_horiz</span>
+</button>
+</td>
+</tr>
+<!-- Pending -->
+<tr class="hover:bg-surface-container-low/40 transition-colors group">
+<td class="px-6 py-5">
+<div class="flex items-center gap-4">
+<div class="w-11 h-11 rounded-xl bg-orange-50 flex items-center justify-center text-orange-600">
+<span class="material-symbols-outlined">architecture</span>
+</div>
+<div>
+<p class="font-label-md text-on-surface">Skyline Urban Dev</p>
+<p class="font-label-sm text-on-surface-variant">Community Builder Grant</p>
+</div>
+</div>
+</td>
+<td class="px-6 py-5 font-label-md text-on-surface">$25,000</td>
+<td class="px-6 py-5">
+<span class="inline-flex items-center px-3 py-1 rounded-full bg-amber-50 text-amber-700 font-label-sm text-[10px] uppercase font-bold tracking-widest border border-amber-200/50">
+                                        Pending
+                                    </span>
+</td>
+<td class="px-6 py-5 text-right">
+<button class="p-2 text-outline hover:text-primary hover:bg-primary/5 rounded-full transition-all">
+<span class="material-symbols-outlined">more_horiz</span>
+</button>
+</td>
+</tr>
+<!-- Received -->
+<tr class="hover:bg-surface-container-low/40 transition-colors group">
+<td class="px-6 py-5">
+<div class="flex items-center gap-4">
+<div class="w-11 h-11 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600">
+<span class="material-symbols-outlined">nature</span>
+</div>
+<div>
+<p class="font-label-md text-on-surface">EverGreen Solutions</p>
+<p class="font-label-sm text-on-surface-variant">Eco-Initiative Fund</p>
+</div>
+</div>
+</td>
+<td class="px-6 py-5 font-label-md text-on-surface">$12,000</td>
+<td class="px-6 py-5">
+<span class="inline-flex items-center px-3 py-1 rounded-full bg-slate-100 text-slate-600 font-label-sm text-[10px] uppercase font-bold tracking-widest border border-slate-200/50">
+                                        Received
+                                    </span>
+</td>
+<td class="px-6 py-5 text-right">
+<button class="p-2 text-outline hover:text-primary hover:bg-primary/5 rounded-full transition-all">
+<span class="material-symbols-outlined">more_horiz</span>
+</button>
+</td>
+</tr>
+<!-- Pending -->
+<tr class="hover:bg-surface-container-low/40 transition-colors group">
+<td class="px-6 py-5">
+<div class="flex items-center gap-4">
+<div class="w-11 h-11 rounded-xl bg-blue-50 flex items-center justify-center text-blue-600">
+<span class="material-symbols-outlined">health_and_safety</span>
+</div>
+<div>
+<p class="font-label-md text-on-surface">Vitality Healthcare</p>
+<p class="font-label-sm text-on-surface-variant">Public Wellness Support</p>
+</div>
+</div>
+</td>
+<td class="px-6 py-5 font-label-md text-on-surface">$30,000</td>
+<td class="px-6 py-5">
+<span class="inline-flex items-center px-3 py-1 rounded-full bg-amber-50 text-amber-700 font-label-sm text-[10px] uppercase font-bold tracking-widest border border-amber-200/50">
+                                        Pending
+                                    </span>
+</td>
+<td class="px-6 py-5 text-right">
+<button class="p-2 text-outline hover:text-primary hover:bg-primary/5 rounded-full transition-all">
+<span class="material-symbols-outlined">more_horiz</span>
+</button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<!-- Section 2: Support Campaigns List -->
+<aside class="lg:col-span-4 flex flex-col gap-6">
+<div class="bg-white rounded-2xl soft-shadow border border-outline-variant/50 p-6">
+<div class="flex items-center justify-between mb-8">
+<h4 class="font-headline-md text-[20px] text-on-surface">Active Campaigns</h4>
+<span class="material-symbols-outlined text-primary/40">rocket_launch</span>
+</div>
+<div class="space-y-8">
+<!-- Campaign 1 -->
+<div class="space-y-3">
+<div class="flex justify-between items-start">
+<div>
+<h5 class="font-label-md text-on-surface">Winter Relief Drive</h5>
+<p class="font-label-sm text-on-surface-variant text-[12px]">Ends in 12 days</p>
+</div>
+<p class="font-label-md text-primary">$18.4k <span class="text-on-surface-variant font-normal opacity-60">/ $25k</span></p>
+</div>
+<div class="w-full h-2.5 bg-surface-container-low rounded-full overflow-hidden">
+<div class="h-full bg-primary rounded-full transition-all duration-1000" style="width: 74%"></div>
+</div>
+<div class="flex justify-between font-label-sm text-on-surface-variant text-[11px]">
+<span class="font-bold text-primary">74% funded</span>
+<span>342 donors</span>
+</div>
+</div>
+<!-- Campaign 2 -->
+<div class="space-y-3">
+<div class="flex justify-between items-start">
+<div>
+<h5 class="font-label-md text-on-surface">Tech for Teens</h5>
+<p class="font-label-sm text-on-surface-variant text-[12px]">Ends in 24 days</p>
+</div>
+<p class="font-label-md text-primary">$8.2k <span class="text-on-surface-variant font-normal opacity-60">/ $20k</span></p>
+</div>
+<div class="w-full h-2.5 bg-surface-container-low rounded-full overflow-hidden">
+<div class="h-full bg-primary/40 rounded-full transition-all duration-1000" style="width: 41%"></div>
+</div>
+<div class="flex justify-between font-label-sm text-on-surface-variant text-[11px]">
+<span class="font-bold">41% funded</span>
+<span>156 donors</span>
+</div>
+</div>
+<!-- Campaign 3 -->
+<div class="space-y-3">
+<div class="flex justify-between items-start">
+<div>
+<h5 class="font-label-md text-on-surface">Green Park Restoration</h5>
+<p class="font-label-sm text-teal-600 font-bold text-[12px]">Goal Achieved!</p>
+</div>
+<p class="font-label-md text-primary">$15.8k <span class="text-on-surface-variant font-normal opacity-60">/ $15k</span></p>
+</div>
+<div class="w-full h-2.5 bg-surface-container-low rounded-full overflow-hidden">
+<div class="h-full bg-teal-500 rounded-full transition-all duration-1000" style="width: 100%"></div>
+</div>
+<div class="flex justify-between font-label-sm text-on-surface-variant text-[11px]">
+<span class="font-bold text-teal-600">105% funded</span>
+<span>218 donors</span>
+</div>
+</div>
+</div>
+<button class="w-full mt-10 py-3.5 rounded-xl border-2 border-dashed border-outline-variant text-outline hover:text-primary hover:border-primary hover:bg-primary/5 transition-all font-label-md flex items-center justify-center gap-2">
+<span class="material-symbols-outlined text-[20px]">add</span>
+                        Launch New Campaign
+                    </button>
+</div>
+<!-- Quick Insight Card -->
+<div class="bg-slate-900 text-white rounded-2xl p-7 soft-shadow overflow-hidden relative">
+<div class="relative z-10">
+<h5 class="font-headline-md text-lg mb-2">Campaign Tip</h5>
+<p class="font-body-md text-white/70 mb-5 leading-relaxed">Personalized thank-you videos increase recurring donor retention by up to 35%.</p>
+<button class="font-label-md text-primary-container hover:text-white transition-colors flex items-center gap-2">
+                            Read best practices <span class="material-symbols-outlined text-[16px]">open_in_new</span>
+</button>
+</div>
+<span class="material-symbols-outlined absolute -bottom-6 -right-6 text-[120px] text-white/5 -rotate-12">tips_and_updates</span>
+</div>
+</aside>
+</div>
+</div>
+<!-- Footer Shell -->
+<footer class="mt-auto border-t border-outline-variant/30 px-8 py-10 bg-white">
+<div class="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-8">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary text-2xl" data-weight="fill">volunteer_activism</span>
+<span class="font-headline-md text-on-surface text-xl font-bold tracking-tight">VolunteerHub</span>
+</div>
+<p class="font-label-sm text-on-surface-variant opacity-60">© 2024 VolunteerHub Management System. Secure data encryption active.</p>
+<div class="flex gap-8">
+<a class="font-label-sm text-on-surface-variant hover:text-primary transition-colors" href="#">Terms</a>
+<a class="font-label-sm text-on-surface-variant hover:text-primary transition-colors" href="#">Privacy</a>
+<a class="font-label-sm text-on-surface-variant hover:text-primary transition-colors" href="#">Support</a>
+</div>
+</div>
+</footer>
+</main>
+<!-- Mobile Bottom Navigation Shell -->
+<nav class="md:hidden fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-lg border-t border-outline-variant px-4 py-3 z-50 flex justify-around items-center">
+<a class="flex flex-col items-center gap-1 text-on-surface-variant" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+<span class="text-[10px] font-label-sm">Home</span>
+</a>
+<a class="flex flex-col items-center gap-1 text-on-surface-variant" href="#">
+<span class="material-symbols-outlined">event</span>
+<span class="text-[10px] font-label-sm">Events</span>
+</a>
+<a class="flex flex-col items-center gap-1 text-primary" href="#">
+<span class="material-symbols-outlined" data-weight="fill">monitoring</span>
+<span class="text-[10px] font-label-sm font-bold">Financials</span>
+</a>
+<a class="flex flex-col items-center gap-1 text-on-surface-variant" href="#">
+<span class="material-symbols-outlined">group</span>
+<span class="text-[10px] font-label-sm">Community</span>
+</a>
+<a class="flex flex-col items-center gap-1 text-on-surface-variant" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span class="text-[10px] font-label-sm">Settings</span>
+</a>
+</nav>
+<script>
+    // Micro-interactions and effects
+    document.querySelectorAll('button').forEach(button => {
+        button.addEventListener('mousedown', function() {
+            this.style.transform = 'scale(0.98)';
+        });
+        button.addEventListener('mouseup', function() {
+            this.style.transform = 'scale(1)';
+        });
+        button.addEventListener('mouseleave', function() {
+            this.style.transform = 'scale(1)';
+        });
+    });
+
+    // Initialize progress bars with a small delay for animation effect
+    window.addEventListener('load', () => {
+        const bars = document.querySelectorAll('.h-full.transition-all');
+        bars.forEach(bar => {
+            const width = bar.style.width;
+            bar.style.width = '0%';
+            setTimeout(() => {
+                bar.style.width = width;
+            }, 500);
+        });
+    });
+</script>
+</body></html>

@@ -20,18 +20,29 @@ namespace BaseCore.APIService.Controllers
         private int? GetUserId() =>
             int.TryParse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value, out var id) ? id : null;
 
-        private bool IsAdmin() =>
-            User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value == "Admin";
-
         [HttpGet]
-        public async Task<IActionResult> GetAll() => Ok(await _channelService.GetAllAsync());
+        public async Task<IActionResult> GetAll()
+        {
+            var uid = GetUserId();
+            if (uid == null) return Unauthorized();
+
+            var channels = await _channelService.GetAllAsync();
+            var accessibleChannels = new List<BaseCore.Entities.Channel>();
+            foreach (var channel in channels)
+            {
+                if (await _channelService.CanAccessChannelAsync(channel.Id, uid.Value))
+                    accessibleChannels.Add(channel);
+            }
+
+            return Ok(accessibleChannels);
+        }
 
         [HttpGet("{id}")]
         public async Task<IActionResult> GetById(int id)
         {
             var uid = GetUserId();
             if (uid == null) return Unauthorized();
-            if (!await _channelService.CanAccessChannelAsync(id, uid.Value) && !IsAdmin())
+            if (!await _channelService.CanAccessChannelAsync(id, uid.Value))
                 return Forbid();
             var channel = await _channelService.GetByIdAsync(id, uid.Value);
             return channel == null ? NotFound() : Ok(channel);
@@ -43,7 +54,7 @@ namespace BaseCore.APIService.Controllers
         {
             var uid = GetUserId();
             if (uid == null) return Unauthorized();
-            if (!await _channelService.CanAccessChannelAsync(id, uid.Value) && !IsAdmin())
+            if (!await _channelService.CanAccessChannelAsync(id, uid.Value))
                 return Forbid();
             var (items, totalCount) = await _channelService.GetPostsAsync(id, page, pageSize, uid.Value, type);
             return Ok(new { items, totalCount, page, pageSize, totalPages = (int)Math.Ceiling((double)totalCount / pageSize) });
@@ -54,7 +65,7 @@ namespace BaseCore.APIService.Controllers
         {
             var uid = GetUserId();
             if (uid == null) return Unauthorized();
-            if (!await _channelService.CanAccessChannelAsync(id, uid.Value) && !IsAdmin())
+            if (!await _channelService.CanAccessChannelAsync(id, uid.Value))
                 return Forbid();
             try
             {
@@ -71,7 +82,7 @@ namespace BaseCore.APIService.Controllers
             if (uid == null) return Unauthorized();
             try
             {
-                if (!await _channelService.CanAccessChannelAsync(id, uid.Value) && !IsAdmin())
+                if (!await _channelService.CanAccessChannelAsync(id, uid.Value))
                     return Forbid();
                 await _channelService.UpdatePostAsync(id, postId, uid.Value, dto.Content, dto.ImageUrl);
                 return Ok(new { message = "Updated" });
@@ -86,9 +97,9 @@ namespace BaseCore.APIService.Controllers
             if (uid == null) return Unauthorized();
             try
             {
-                if (!await _channelService.CanAccessChannelAsync(id, uid.Value) && !IsAdmin())
+                if (!await _channelService.CanAccessChannelAsync(id, uid.Value))
                     return Forbid();
-                await _channelService.DeletePostAsync(id, postId, uid.Value, IsAdmin());
+                await _channelService.DeletePostAsync(id, postId, uid.Value, false);
                 return Ok(new { message = "Deleted" });
             }
             catch (Exception ex) { return BadRequest(new { message = ex.Message }); }
@@ -101,7 +112,7 @@ namespace BaseCore.APIService.Controllers
             if (uid == null) return Unauthorized();
             try
             {
-                if (!await _channelService.CanAccessChannelAsync(id, uid.Value) && !IsAdmin())
+                if (!await _channelService.CanAccessChannelAsync(id, uid.Value))
                     return Forbid();
                 var liked = await _channelService.ToggleLikeAsync(id, postId, uid.Value);
                 return Ok(new { liked });
@@ -116,7 +127,9 @@ namespace BaseCore.APIService.Controllers
             if (uid == null) return Unauthorized();
             try
             {
-                var post = await _channelService.TogglePinAsync(id, postId, uid.Value, IsAdmin());
+                if (!await _channelService.CanAccessChannelAsync(id, uid.Value))
+                    return Forbid();
+                var post = await _channelService.TogglePinAsync(id, postId, uid.Value, false);
                 return Ok(post);
             }
             catch (Exception ex) { return BadRequest(new { message = ex.Message }); }
@@ -127,7 +140,7 @@ namespace BaseCore.APIService.Controllers
         {
             var uid = GetUserId();
             if (uid == null) return Unauthorized();
-            if (!await _channelService.CanAccessChannelAsync(id, uid.Value) && !IsAdmin())
+            if (!await _channelService.CanAccessChannelAsync(id, uid.Value))
                 return Forbid();
             try
             {
@@ -142,10 +155,14 @@ namespace BaseCore.APIService.Controllers
         {
             var uid = GetUserId();
             if (uid == null) return Unauthorized();
-            if (!await _channelService.CanAccessChannelAsync(id, uid.Value) && !IsAdmin())
+            if (!await _channelService.CanAccessChannelAsync(id, uid.Value))
                 return Forbid();
-            var comments = await _channelService.GetCommentsAsync(postId);
-            return Ok(comments);
+            try
+            {
+                var comments = await _channelService.GetCommentsAsync(id, postId);
+                return Ok(comments);
+            }
+            catch (Exception ex) { return BadRequest(new { message = ex.Message }); }
         }
 
         [HttpPost("{id}/posts/{postId}/comments")]
@@ -153,7 +170,7 @@ namespace BaseCore.APIService.Controllers
         {
             var uid = GetUserId();
             if (uid == null) return Unauthorized();
-            if (!await _channelService.CanAccessChannelAsync(id, uid.Value) && !IsAdmin())
+            if (!await _channelService.CanAccessChannelAsync(id, uid.Value))
                 return Forbid();
             try
             {
@@ -170,9 +187,9 @@ namespace BaseCore.APIService.Controllers
             if (uid == null) return Unauthorized();
             try
             {
-                if (!await _channelService.CanAccessChannelAsync(id, uid.Value) && !IsAdmin())
+                if (!await _channelService.CanAccessChannelAsync(id, uid.Value))
                     return Forbid();
-                await _channelService.DeleteCommentAsync(id, postId, commentId, uid.Value, IsAdmin());
+                await _channelService.DeleteCommentAsync(id, postId, commentId, uid.Value, false);
                 return Ok(new { message = "Deleted" });
             }
             catch (Exception ex) { return BadRequest(new { message = ex.Message }); }
@@ -185,7 +202,9 @@ namespace BaseCore.APIService.Controllers
             if (uid == null) return Unauthorized();
             try
             {
-                var poll = await _channelService.CreatePollAsync(id, postId, uid.Value, IsAdmin(), dto);
+                if (!await _channelService.CanAccessChannelAsync(id, uid.Value))
+                    return Forbid();
+                var poll = await _channelService.CreatePollAsync(id, postId, uid.Value, false, dto);
                 return Ok(poll);
             }
             catch (Exception ex) { return BadRequest(new { message = ex.Message }); }

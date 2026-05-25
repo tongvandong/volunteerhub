@@ -24,24 +24,25 @@ namespace BaseCore.Services.VolunteerHub
 
         public async Task<bool> CanAccessChannelAsync(int channelId, int userId)
         {
-            var channel = await _context.Channels.Include(c => c.Event).FirstOrDefaultAsync(c => c.Id == channelId);
+            var channel = await _context.Channels
+                .Include(c => c.Event)
+                .FirstOrDefaultAsync(c => c.Id == channelId && c.IsActive);
             if (channel == null) return false;
 
             var user = await _context.Users.FindAsync(userId);
-            if (user == null) return false;
+            if (user == null || !user.IsActive) return false;
 
-            if (user.UserType == 3) return true;
-            if (channel.Event.OrganizerId == userId) return true;
+            // Event chat is limited to the event owner and confirmed volunteers.
+            if (channel.Event?.OrganizerId == userId)
+                return true;
 
-            var baseQuery = _context.Registrations.Where(r =>
+            if (user.UserType != 0)
+                return false;
+
+            return await _context.Registrations.AnyAsync(r =>
                 r.EventId == channel.EventId &&
                 r.UserId == userId &&
                 r.Status == "Confirmed");
-
-            if (channel.ShiftId.HasValue)
-                return await baseQuery.AnyAsync(r => r.ShiftId == channel.ShiftId.Value);
-
-            return await baseQuery.AnyAsync();
         }
 
         public async Task<List<Channel>> GetAllAsync()
@@ -133,18 +134,23 @@ namespace BaseCore.Services.VolunteerHub
         {
             if (!await CanAccessChannelAsync(channelId, authorId)) throw new Exception("Not authorized");
 
+            content = (content ?? "").Trim();
+            imageUrl = NormalizeInternalImageUrl(imageUrl);
+            if (string.IsNullOrWhiteSpace(content) && string.IsNullOrWhiteSpace(imageUrl))
+                throw new Exception("Message content or image is required");
+
             postType = NormalizePostType(postType);
             var channel = await _context.Channels.Include(c => c.Event).FirstAsync(c => c.Id == channelId);
             var author = await _context.Users.FindAsync(authorId) ?? throw new Exception("User not found");
-            if (postType == "announcement" && channel.Event.OrganizerId != authorId && author.UserType != 3)
-                throw new Exception("Only organizer or admin can create announcements");
+            if (postType == "announcement" && channel.Event.OrganizerId != authorId)
+                throw new Exception("Only the event organizer can create announcements");
 
             var post = new Post
             {
                 ChannelId = channelId,
                 AuthorId = authorId,
                 Content = content,
-                ImageUrl = imageUrl ?? "",
+                ImageUrl = imageUrl,
                 PostType = postType,
                 AttachmentUrl = attachment?.Url ?? "",
                 AttachmentName = attachment?.Name ?? "",
@@ -169,8 +175,14 @@ namespace BaseCore.Services.VolunteerHub
             if (post.ChannelId != channelId) throw new Exception("Post not found in this channel");
             if (!await CanAccessChannelAsync(channelId, authorId)) throw new Exception("Not authorized");
             if (post.AuthorId != authorId) throw new Exception("Not authorized");
+
+            content = (content ?? "").Trim();
+            var nextImageUrl = imageUrl == null ? post.ImageUrl ?? "" : NormalizeInternalImageUrl(imageUrl);
+            if (string.IsNullOrWhiteSpace(content) && string.IsNullOrWhiteSpace(nextImageUrl))
+                throw new Exception("Message content or image is required");
+
             post.Content = content;
-            if (imageUrl != null) post.ImageUrl = imageUrl;
+            post.ImageUrl = nextImageUrl;
             post.UpdatedAt = DateTime.UtcNow;
             await _context.SaveChangesAsync();
             await ProcessMentionsAsync(content, "Post", post.Id, authorId, channelId);
@@ -190,8 +202,8 @@ namespace BaseCore.Services.VolunteerHub
         {
             var channel = await _context.Channels.Include(c => c.Event).FirstOrDefaultAsync(c => c.Id == channelId)
                 ?? throw new Exception("Channel not found");
-            if (!isAdmin && channel.Event.OrganizerId != organizerId)
-                throw new Exception("Only organizer or admin can pin posts");
+            if (channel.Event.OrganizerId != organizerId)
+                throw new Exception("Only the event organizer can pin posts");
 
             var post = await _context.Posts.FindAsync(postId) ?? throw new Exception("Post not found");
             if (post.ChannelId != channelId) throw new Exception("Post not in this channel");
@@ -229,8 +241,11 @@ namespace BaseCore.Services.VolunteerHub
             return true;
         }
 
-        public async Task<List<Comment>> GetCommentsAsync(int postId)
+        public async Task<List<Comment>> GetCommentsAsync(int channelId, int postId)
         {
+            var postBelongsToChannel = await _context.Posts.AnyAsync(p => p.Id == postId && p.ChannelId == channelId);
+            if (!postBelongsToChannel) throw new Exception("Post not found in this channel");
+
             return await _context.Comments
                 .Include(c => c.Author)
                 .Where(c => c.PostId == postId)
@@ -349,8 +364,8 @@ namespace BaseCore.Services.VolunteerHub
         {
             var channel = await _context.Channels.Include(c => c.Event).FirstOrDefaultAsync(c => c.Id == channelId)
                 ?? throw new Exception("Channel not found");
-            if (!isAdmin && channel.Event.OrganizerId != organizerId)
-                throw new Exception("Only organizer or admin can create polls");
+            if (channel.Event.OrganizerId != organizerId)
+                throw new Exception("Only the event organizer can create polls");
 
             var post = await _context.Posts.FindAsync(postId) ?? throw new Exception("Post not found");
             if (post.ChannelId != channelId) throw new Exception("Post not in this channel");
@@ -501,6 +516,17 @@ namespace BaseCore.Services.VolunteerHub
         {
             var normalized = (postType ?? "discussion").Trim().ToLowerInvariant();
             return ValidPostTypes.Contains(normalized) ? normalized : "discussion";
+        }
+
+        private static string NormalizeInternalImageUrl(string? imageUrl)
+        {
+            var trimmed = (imageUrl ?? "").Trim();
+            if (trimmed.Length == 0) return "";
+            if (trimmed.Length > 500) throw new Exception("Image URL is too long");
+            if (trimmed.StartsWith("/api/uploads/images/", StringComparison.OrdinalIgnoreCase) ||
+                trimmed.StartsWith("/uploads/", StringComparison.OrdinalIgnoreCase))
+                return trimmed;
+            throw new Exception("Image URL must be an internal uploaded image");
         }
     }
 }

@@ -179,7 +179,7 @@ namespace BaseCore.APIService.Controllers
 
             var campaigns = eventIds.Count == 0
                 ? new List<BaseCore.Entities.SupportCampaign>()
-                : await _context.SupportCampaigns.Where(c => eventIds.Contains(c.EventId)).ToListAsync();
+                : await _context.SupportCampaigns.Where(c => c.EventId.HasValue && eventIds.Contains(c.EventId.Value)).ToListAsync();
 
             var campaignIds = campaigns.Select(c => c.Id).ToList();
             var campaignEventMap = campaigns.ToDictionary(c => c.Id, c => c.EventId);

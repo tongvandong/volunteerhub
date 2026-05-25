@@ -557,7 +557,8 @@ namespace BaseCore.Repository
                 entity.HasOne(e => e.Event)
                       .WithMany()
                       .HasForeignKey(e => e.EventId)
-                      .OnDelete(DeleteBehavior.Cascade);
+                      .OnDelete(DeleteBehavior.Restrict)
+                      .IsRequired(false);
                 entity.HasOne(e => e.Creator)
                       .WithMany()
                       .HasForeignKey(e => e.CreatedBy)

@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Sponsor Dashboard | VolunteerHub</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(10px);
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+        .social-impact-shadow {
+            box-shadow: 0 4px 20px -2px rgba(13, 148, 136, 0.08), 0 2px 8px -2px rgba(13, 148, 136, 0.04);
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "primary": "#0d9488", // Teal 600
+                        "primary-container": "#ccfbf1", // Teal 100
+                        "on-primary": "#ffffff",
+                        "secondary": "#831ada",
+                        "secondary-container": "#f3e8ff",
+                        "tertiary": "#d97706", // Amber 600
+                        "background": "#f8fafc", // Slate 50
+                        "surface": "#ffffff",
+                        "surface-container-low": "#f1f5f9", // Slate 100
+                        "surface-container": "#f1f5f9",
+                        "surface-container-high": "#e2e8f0", // Slate 200
+                        "on-background": "#0f172a", // Slate 900
+                        "on-surface": "#1e293b", // Slate 800
+                        "on-surface-variant": "#64748b", // Slate 500
+                        "outline-variant": "#e2e8f0",
+                        "outline": "#94a3b8",
+                        "error": "#ef4444"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.5rem",
+                        "lg": "0.75rem",
+                        "xl": "1rem",
+                        "2xl": "1.5rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "container-padding-mobile": "20px",
+                        "stack-sm": "8px",
+                        "base": "8px",
+                        "gutter": "24px",
+                        "container-padding-desktop": "40px",
+                        "stack-lg": "32px",
+                        "stack-md": "16px"
+                    },
+                    "fontFamily": {
+                        "headline-xl": ["Plus Jakarta Sans"],
+                        "label-md": ["Inter"],
+                        "body-lg": ["Plus Jakarta Sans"],
+                        "headline-md": ["Plus Jakarta Sans"],
+                        "headline-lg": ["Plus Jakarta Sans"],
+                        "body-md": ["Plus Jakarta Sans"],
+                        "headline-xl-mobile": ["Plus Jakarta Sans"],
+                        "label-sm": ["Inter"]
+                    },
+                    "fontSize": {
+                        "headline-xl": ["36px", {"lineHeight": "44px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                        "label-md": ["14px", {"lineHeight": "20px", "letterSpacing": "0.01em", "fontWeight": "600"}],
+                        "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}],
+                        "headline-md": ["22px", {"lineHeight": "30px", "fontWeight": "600"}],
+                        "headline-lg": ["28px", {"lineHeight": "36px", "letterSpacing": "-0.01em", "fontWeight": "700"}],
+                        "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                        "headline-xl-mobile": ["28px", {"lineHeight": "36px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                        "label-sm": ["12px", {"lineHeight": "16px", "fontWeight": "500"}]
+                    }
+                },
+            },
+        }
+    </script>
+</head>
+<body class="bg-background text-on-background font-body-md min-h-screen">
+<!-- Desktop SideNavBar -->
+<aside class="hidden md:flex flex-col h-screen w-64 fixed left-0 top-0 bg-white shadow-sm border-r border-outline-variant z-50">
+<div class="p-8">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 bg-primary rounded-xl flex items-center justify-center text-on-primary social-impact-shadow">
+<span class="material-symbols-outlined" data-weight="fill">volunteer_activism</span>
+</div>
+<div>
+<h1 class="font-headline-md text-xl font-bold text-on-background">VolunteerHub</h1>
+<p class="font-label-sm text-[10px] uppercase tracking-wider text-primary font-bold">Impact Portal</p>
+</div>
+</div>
+</div>
+<nav class="flex-1 px-4 space-y-1">
+<a class="flex items-center gap-3 px-4 py-3 text-primary font-semibold rounded-xl bg-primary-container/40 transition-all" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+<span class="font-label-md text-label-md">Dashboard</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-surface-container-low rounded-xl transition-colors" href="#">
+<span class="material-symbols-outlined">event</span>
+<span class="font-label-md text-label-md">Events</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-surface-container-low rounded-xl transition-colors" href="#">
+<span class="material-symbols-outlined">group</span>
+<span class="font-label-md text-label-md">Community</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-surface-container-low rounded-xl transition-colors" href="#">
+<span class="material-symbols-outlined">monitoring</span>
+<span class="font-label-md text-label-md">Analytics</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-surface-container-low rounded-xl transition-colors" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span class="font-label-md text-label-md">Settings</span>
+</a>
+</nav>
+<div class="p-6 space-y-4">
+<button class="w-full py-3 bg-primary text-on-primary rounded-xl font-bold font-label-md shadow-md hover:bg-primary/90 transition-all">
+            Support Mission
+        </button>
+<div class="pt-4 border-t border-outline-variant">
+<a class="flex items-center gap-3 px-2 py-2 text-on-surface-variant hover:text-primary transition-colors mb-1" href="#">
+<span class="material-symbols-outlined text-[20px]">help</span>
+<span class="font-label-md text-label-md">Help Center</span>
+</a>
+<a class="flex items-center gap-3 px-2 py-2 text-on-surface-variant hover:text-error transition-colors" href="#">
+<span class="material-symbols-outlined text-[20px]">logout</span>
+<span class="font-label-md text-label-md">Logout</span>
+</a>
+</div>
+</div>
+</aside>
+<!-- TopNavBar -->
+<header class="flex justify-between items-center w-full px-6 py-4 md:pl-72 z-40 bg-white/80 backdrop-blur-md sticky top-0 border-b border-outline-variant/50">
+<div class="flex items-center gap-4 flex-1">
+<div class="relative w-full max-w-md hidden sm:block">
+<span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant">search</span>
+<input class="w-full pl-11 pr-4 py-2.5 bg-surface-container-low border-transparent rounded-2xl text-body-md focus:ring-2 focus:ring-primary/20 focus:bg-white focus:border-primary outline-none transition-all" placeholder="Search impact reports..." type="text"/>
+</div>
+</div>
+<div class="flex items-center gap-6">
+<div class="flex items-center gap-2">
+<button class="relative p-2 text-on-surface-variant hover:bg-surface-container-low rounded-full transition-colors">
+<span class="material-symbols-outlined">notifications</span>
+<span class="absolute top-2 right-2 w-2 h-2 bg-error rounded-full border-2 border-white"></span>
+</button>
+</div>
+<div class="h-8 w-[1px] bg-outline-variant"></div>
+<button class="flex items-center gap-3 group px-2 py-1 rounded-full hover:bg-surface-container-low transition-all">
+<div class="text-right hidden sm:block">
+<p class="font-label-md text-label-md text-on-surface">Global Tech Corp</p>
+<p class="text-[10px] uppercase tracking-wider text-primary font-bold">Premium Sponsor</p>
+</div>
+<img alt="Sponsor Profile" class="w-10 h-10 rounded-full border-2 border-primary/10 group-hover:border-primary transition-all object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDPJt5zO3vsGWfqBkoPRXaY1sOr_Q3NP9ToEgNbaVAZEWvZhc6RFZKPGtlgXmJrhiIh60YXYF5EwlOfHS9AMSpSUI2fP4V9AHVBg9Y1GLG2MBV743zq0iZuYJavlSkc9q-zK27uQdC9cmqPAb-CT_R9demQrHEIUwX0ymwr6NsI2Z3iM74g_QbRYr1vhKoK5lpp-fMkQo6A1q0mwEnYHNO0WTOojaXH1tkYq_KEh62ln507r9L83P4Ov-Rh3KwAfOe2Ld_vZh4fdRA"/>
+</button>
+</div>
+</header>
+<!-- Main Content -->
+<main class="md:pl-64 pt-8 pb-24 md:pb-12 px-container-padding-mobile md:px-container-padding-desktop">
+<div class="max-w-7xl mx-auto space-y-stack-lg">
+<!-- Welcome Header -->
+<section class="flex flex-col md:flex-row md:items-end justify-between gap-4">
+<div>
+<h2 class="font-headline-xl text-headline-xl text-on-background tracking-tight">Impact Dashboard</h2>
+<p class="font-body-lg text-on-surface-variant mt-1">Welcome back, Tech Corp. Your funding is actively changing lives today.</p>
+</div>
+<div class="flex gap-3">
+<button class="flex items-center gap-2 px-5 py-2.5 rounded-xl border border-outline-variant text-on-surface font-label-md hover:bg-white hover:shadow-sm transition-all bg-surface">
+<span class="material-symbols-outlined text-[20px]">download</span>
+                    Export Report
+                </button>
+<button class="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-on-primary font-label-md hover:shadow-lg transition-all shadow-md">
+<span class="material-symbols-outlined text-[20px]">add</span>
+                    New Sponsorship
+                </button>
+</div>
+</section>
+<!-- Bento Grid Section -->
+<section class="grid grid-cols-1 md:grid-cols-12 gap-gutter">
+<!-- Social Impact Overview (Main Card) -->
+<div class="md:col-span-8 bg-white rounded-2xl social-impact-shadow p-8 flex flex-col justify-between relative overflow-hidden border border-outline-variant/30">
+<div class="absolute -top-12 -right-12 w-48 h-48 bg-primary/5 rounded-full"></div>
+<div>
+<div class="flex justify-between items-start mb-8">
+<div>
+<h3 class="font-headline-md text-headline-md text-on-surface mb-1">Social Impact Overview</h3>
+<p class="font-label-sm text-on-surface-variant">Real-time contribution footprint</p>
+</div>
+<div class="bg-primary-container text-primary px-4 py-1.5 rounded-full font-label-sm font-bold">
+                            2024 Cumulative
+                        </div>
+</div>
+<div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+<div class="p-5 bg-background rounded-2xl border border-outline-variant/30 hover:border-primary/30 transition-colors">
+<span class="material-symbols-outlined text-primary mb-3 block" data-weight="fill">volunteer_activism</span>
+<p class="text-on-surface-variant font-label-sm mb-1">Lives Touched</p>
+<p class="font-headline-md text-2xl text-on-surface">12,450</p>
+</div>
+<div class="p-5 bg-background rounded-2xl border border-outline-variant/30 hover:border-primary/30 transition-colors">
+<span class="material-symbols-outlined text-secondary mb-3 block" data-weight="fill">school</span>
+<p class="text-on-surface-variant font-label-sm mb-1">Student Hours</p>
+<p class="font-headline-md text-2xl text-on-surface">48.2k</p>
+</div>
+<div class="p-5 bg-background rounded-2xl border border-outline-variant/30 hover:border-primary/30 transition-colors">
+<span class="material-symbols-outlined text-tertiary mb-3 block" data-weight="fill">eco</span>
+<p class="text-on-surface-variant font-label-sm mb-1">CO2 Offset (kg)</p>
+<p class="font-headline-md text-2xl text-on-surface">1,240</p>
+</div>
+<div class="p-5 bg-background rounded-2xl border border-outline-variant/30 hover:border-primary/30 transition-colors">
+<span class="material-symbols-outlined text-error mb-3 block" data-weight="fill">favorite</span>
+<p class="text-on-surface-variant font-label-sm mb-1">Events Funded</p>
+<p class="font-headline-md text-2xl text-on-surface">24</p>
+</div>
+</div>
+</div>
+<!-- Simplified Chart Visualization Placeholder -->
+<div class="mt-10 h-52 w-full bg-slate-50 rounded-2xl flex items-end justify-between p-6 gap-3 border border-outline-variant/20">
+<div class="w-full bg-primary/10 rounded-xl h-[40%] hover:bg-primary/20 transition-all cursor-pointer relative group">
+<div class="absolute -top-9 left-1/2 -translate-x-1/2 bg-on-background text-white text-[10px] px-2 py-1 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity">Jan</div>
+</div>
+<div class="w-full bg-primary/10 rounded-xl h-[65%] hover:bg-primary/20 transition-all cursor-pointer relative group">
+<div class="absolute -top-9 left-1/2 -translate-x-1/2 bg-on-background text-white text-[10px] px-2 py-1 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity">Feb</div>
+</div>
+<div class="w-full bg-primary/50 rounded-xl h-[85%] hover:bg-primary/70 transition-all cursor-pointer relative group">
+<div class="absolute -top-9 left-1/2 -translate-x-1/2 bg-on-background text-white text-[10px] px-2 py-1 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity">Mar</div>
+</div>
+<div class="w-full bg-primary/10 rounded-xl h-[50%] hover:bg-primary/20 transition-all cursor-pointer relative group"></div>
+<div class="w-full bg-primary/10 rounded-xl h-[70%] hover:bg-primary/20 transition-all cursor-pointer relative group"></div>
+<div class="w-full bg-primary/10 rounded-xl h-[95%] hover:bg-primary/20 transition-all cursor-pointer relative group"></div>
+<div class="w-full bg-primary/10 rounded-xl h-[45%] hover:bg-primary/20 transition-all cursor-pointer relative group"></div>
+</div>
+</div>
+<!-- Sponsor Profile Preview -->
+<div class="md:col-span-4 space-y-gutter">
+<div class="bg-primary text-on-primary rounded-2xl p-8 social-impact-shadow relative overflow-hidden group">
+<div class="absolute -bottom-10 -right-10 p-4 opacity-10 group-hover:scale-110 transition-transform duration-700">
+<span class="material-symbols-outlined text-[140px]" data-weight="fill">verified</span>
+</div>
+<div class="relative z-10">
+<div class="flex items-center gap-4 mb-8">
+<img alt="Sponsor Profile Image" class="w-16 h-16 rounded-2xl border-2 border-on-primary/30 object-cover shadow-lg" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCcGPZ_HLTP2H2wrK331iVcd58hq-YTy0R20J9y_vq6egrGUXJDoX6koZ2AakBiPcnxcQz6bHrf4ZXzxxk7QU0EZu5cN7B_czJNjRwkGyZdUVYJTgQhoKOOmtR7Kk11xsND53Bk-hptOvAKtBZQBZFWVfnckQUiKxXZ9PH8TD3N5mnm3Y_iBXsupcP_7oHB9Ov4NgX1iytUAUMwZ6YEr-lBInZ_MeMa0_Di9_exi0WkIcdv30eelHGrIzM_JQBakhF1xS8HllGktgI"/>
+<div>
+<h4 class="font-headline-md text-xl">Tech Corp</h4>
+<p class="font-label-sm text-sm opacity-90 font-medium">Platinum Partner</p>
+</div>
+</div>
+<div class="space-y-4">
+<div class="flex justify-between font-label-md text-sm">
+<span class="opacity-80">Annual Pledge</span>
+<span class="font-bold">$250,000</span>
+</div>
+<div class="w-full bg-white/20 h-2.5 rounded-full overflow-hidden">
+<div class="bg-white h-full rounded-full" style="width: 72%"></div>
+</div>
+<div class="flex justify-between font-label-md text-sm">
+<span class="opacity-80">Remaining Balance</span>
+<span class="font-bold">$68,400</span>
+</div>
+</div>
+<button class="mt-8 w-full py-3 bg-white text-primary rounded-xl font-bold font-label-md hover:bg-slate-50 transition-all shadow-sm">
+                            Edit Partner Profile
+                        </button>
+</div>
+</div>
+<!-- Donation History Small -->
+<div class="bg-white rounded-2xl p-7 border border-outline-variant/30 social-impact-shadow">
+<div class="flex justify-between items-center mb-6">
+<h4 class="font-headline-md text-lg">Donation History</h4>
+<span class="material-symbols-outlined text-on-surface-variant text-xl">receipt_long</span>
+</div>
+<div class="space-y-5">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-3">
+<div class="w-11 h-11 bg-tertiary/10 rounded-xl flex items-center justify-center text-tertiary">
+<span class="material-symbols-outlined" data-weight="fill">payments</span>
+</div>
+<div>
+<p class="font-label-md text-sm text-on-surface">City Clean-up</p>
+<p class="text-[11px] text-on-surface-variant font-medium">Oct 12, 2023</p>
+</div>
+</div>
+<span class="font-bold text-on-surface">$12,000</span>
+</div>
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-3">
+<div class="w-11 h-11 bg-secondary/10 rounded-xl flex items-center justify-center text-secondary">
+<span class="material-symbols-outlined" data-weight="fill">history_edu</span>
+</div>
+<div>
+<p class="font-label-md text-sm text-on-surface">Literacy Drive</p>
+<p class="text-[11px] text-on-surface-variant font-medium">Sep 28, 2023</p>
+</div>
+</div>
+<span class="font-bold text-on-surface">$8,500</span>
+</div>
+</div>
+<button class="mt-6 text-primary font-bold text-sm w-full py-2 rounded-xl hover:bg-primary/5 transition-colors border border-transparent hover:border-primary/10">View All Transactions</button>
+</div>
+</div>
+</section>
+<!-- Active Sponsorships (Tracking) -->
+<section>
+<div class="flex justify-between items-center mb-8">
+<div>
+<h3 class="font-headline-md text-headline-md text-on-surface">Active Sponsorship Tracking</h3>
+<p class="text-on-surface-variant text-sm mt-1">Monitoring ongoing impact milestones</p>
+</div>
+<div class="flex bg-surface-container-low p-1 rounded-xl gap-1">
+<button class="p-2 rounded-lg hover:bg-white text-on-surface-variant">
+<span class="material-symbols-outlined">grid_view</span>
+</button>
+<button class="p-2 rounded-lg bg-white text-primary shadow-sm">
+<span class="material-symbols-outlined">view_list</span>
+</button>
+</div>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-gutter">
+<!-- Progress Card 1 -->
+<div class="bg-white border border-outline-variant/40 rounded-2xl overflow-hidden social-impact-shadow hover:translate-y-[-4px] transition-all duration-300">
+<div class="h-1.5 bg-primary"></div>
+<div class="p-7">
+<div class="flex justify-between items-start mb-5">
+<span class="px-3 py-1 bg-primary-container text-primary rounded-full text-[11px] font-bold uppercase tracking-wider">Active</span>
+<button class="text-on-surface-variant hover:text-on-surface p-1 rounded-lg hover:bg-surface-container-low transition-colors"><span class="material-symbols-outlined">more_horiz</span></button>
+</div>
+<h4 class="font-headline-md text-xl mb-2 text-on-surface">Sustainable Tech Workshop</h4>
+<p class="text-on-surface-variant text-sm mb-8 leading-relaxed">Funding coding bootcamps for underprivileged youth in the metro area.</p>
+<div class="space-y-5">
+<div>
+<div class="flex justify-between text-[13px] mb-2 font-medium">
+<span class="text-on-surface-variant">Budget Utilization</span>
+<span class="font-bold text-primary">65%</span>
+</div>
+<div class="w-full bg-surface-container-high h-2 rounded-full overflow-hidden">
+<div class="bg-primary h-full rounded-full" style="width: 65%"></div>
+</div>
+</div>
+<div class="flex items-center gap-4 pt-4 border-t border-outline-variant/30">
+<div class="flex -space-x-3">
+<img class="w-9 h-9 rounded-full border-2 border-white object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAVcjiSRGHMuUk644i6GnVHqsvZPPMStKY3nSfwQJnEGlLIN4APWmvOT0Fhb4Vm_ZNcxvekJB1jzgsiGjug77pymB18bPFG9F7R0PCltDd9c9rdM6zuMFvCqbd-X9elY_hHXIyngOtZzyara1sKzFRNV_IplJhAQqLerkp9PosbitcLkQnYHEZmrW60YaLIdL7U7yCTncJ-X_3_LhHuMOGIKNLhyt9wN7vtc0WiW7b9PAJqtXIQN2kcsKXT60AOTnioIoKOR-Vetss"/>
+<img class="w-9 h-9 rounded-full border-2 border-white object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAfK9XRe8BXWVf-0h_KK2Yz1-3FHDe1ucWUxS93QWAzW6kE2XzDD512Kp2-OHM-a7Z6ZYzIsMF1lLxRt2nNuAbEdSHG-EOX7m4ZkKOicVZE5QLszAG3w0EKdgRiMb3DIjPf7n1fU6eD0iM_y0TJjJVHfwkuRrpmHeIAnup5eWMgf6OcZSSOVmCNC0UAYnN75C0b99rPVCBCteFdGyN48bKX7Xv8Irxgz364dU81XIDQUh2LxbPlZMWouUdXfVp28jpvOm07D4jfiD0"/>
+<div class="w-9 h-9 rounded-full bg-primary-container border-2 border-white flex items-center justify-center text-[11px] font-bold text-primary">+12</div>
+</div>
+<span class="text-[13px] font-medium text-on-surface-variant">Volunteers Engaged</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Progress Card 2 -->
+<div class="bg-white border border-outline-variant/40 rounded-2xl overflow-hidden social-impact-shadow hover:translate-y-[-4px] transition-all duration-300">
+<div class="h-1.5 bg-secondary"></div>
+<div class="p-7">
+<div class="flex justify-between items-start mb-5">
+<span class="px-3 py-1 bg-secondary-container text-secondary rounded-full text-[11px] font-bold uppercase tracking-wider">Active</span>
+<button class="text-on-surface-variant hover:text-on-surface p-1 rounded-lg hover:bg-surface-container-low transition-colors"><span class="material-symbols-outlined">more_horiz</span></button>
+</div>
+<h4 class="font-headline-md text-xl mb-2 text-on-surface">Ocean Cleanup Initiative</h4>
+<p class="text-on-surface-variant text-sm mb-8 leading-relaxed">Supporting beach restoration and marine life protection along the coast.</p>
+<div class="space-y-5">
+<div>
+<div class="flex justify-between text-[13px] mb-2 font-medium">
+<span class="text-on-surface-variant">Budget Utilization</span>
+<span class="font-bold text-secondary">32%</span>
+</div>
+<div class="w-full bg-surface-container-high h-2 rounded-full overflow-hidden">
+<div class="bg-secondary h-full rounded-full" style="width: 32%"></div>
+</div>
+</div>
+<div class="flex items-center gap-4 pt-4 border-t border-outline-variant/30">
+<div class="flex -space-x-3">
+<img class="w-9 h-9 rounded-full border-2 border-white object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDbtot0lVboG3NuNR8RZSLveIM3MiYAybnuoGzQYEFH3T0EaIE5RRMyRWubjQoAJ6nmhPOqytwAz3LDD4_NJx0E5xNzehCkBXiQvmVLYLm-D3N5giRZ6hiskezmNHjMIb1zqkqSpWALQR_XPssyliSgkh7vO0Z3yQpuefkzcY0Q-hQa6RQoJ-q22seMuJSDo64HCEHQ_WNSHXTyE9dDiBtu1iyNvwd1qEQxje9wWiRWiJRoQQ87qgvGiKiKDIqCI8F2ar9Wb1HANTc"/>
+<div class="w-9 h-9 rounded-full bg-secondary-container border-2 border-white flex items-center justify-center text-[11px] font-bold text-secondary">+45</div>
+</div>
+<span class="text-[13px] font-medium text-on-surface-variant">Volunteers Engaged</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Empty/New Slot -->
+<div class="border-2 border-dashed border-outline rounded-2xl flex items-center justify-center p-8 bg-surface-container-low/30 group cursor-pointer hover:bg-white hover:border-primary hover:social-impact-shadow transition-all duration-300">
+<div class="text-center">
+<div class="w-16 h-16 bg-white rounded-2xl shadow-sm flex items-center justify-center mx-auto mb-5 group-hover:scale-110 transition-transform">
+<span class="material-symbols-outlined text-outline group-hover:text-primary transition-colors text-[36px]">add_circle</span>
+</div>
+<h4 class="font-headline-md text-lg text-on-surface group-hover:text-primary transition-colors">Sponsor New Event</h4>
+<p class="font-label-sm text-on-surface-variant mt-1">Expand your social footprint</p>
+</div>
+</div>
+</div>
+</section>
+<!-- New Opportunities (Recommendations) -->
+<section class="bg-white rounded-3xl p-8 border border-outline-variant/40 social-impact-shadow">
+<div class="flex flex-col md:flex-row md:items-center justify-between mb-10 gap-4">
+<div>
+<h3 class="font-headline-md text-headline-md text-on-surface tracking-tight">Recommended Opportunities</h3>
+<p class="text-on-surface-variant font-body-md mt-1">Curated events that match your Corporate Social Responsibility goals.</p>
+</div>
+<button class="text-primary font-bold flex items-center gap-2 hover:gap-4 transition-all py-2 px-4 rounded-xl hover:bg-primary/5">
+                    View Marketplace <span class="material-symbols-outlined">arrow_forward</span>
+</button>
+</div>
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-gutter">
+<!-- Recommendation 1 -->
+<div class="bg-background rounded-2xl p-5 flex gap-6 hover:shadow-md hover:bg-white transition-all duration-300 border border-outline-variant/30 cursor-pointer group">
+<div class="relative overflow-hidden w-32 h-32 rounded-xl flex-shrink-0">
+<img class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCPHMIsZwYQVngQs2fnGwjQmwZRmvzQYg4sQi2OUhHgAwsStVO9eR64HHgwu9y7kYc1qOg_n3-io2uWwFaj1F4iaDnfrhJtn5W_2KtRdVhMsVQA9DMeS9Ks-uIuzWDRZRDjEE1QmLlHiaFeqNnyi6GcpGFnF2sswo5kLXOSfIv0LUi1RxdjxLqea77cPwlnhCo9bpgfbn2pHOmmMLF9Y8TBOoExxEKVh2EsxwvBKEXb7LUV98vKWLMHtACsi2fybMiwL-hoVuBIb-4"/>
+</div>
+<div class="flex-1 flex flex-col py-1">
+<div class="flex justify-between items-start mb-2">
+<h5 class="font-headline-md text-lg text-on-surface">Rural Education Kit</h5>
+<span class="bg-tertiary/10 text-tertiary px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-widest">Education</span>
+</div>
+<p class="text-on-surface-variant text-sm mb-4 line-clamp-2 leading-relaxed">Providing essential tablet computers and internet access to 50 rural schools.</p>
+<div class="flex items-center justify-between mt-auto">
+<div class="flex items-center gap-1.5 text-primary">
+<span class="material-symbols-outlined text-[18px]">stars</span>
+<span class="text-[11px] font-bold uppercase tracking-wider">High Impact</span>
+</div>
+<span class="font-bold text-on-surface">$15,000 Need</span>
+</div>
+</div>
+</div>
+<!-- Recommendation 2 -->
+<div class="bg-background rounded-2xl p-5 flex gap-6 hover:shadow-md hover:bg-white transition-all duration-300 border border-outline-variant/30 cursor-pointer group">
+<div class="relative overflow-hidden w-32 h-32 rounded-xl flex-shrink-0">
+<img class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAefaPdL-RNHbex9OBGSWJ0zhMo_NrV8_MPQmdlaeZhPIT8TYdgqZIBvOsfI0EzNRLd13lT04Iqj4bb-KQR5nqlCNsVjG-4t4v2td64MSd6bAJeo803djYEFQ_6c4MIHAITfoU8QMmVavrK5HZAr437YTrf2atGF-VgldNQMdrMTm0wI4nhYzgppdZxybRXLCfogTw7vwRC89b1jkfbF2Z16Q1-dU8bq3UfS7c6l_YReQeP2jvP-8412idnIc7TYFDp7go6eXtmSXM"/>
+</div>
+<div class="flex-1 flex flex-col py-1">
+<div class="flex justify-between items-start mb-2">
+<h5 class="font-headline-md text-lg text-on-surface">Urban Reforestation</h5>
+<span class="bg-primary/10 text-primary px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-widest">Environment</span>
+</div>
+<p class="text-on-surface-variant text-sm mb-4 line-clamp-2 leading-relaxed">Planting 5,000 native trees in downtown business districts to combat heat islands.</p>
+<div class="flex items-center justify-between mt-auto">
+<div class="flex items-center gap-1.5 text-primary">
+<span class="material-symbols-outlined text-[18px]">verified</span>
+<span class="text-[11px] font-bold uppercase tracking-wider">CSR Aligned</span>
+</div>
+<span class="font-bold text-on-surface">$22,500 Need</span>
+</div>
+</div>
+</div>
+</div>
+</section>
+</div>
+</main>
+<!-- Mobile BottomNavBar -->
+<nav class="md:hidden fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-md border-t border-outline-variant/30 flex justify-around items-center py-3 z-50 px-4 shadow-[0_-4px_12px_rgba(0,0,0,0.05)]">
+<a class="flex flex-col items-center gap-1 text-primary" href="#">
+<span class="material-symbols-outlined" data-weight="fill">dashboard</span>
+<span class="text-[10px] font-bold">Dashboard</span>
+</a>
+<a class="flex flex-col items-center gap-1 text-on-surface-variant" href="#">
+<span class="material-symbols-outlined">event</span>
+<span class="text-[10px] font-medium">Events</span>
+</a>
+<div class="relative -top-6">
+<button class="w-14 h-14 bg-primary text-on-primary rounded-full shadow-lg flex items-center justify-center hover:scale-105 active:scale-95 transition-transform">
+<span class="material-symbols-outlined text-[32px]">add</span>
+</button>
+</div>
+<a class="flex flex-col items-center gap-1 text-on-surface-variant" href="#">
+<span class="material-symbols-outlined">monitoring</span>
+<span class="text-[10px] font-medium">Impact</span>
+</a>
+<a class="flex flex-col items-center gap-1 text-on-surface-variant" href="#">
+<span class="material-symbols-outlined">person</span>
+<span class="text-[10px] font-medium">Profile</span>
+</a>
+</nav>
+<script>
+    // Simple interactive elements for the dashboard
+    document.querySelectorAll('.hover\\:translate-y-\\[-4px\\]').forEach(card => {
+        card.addEventListener('mouseenter', () => {
+            // Animation handled by Tailwind classes, but can add custom JS logic here if needed
+        });
+    });
+
+    // Search bar focus effect
+    const searchInput = document.querySelector('input[type="text"]');
+    if(searchInput) {
+        searchInput.addEventListener('focus', () => {
+            searchInput.parentElement.classList.add('scale-[1.01]');
+        });
+        searchInput.addEventListener('blur', () => {
+            searchInput.parentElement.classList.remove('scale-[1.01]');
+        });
+    }
+</script>
+</body></html>

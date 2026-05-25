@@ -6,7 +6,7 @@ namespace BaseCore.Entities
     public class SupportCampaign
     {
         public int Id { get; set; }
-        public int EventId { get; set; }
+        public int? EventId { get; set; }
         public string Title { get; set; } = "";
         public string Description { get; set; } = "";
         public decimal TargetAmount { get; set; }
@@ -26,7 +26,7 @@ namespace BaseCore.Entities
         public DateTime? ReportedAt { get; set; }
         public int? ReportedBy { get; set; }
 
-        public Event Event { get; set; }
+        public Event? Event { get; set; }
         public User Creator { get; set; }
         public User Reporter { get; set; }
         public List<IndividualDonation> Donations { get; set; } = new();

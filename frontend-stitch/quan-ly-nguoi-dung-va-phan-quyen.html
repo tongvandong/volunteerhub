@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Admin - User Management | VolunteerHub</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "primary": "#0d9488", // Teal 600
+                    "primary-container": "#ccfbf1", // Teal 100
+                    "on-primary-container": "#115e59", // Teal 800
+                    "secondary": "#0f172a",
+                    "background": "#f8fafc",
+                    "surface": "#ffffff",
+                    "surface-container": "#f1f5f9",
+                    "on-surface": "#1e293b",
+                    "on-surface-variant": "#64748b",
+                    "outline": "#e2e8f0",
+                    "error": "#ef4444",
+                    "error-container": "#fee2e2"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.5rem",
+                    "lg": "0.75rem",
+                    "xl": "1rem",
+                    "2xl": "1.5rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "stack-sm": "8px",
+                    "container-padding-mobile": "20px",
+                    "base": "8px",
+                    "stack-lg": "32px",
+                    "stack-md": "16px",
+                    "container-padding-desktop": "40px",
+                    "gutter": "24px"
+            },
+            "fontFamily": {
+                    "body-lg": ["Plus Jakarta Sans"],
+                    "headline-xl": ["Plus Jakarta Sans"],
+                    "label-md": ["Inter"],
+                    "label-sm": ["Inter"],
+                    "body-md": ["Plus Jakarta Sans"],
+                    "headline-md": ["Plus Jakarta Sans"],
+                    "headline-lg": ["Plus Jakarta Sans"]
+            },
+            "fontSize": {
+                    "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}],
+                    "headline-xl": ["40px", {"lineHeight": "48px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                    "label-md": ["14px", {"lineHeight": "20px", "letterSpacing": "0.01em", "fontWeight": "600"}],
+                    "label-sm": ["12px", {"lineHeight": "16px", "fontWeight": "500"}],
+                    "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                    "headline-md": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
+                    "headline-lg": ["30px", {"lineHeight": "38px", "letterSpacing": "-0.01em", "fontWeight": "700"}]
+            },
+            "boxShadow": {
+                "soft": "0 4px 20px -2px rgba(0, 0, 0, 0.05)",
+                "card": "0 2px 12px -1px rgba(0, 0, 0, 0.04)"
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        body {
+            background-color: #F8FAFC;
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #0d9488;
+        }
+    </style>
+</head>
+<body class="font-body-md text-on-surface antialiased">
+<!-- Side Navigation -->
+<aside class="hidden md:flex flex-col h-screen w-64 fixed left-0 top-0 bg-white border-r border-outline z-50">
+<div class="px-6 py-8">
+<h1 class="font-headline-md text-headline-md font-bold text-primary flex items-center gap-2">
+<span class="material-symbols-outlined filled">volunteer_activism</span>
+    VolunteerHub
+</h1>
+<p class="text-on-surface-variant font-label-sm mt-1">Empowered Altruism</p>
+</div>
+<nav class="flex-1 px-4 space-y-1">
+<a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-surface-container hover:text-primary transition-all rounded-xl group" href="#">
+<span class="material-symbols-outlined group-hover:scale-110 transition-transform">dashboard</span>
+<span class="font-label-md">Dashboard</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-surface-container hover:text-primary transition-all rounded-xl group" href="#">
+<span class="material-symbols-outlined group-hover:scale-110 transition-transform">event</span>
+<span class="font-label-md">Events</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-surface-container hover:text-primary transition-all rounded-xl group" href="#">
+<span class="material-symbols-outlined group-hover:scale-110 transition-transform">group</span>
+<span class="font-label-md">Community</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-surface-container hover:text-primary transition-all rounded-xl group" href="#">
+<span class="material-symbols-outlined group-hover:scale-110 transition-transform">monitoring</span>
+<span class="font-label-md">Analytics</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-primary font-bold bg-primary-container/50 rounded-xl" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span class="font-label-md">Settings</span>
+</a>
+</nav>
+<div class="p-6 mt-auto border-t border-outline">
+<button class="w-full bg-primary text-white py-3 px-4 rounded-xl font-label-md hover:bg-teal-700 shadow-soft transition-all flex items-center justify-center gap-2 mb-6">
+<span class="material-symbols-outlined text-[20px]">favorite</span>
+                Support Mission
+            </button>
+<div class="space-y-2">
+<a class="flex items-center gap-3 px-4 py-1 text-on-surface-variant hover:text-primary transition-colors" href="#">
+<span class="material-symbols-outlined text-[20px]">help_outline</span>
+<span class="font-label-sm">Help Center</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-1 text-on-surface-variant hover:text-error transition-colors" href="#">
+<span class="material-symbols-outlined text-[20px]">logout</span>
+<span class="font-label-sm">Logout</span>
+</a>
+</div>
+</div>
+</aside>
+<!-- Main Content Area -->
+<main class="md:pl-64 min-h-screen">
+<!-- Top Navigation -->
+<header class="flex justify-between items-center w-full px-8 py-4 z-40 bg-white/80 backdrop-blur-md sticky top-0 border-b border-outline">
+<div class="flex items-center gap-4 flex-1">
+<div class="relative max-w-md w-full">
+<span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant">search</span>
+<input class="w-full bg-surface-container rounded-full py-2.5 pl-12 pr-4 border-none focus:ring-2 focus:ring-primary/20 text-body-md transition-all placeholder:text-slate-400" placeholder="Search community..." type="text"/>
+</div>
+</div>
+<div class="flex items-center gap-6">
+<button class="p-2 rounded-full hover:bg-surface-container transition-colors relative">
+<span class="material-symbols-outlined text-on-surface-variant">notifications</span>
+<span class="absolute top-2 right-2 w-2 h-2 bg-error rounded-full border-2 border-white"></span>
+</button>
+<div class="flex items-center gap-3 pl-4 border-l border-outline">
+<div class="text-right hidden sm:block">
+<p class="font-label-md text-on-surface leading-none">Admin Profile</p>
+<p class="text-[11px] text-on-surface-variant uppercase tracking-wider font-bold">System Manager</p>
+</div>
+<div class="h-10 w-10 rounded-full overflow-hidden border-2 border-primary-container shadow-sm cursor-pointer hover:scale-105 transition-transform">
+<img alt="Admin Profile" src="https://lh3.googleusercontent.com/aida-public/AB6AXuA3oI0MUprvpc458z8EdImfSdhTJeWYAERge7OcA2zLE6i_DzdqNonb7FWKmRibbiUGlMqaUhcldnPCZFSNc9GkAaaD_Bt1sjYqz_OsYIpLeneBkhfNF6tdo5yJduT_DCl6w5LyBJWO-61uebIdkmncKy13muqc7PJvt0hMScNuDWXqVvEACqXhonTojMRLW8RY8nVnK_CikwPxT2Sc5otrAAVfmGOkjdksnu01DuYGpkc2Suxen200YqB50oilV-Rb7Rb379vDRhQ"/>
+</div>
+</div>
+</div>
+</header>
+<!-- Content Canvas -->
+<section class="p-container-padding-mobile md:p-container-padding-desktop max-w-7xl mx-auto">
+<!-- Page Header -->
+<div class="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10">
+<div>
+<h2 class="font-headline-lg text-headline-lg text-on-surface">User Management</h2>
+<p class="text-on-surface-variant font-body-md mt-1">Manage permissions, roles, and community status.</p>
+</div>
+<div class="flex items-center gap-3">
+<button class="flex items-center gap-2 px-5 py-2.5 bg-white border border-outline text-on-surface hover:bg-surface-container rounded-xl font-label-md transition-all shadow-card">
+<span class="material-symbols-outlined text-[20px]">download</span>
+                        Export List
+                    </button>
+<button class="flex items-center gap-2 px-5 py-2.5 bg-primary text-white rounded-xl font-label-md hover:bg-teal-700 shadow-soft transition-all">
+<span class="material-symbols-outlined text-[20px]">person_add</span>
+                        Add New User
+                    </button>
+</div>
+</div>
+<!-- Dashboard Stats / Bento Style Mini -->
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
+<div class="bg-white p-6 rounded-2xl shadow-card border border-outline hover:shadow-soft transition-shadow">
+<div class="flex items-center justify-between mb-4">
+<span class="material-symbols-outlined p-2.5 bg-primary-container text-primary rounded-xl">groups</span>
+<span class="text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg text-[11px] font-bold flex items-center gap-1">+4% <span class="material-symbols-outlined text-[12px]">trending_up</span></span>
+</div>
+<p class="text-on-surface-variant font-label-sm uppercase tracking-wider">Total Users</p>
+<h3 class="text-headline-md font-bold mt-1">1,284</h3>
+</div>
+<div class="bg-white p-6 rounded-2xl shadow-card border border-outline hover:shadow-soft transition-shadow">
+<div class="flex items-center justify-between mb-4">
+<span class="material-symbols-outlined p-2.5 bg-teal-50 text-teal-600 rounded-xl">verified_user</span>
+<span class="text-on-surface-variant bg-slate-50 px-2 py-1 rounded-lg text-[11px] font-bold">Active</span>
+</div>
+<p class="text-on-surface-variant font-label-sm uppercase tracking-wider">Volunteers</p>
+<h3 class="text-headline-md font-bold mt-1">892</h3>
+</div>
+<div class="bg-white p-6 rounded-2xl shadow-card border border-outline hover:shadow-soft transition-shadow">
+<div class="flex items-center justify-between mb-4">
+<span class="material-symbols-outlined p-2.5 bg-indigo-50 text-indigo-600 rounded-xl">shield_person</span>
+<span class="text-on-surface-variant bg-slate-50 px-2 py-1 rounded-lg text-[11px] font-bold">Staff</span>
+</div>
+<p class="text-on-surface-variant font-label-sm uppercase tracking-wider">Admins</p>
+<h3 class="text-headline-md font-bold mt-1">12</h3>
+</div>
+<div class="bg-white p-6 rounded-2xl shadow-card border border-outline hover:shadow-soft transition-shadow">
+<div class="flex items-center justify-between mb-4">
+<span class="material-symbols-outlined p-2.5 bg-error-container text-error rounded-xl">lock_person</span>
+<span class="text-error bg-error-container/40 px-2 py-1 rounded-lg text-[11px] font-bold">Action Required</span>
+</div>
+<p class="text-on-surface-variant font-label-sm uppercase tracking-wider">Locked Accounts</p>
+<h3 class="text-headline-md font-bold mt-1">7</h3>
+</div>
+</div>
+<!-- Main Data Table Section -->
+<div class="bg-white rounded-2xl shadow-soft border border-outline overflow-hidden">
+<!-- Table Filters & Search -->
+<div class="p-6 border-b border-outline flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-50/30">
+<div class="flex flex-wrap items-center gap-2">
+<button class="px-4 py-1.5 bg-primary text-white rounded-full text-label-sm font-semibold transition-all">All Users</button>
+<button class="px-4 py-1.5 hover:bg-white text-on-surface-variant border border-transparent hover:border-outline rounded-full text-label-sm transition-all">Admins</button>
+<button class="px-4 py-1.5 hover:bg-white text-on-surface-variant border border-transparent hover:border-outline rounded-full text-label-sm transition-all">Volunteers</button>
+<button class="px-4 py-1.5 hover:bg-white text-on-surface-variant border border-transparent hover:border-outline rounded-full text-label-sm transition-all">Organizers</button>
+</div>
+<div class="flex items-center gap-3">
+<span class="text-label-sm text-on-surface-variant">Sort by:</span>
+<select class="bg-white border border-outline rounded-lg text-label-sm font-semibold text-on-surface focus:ring-primary/20 focus:border-primary px-3 py-1.5 cursor-pointer outline-none">
+<option>Recently Active</option>
+<option>Name A-Z</option>
+<option>Account Status</option>
+</select>
+</div>
+</div>
+<!-- Table Content -->
+<div class="overflow-x-auto custom-scrollbar">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-slate-50/50">
+<th class="px-8 py-4 font-label-sm text-on-surface-variant uppercase tracking-widest text-[11px]">User Profile</th>
+<th class="px-8 py-4 font-label-sm text-on-surface-variant uppercase tracking-widest text-[11px]">Role</th>
+<th class="px-8 py-4 font-label-sm text-on-surface-variant uppercase tracking-widest text-[11px]">Status</th>
+<th class="px-8 py-4 font-label-sm text-on-surface-variant uppercase tracking-widest text-[11px]">Joined Date</th>
+<th class="px-8 py-4 font-label-sm text-on-surface-variant uppercase tracking-widest text-[11px] text-right">Actions</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-outline">
+<!-- User Row 1 -->
+<tr class="hover:bg-slate-50/80 transition-colors group">
+<td class="px-8 py-5">
+<div class="flex items-center gap-4">
+<div class="h-10 w-10 rounded-full bg-teal-50 text-primary flex items-center justify-center font-bold text-sm">
+                                            JS
+                                        </div>
+<div>
+<p class="font-bold text-on-surface text-body-md">Julianne Smith</p>
+<p class="text-on-surface-variant text-label-sm">j.smith@example.com</p>
+</div>
+</div>
+</td>
+<td class="px-8 py-5">
+<span class="px-3 py-1 bg-teal-50 text-teal-700 rounded-lg text-[12px] font-bold uppercase tracking-wider">Volunteer</span>
+</td>
+<td class="px-8 py-5">
+<div class="flex items-center gap-2 text-emerald-600 font-label-md">
+<span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                                        Active
+                                    </div>
+</td>
+<td class="px-8 py-5 text-on-surface-variant text-label-md">Oct 12, 2023</td>
+<td class="px-8 py-5">
+<div class="flex items-center justify-end gap-1">
+<button class="p-2 text-slate-400 hover:text-primary transition-colors rounded-lg hover:bg-primary-container" title="View Passport">
+<span class="material-symbols-outlined text-[20px]">badge</span>
+</button>
+<button class="p-2 text-slate-400 hover:text-indigo-600 transition-colors rounded-lg hover:bg-indigo-50" title="Edit User">
+<span class="material-symbols-outlined text-[20px]">edit</span>
+</button>
+<button class="p-2 text-slate-400 hover:text-error transition-colors rounded-lg hover:bg-error-container" title="Lock Account">
+<span class="material-symbols-outlined text-[20px]">lock_open</span>
+</button>
+</div>
+</td>
+</tr>
+<!-- User Row 2 (Locked) -->
+<tr class="hover:bg-error-container/5 bg-error-container/5 transition-colors group">
+<td class="px-8 py-5">
+<div class="flex items-center gap-4">
+<div class="h-10 w-10 rounded-full overflow-hidden shadow-sm">
+<img alt="Marcus Chen" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCGC1R4Nu_SzEfsaTf6t11rK14y1nZACoY1CK3NAA91JmtZ0cJ7yKvUwWwOBbpxVIN4pcjbmGS6sw1nJNI01eUNTtitdb87RRszq7wvww7h6ecWY25yptLM6EdYsEyEWwvfOuSoJwfkTd19UECdt6SDHF2ZNBiZ1C3M7E5fLpbPnyBiTLEdR1PN6MSHXVXGlwVqligKii8ENCWRvYPwD8pmMGjVOPsEGnNq4f-qRL1ZRCEiincGVECvbO3nNBmV3Utr4MMyWG9-JYY"/>
+</div>
+<div>
+<p class="font-bold text-on-surface text-body-md">Marcus Chen</p>
+<p class="text-on-surface-variant text-label-sm">m.chen@community.org</p>
+</div>
+</div>
+</td>
+<td class="px-8 py-5">
+<span class="px-3 py-1 bg-amber-50 text-amber-700 rounded-lg text-[12px] font-bold uppercase tracking-wider">Organizer</span>
+</td>
+<td class="px-8 py-5">
+<div class="flex items-center gap-2 text-error font-label-md">
+<span class="w-2 h-2 rounded-full bg-error"></span>
+                                        Locked
+                                    </div>
+</td>
+<td class="px-8 py-5 text-on-surface-variant text-label-md">Jan 04, 2024</td>
+<td class="px-8 py-5">
+<div class="flex items-center justify-end gap-1">
+<button class="p-2 text-slate-400 hover:text-primary transition-colors rounded-lg hover:bg-primary-container" title="View Passport">
+<span class="material-symbols-outlined text-[20px]">badge</span>
+</button>
+<button class="p-2 text-slate-400 hover:text-indigo-600 transition-colors rounded-lg hover:bg-indigo-50" title="Edit User">
+<span class="material-symbols-outlined text-[20px]">edit</span>
+</button>
+<button class="p-2 bg-error text-white shadow-soft hover:bg-red-700 transition-all rounded-lg" title="Unlock Account">
+<span class="material-symbols-outlined text-[20px]">lock</span>
+</button>
+</div>
+</td>
+</tr>
+<!-- User Row 3 -->
+<tr class="hover:bg-slate-50/80 transition-colors group">
+<td class="px-8 py-5">
+<div class="flex items-center gap-4">
+<div class="h-10 w-10 rounded-full overflow-hidden shadow-sm">
+<img alt="Elena Rodriguez" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDO-QbmDR5-lbLNIzP4G7XVebS21sfdfPn712Nai-QSqnCraswdOr7laYt2mxu7REswZzY8DlktRgTCF33AHmrSnCsz79y-CTq3JjFjN3EleWeCBRJswoqa__VcLoXD5lL4psWEZ_OqD0bSXSf8b23MRpV917HQYMSCfbg0MOJfdGcRRRj3qGxd0YIK8k96_CsgI1DHKqZuXFQSmOFF624oaCCT5WA7JadsbYL3eeK-W7ER5zcElBbka6xbQ-kN_w0wSaiYpRvx1v8"/>
+</div>
+<div>
+<p class="font-bold text-on-surface text-body-md">Elena Rodriguez</p>
+<p class="text-on-surface-variant text-label-sm">elena.rod@vhub.io</p>
+</div>
+</div>
+</td>
+<td class="px-8 py-5">
+<span class="px-3 py-1 bg-indigo-50 text-indigo-700 rounded-lg text-[12px] font-bold uppercase tracking-wider">Admin</span>
+</td>
+<td class="px-8 py-5">
+<div class="flex items-center gap-2 text-emerald-600 font-label-md">
+<span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                                        Active
+                                    </div>
+</td>
+<td class="px-8 py-5 text-on-surface-variant text-label-md">Nov 28, 2023</td>
+<td class="px-8 py-5">
+<div class="flex items-center justify-end gap-1">
+<button class="p-2 text-slate-400 hover:text-primary transition-colors rounded-lg hover:bg-primary-container" title="View Passport">
+<span class="material-symbols-outlined text-[20px]">badge</span>
+</button>
+<button class="p-2 text-slate-400 hover:text-indigo-600 transition-colors rounded-lg hover:bg-indigo-50" title="Edit User">
+<span class="material-symbols-outlined text-[20px]">edit</span>
+</button>
+<button class="p-2 text-slate-400 hover:text-error transition-colors rounded-lg hover:bg-error-container" title="Lock Account">
+<span class="material-symbols-outlined text-[20px]">lock_open</span>
+</button>
+</div>
+</td>
+</tr>
+<!-- User Row 4 -->
+<tr class="hover:bg-slate-50/80 transition-colors group">
+<td class="px-8 py-5">
+<div class="flex items-center gap-4">
+<div class="h-10 w-10 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center font-bold text-sm">
+                                            TW
+                                        </div>
+<div>
+<p class="font-bold text-on-surface text-body-md">Thomas Wright</p>
+<p class="text-on-surface-variant text-label-sm">t.wright@example.com</p>
+</div>
+</div>
+</td>
+<td class="px-8 py-5">
+<span class="px-3 py-1 bg-teal-50 text-teal-700 rounded-lg text-[12px] font-bold uppercase tracking-wider">Volunteer</span>
+</td>
+<td class="px-8 py-5">
+<div class="flex items-center gap-2 text-emerald-600 font-label-md">
+<span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                                        Active
+                                    </div>
+</td>
+<td class="px-8 py-5 text-on-surface-variant text-label-md">Feb 15, 2024</td>
+<td class="px-8 py-5">
+<div class="flex items-center justify-end gap-1">
+<button class="p-2 text-slate-400 hover:text-primary transition-colors rounded-lg hover:bg-primary-container" title="View Passport">
+<span class="material-symbols-outlined text-[20px]">badge</span>
+</button>
+<button class="p-2 text-slate-400 hover:text-indigo-600 transition-colors rounded-lg hover:bg-indigo-50" title="Edit User">
+<span class="material-symbols-outlined text-[20px]">edit</span>
+</button>
+<button class="p-2 text-slate-400 hover:text-error transition-colors rounded-lg hover:bg-error-container" title="Lock Account">
+<span class="material-symbols-outlined text-[20px]">lock_open</span>
+</button>
+</div>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<!-- Table Footer / Pagination -->
+<div class="p-6 bg-slate-50/30 border-t border-outline flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+<p class="text-label-sm text-on-surface-variant">Showing 1 to 10 of 1,284 members</p>
+<div class="flex items-center gap-1">
+<button class="p-2 hover:bg-white border border-transparent hover:border-outline rounded-lg text-on-surface-variant disabled:opacity-30 transition-all" disabled="">
+<span class="material-symbols-outlined">chevron_left</span>
+</button>
+<button class="w-9 h-9 flex items-center justify-center bg-primary text-white rounded-lg text-label-sm font-bold shadow-soft">1</button>
+<button class="w-9 h-9 flex items-center justify-center hover:bg-white text-on-surface-variant hover:border-outline border border-transparent rounded-lg text-label-sm font-medium transition-all">2</button>
+<button class="w-9 h-9 flex items-center justify-center hover:bg-white text-on-surface-variant hover:border-outline border border-transparent rounded-lg text-label-sm font-medium transition-all">3</button>
+<span class="px-2 text-on-surface-variant text-label-sm font-medium">...</span>
+<button class="w-9 h-9 flex items-center justify-center hover:bg-white text-on-surface-variant hover:border-outline border border-transparent rounded-lg text-label-sm font-medium transition-all">128</button>
+<button class="p-2 hover:bg-white border border-transparent hover:border-outline rounded-lg text-on-surface-variant transition-all">
+<span class="material-symbols-outlined">chevron_right</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Floating Action Button for Mobile -->
+<button class="md:hidden fixed bottom-6 right-6 w-14 h-14 bg-primary text-white rounded-full shadow-lg flex items-center justify-center hover:scale-110 active:scale-95 transition-all z-50">
+<span class="material-symbols-outlined text-[32px]">person_add</span>
+</button>
+</section>
+</main>
+<script>
+        // Micro-interactions and UI Logic
+        const searchInput = document.querySelector('input[type="text"]');
+        searchInput.addEventListener('focus', () => {
+            searchInput.parentElement.classList.add('ring-4', 'ring-primary/5');
+            searchInput.parentElement.classList.remove('bg-surface-container');
+            searchInput.parentElement.classList.add('bg-white', 'shadow-sm');
+        });
+        searchInput.addEventListener('blur', () => {
+            searchInput.parentElement.classList.remove('ring-4', 'ring-primary/5', 'bg-white', 'shadow-sm');
+            searchInput.parentElement.classList.add('bg-surface-container');
+        });
+
+        // Filter button toggles
+        const filterButtons = document.querySelectorAll('.flex.flex-wrap.items-center.gap-2 button');
+        filterButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                filterButtons.forEach(b => {
+                    b.classList.remove('bg-primary', 'text-white', 'font-semibold');
+                    b.classList.add('text-on-surface-variant', 'hover:bg-white', 'hover:border-outline');
+                });
+                btn.classList.add('bg-primary', 'text-white', 'font-semibold');
+                btn.classList.remove('text-on-surface-variant', 'hover:bg-white', 'hover:border-outline');
+            });
+        });
+    </script>
+</body></html>

@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Organizer Communication Channel - VolunteerHub</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;family=Inter:wght@400;500;600&amp;family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "on-secondary-fixed-variant": "#0d9488",
+                    "error": "#ef4444",
+                    "secondary-fixed-dim": "#ccfbf1",
+                    "secondary": "#0f766e",
+                    "tertiary-container": "#f0fdfa",
+                    "background": "#fdfdfd",
+                    "surface-dim": "#f1f5f9",
+                    "on-secondary-fixed": "#134e4a",
+                    "tertiary-fixed": "#ccfbf1",
+                    "on-error-container": "#991b1b",
+                    "surface-container-highest": "#f1f5f9",
+                    "primary-fixed-dim": "#99f6e4",
+                    "on-surface-variant": "#64748b",
+                    "outline": "#94a3b8",
+                    "on-primary-fixed-variant": "#134e4a",
+                    "on-surface": "#1e293b",
+                    "surface-container-high": "#f8fafc",
+                    "inverse-primary": "#5eead4",
+                    "surface": "#ffffff",
+                    "tertiary-fixed-dim": "#99f6e4",
+                    "secondary-fixed": "#f0fdfa",
+                    "on-tertiary": "#ffffff",
+                    "on-primary-fixed": "#042f2e",
+                    "inverse-on-surface": "#f8fafc",
+                    "primary": "#0d9488",
+                    "on-primary": "#ffffff",
+                    "surface-bright": "#ffffff",
+                    "on-tertiary-fixed-variant": "#134e4a",
+                    "secondary-container": "#ccfbf1",
+                    "on-tertiary-container": "#134e4a",
+                    "on-secondary-container": "#134e4a",
+                    "surface-tint": "#0d9488",
+                    "primary-fixed": "#ccfbf1",
+                    "surface-variant": "#f1f5f9",
+                    "surface-container-lowest": "#ffffff",
+                    "on-primary-container": "#134e4a",
+                    "surface-container-low": "#f8fafc",
+                    "error-container": "#fee2e2",
+                    "primary-container": "#0d9488",
+                    "on-error": "#ffffff",
+                    "tertiary": "#14b8a6",
+                    "surface-container": "#f1f5f9",
+                    "outline-variant": "#e2e8f0",
+                    "on-secondary": "#ffffff",
+                    "inverse-surface": "#0f172a",
+                    "on-background": "#1e293b",
+                    "on-tertiary-fixed": "#042f2e"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.5rem",
+                    "lg": "0.75rem",
+                    "xl": "1rem",
+                    "2xl": "1.5rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "stack-sm": "8px",
+                    "gutter": "24px",
+                    "stack-lg": "32px",
+                    "stack-md": "16px",
+                    "container-padding-desktop": "40px",
+                    "container-padding-mobile": "20px",
+                    "base": "8px"
+            },
+            "fontFamily": {
+                    "headline-lg": ["Plus Jakarta Sans"],
+                    "body-md": ["Plus Jakarta Sans"],
+                    "body-lg": ["Plus Jakarta Sans"],
+                    "headline-xl-mobile": ["Plus Jakarta Sans"],
+                    "headline-xl": ["Plus Jakarta Sans"],
+                    "headline-md": ["Plus Jakarta Sans"],
+                    "label-md": ["Inter"],
+                    "label-sm": ["Inter"]
+            },
+            "fontSize": {
+                    "headline-lg": ["28px", {"lineHeight": "34px", "letterSpacing": "-0.01em", "fontWeight": "700"}],
+                    "body-md": ["15px", {"lineHeight": "24px", "fontWeight": "400"}],
+                    "body-lg": ["17px", {"lineHeight": "26px", "fontWeight": "400"}],
+                    "headline-xl-mobile": ["30px", {"lineHeight": "38px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                    "headline-xl": ["36px", {"lineHeight": "44px", "letterSpacing": "-0.02em", "fontWeight": "800"}],
+                    "headline-md": ["22px", {"lineHeight": "28px", "fontWeight": "700"}],
+                    "label-md": ["14px", {"lineHeight": "20px", "letterSpacing": "0.01em", "fontWeight": "600"}],
+                    "label-sm": ["12px", {"lineHeight": "16px", "fontWeight": "500"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        body { background-color: #fdfdfd; }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .scrollbar-hide::-webkit-scrollbar { display: none; }
+        .soft-card {
+            background: #ffffff;
+            box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.05);
+            border: 1px solid #f1f5f9;
+        }
+        .active-nav {
+            background-color: #f0fdfa;
+            color: #0d9488;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body class="font-body-md text-on-surface">
+<!-- TopNavBar -->
+<header class="flex justify-between items-center w-full px-6 py-4 md:pl-72 z-40 bg-surface/90 backdrop-blur-md sticky top-0 border-b border-outline-variant/40">
+<div class="flex items-center gap-4">
+<span class="md:hidden material-symbols-outlined text-primary cursor-pointer">menu</span>
+<h1 class="font-headline-md text-headline-md text-primary tracking-tight">VolunteerHub</h1>
+</div>
+<div class="flex-1 max-w-xl mx-8 hidden md:block">
+<div class="relative">
+<span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline">search</span>
+<input class="w-full bg-surface-container-low border border-outline-variant/50 rounded-full pl-11 pr-4 py-2.5 text-label-md focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none" placeholder="Search for anything..." type="text"/>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<button class="p-2.5 hover:bg-surface-container-high rounded-full transition-colors relative">
+<span class="material-symbols-outlined text-on-surface-variant">notifications</span>
+<span class="absolute top-2 right-2 w-2 h-2 bg-error rounded-full border-2 border-surface"></span>
+</button>
+<button class="p-2.5 hover:bg-surface-container-high rounded-full transition-colors">
+<span class="material-symbols-outlined text-on-surface-variant">help</span>
+</button>
+<div class="h-10 w-10 rounded-full overflow-hidden border border-outline-variant p-0.5">
+<img alt="User Profile Menu" class="w-full h-full rounded-full object-cover" data-alt="A professional portrait of a young male volunteer organizer with short hair and glasses, wearing a smart casual polo shirt. The lighting is warm and inviting, set against a blurred background of a modern community center. The image is crisp, high-resolution, and perfectly represents the empowered altruism brand aesthetic with clean lines and a friendly, reliable mood." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDLOPIfVQEUOlShvR-r7vuB1EZEHH0cUIkXeUbrbCZkJFAS77y7EWa94OZAEzPiwzfD6noy3RhRBQ9afIn0_6-6UPx6F8X4telNzufQuINn_OJooSvbeg4XEoS030f0Q684xLBjeac_CNC3UfLp8ZkhX2oYS6keajVd4Rud_CL_L3oZdXjMlB310G58yo7nIaXFeuNTKp5EXKwd87Z2vzbY0MhuYBywg1CjfF1-exy3Zetv9E9PBsHT4waK9A6WVQd6TwMb7-99Prs"/>
+</div>
+</div>
+</header>
+<!-- SideNavBar (Desktop) -->
+<aside class="hidden md:flex flex-col h-screen w-64 fixed left-0 top-0 bg-surface border-r border-outline-variant/50 z-50">
+<div class="p-8">
+<div class="flex items-center gap-3 mb-10">
+<div class="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center">
+<span class="material-symbols-outlined text-primary font-bold text-2xl">volunteer_activism</span>
+</div>
+<div>
+<h2 class="font-headline-md text-lg font-extrabold text-on-surface leading-tight">VolunteerHub</h2>
+<p class="text-[10px] font-bold uppercase tracking-widest text-primary/70">Empowered Altruism</p>
+</div>
+</div>
+<nav class="space-y-1.5">
+<a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-surface-container-low transition-colors rounded-xl" href="#">
+<span class="material-symbols-outlined text-[22px]">dashboard</span>
+<span class="font-label-md">Dashboard</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 active-nav rounded-xl" href="#">
+<span class="material-symbols-outlined text-[22px]">event</span>
+<span class="font-label-md">Events</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-surface-container-low transition-colors rounded-xl" href="#">
+<span class="material-symbols-outlined text-[22px]">group</span>
+<span class="font-label-md">Community</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-surface-container-low transition-colors rounded-xl" href="#">
+<span class="material-symbols-outlined text-[22px]">monitoring</span>
+<span class="font-label-md">Analytics</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-surface-container-low transition-colors rounded-xl" href="#">
+<span class="material-symbols-outlined text-[22px]">settings</span>
+<span class="font-label-md">Settings</span>
+</a>
+</nav>
+</div>
+<div class="mt-auto p-6 space-y-4">
+<button class="w-full py-3 px-4 bg-primary text-on-primary rounded-2xl font-label-md hover:shadow-lg hover:shadow-primary/20 transition-all">
+            Support Mission
+        </button>
+<nav class="space-y-1 border-t border-outline-variant/30 pt-4">
+<a class="flex items-center gap-3 px-4 py-2 text-on-surface-variant hover:bg-surface-container-low transition-colors rounded-xl" href="#">
+<span class="material-symbols-outlined text-[20px]">help</span>
+<span class="font-label-md">Help Center</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-2 text-error/80 hover:bg-error-container/50 transition-colors rounded-xl" href="#">
+<span class="material-symbols-outlined text-[20px]">logout</span>
+<span class="font-label-md">Sign Out</span>
+</a>
+</nav>
+</div>
+</aside>
+<!-- Main Content -->
+<main class="md:ml-64 p-6 md:p-12">
+<div class="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-10">
+<!-- Left Column: Channel Info & Feed -->
+<div class="lg:col-span-8 space-y-8">
+<!-- Channel Header -->
+<div class="flex flex-col md:flex-row md:items-end justify-between gap-6">
+<div>
+<nav class="flex items-center gap-2 text-[11px] font-bold text-outline uppercase tracking-wider mb-3">
+<span>Events</span>
+<span class="material-symbols-outlined text-[12px]">chevron_right</span>
+<span>Urban Garden Initiative</span>
+<span class="material-symbols-outlined text-[12px]">chevron_right</span>
+<span class="text-primary">Organizer Channel</span>
+</nav>
+<h2 class="font-headline-xl text-headline-xl text-on-surface">Urban Garden Kickoff</h2>
+<p class="text-body-lg text-on-surface-variant mt-2 max-w-xl">Official communication for staff and team leads of the community planting event.</p>
+</div>
+<div class="flex gap-3">
+<button class="px-5 py-2.5 rounded-2xl bg-surface-container-high border border-outline-variant/50 text-on-surface font-label-md flex items-center gap-2 hover:bg-surface transition-colors shadow-sm">
+<span class="material-symbols-outlined text-md">push_pin</span>
+                        Pinned
+                    </button>
+<button class="px-5 py-2.5 rounded-2xl bg-primary text-on-primary font-label-md flex items-center gap-2 hover:shadow-xl hover:shadow-primary/20 transition-all">
+<span class="material-symbols-outlined text-md">add</span>
+                        Invite
+                    </button>
+</div>
+</div>
+<!-- Create Post Area -->
+<div class="soft-card rounded-2xl p-6">
+<div class="flex gap-4">
+<div class="h-12 w-12 rounded-2xl overflow-hidden flex-shrink-0 bg-primary/5">
+<img alt="User" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCHVCvWKdQn4qdXppTPQWGPSONJf0X_D4wIWZZQGyez64sGWJktu3Ph7tzur3R3f_PxFSMHyA7hEWirQ4Us0UEAhpAz_wWpwlaIzaeEq9RYEpOBNjV2me3xiQuO_nv2sToTUfWcjy0H3r95grNcGbcc2gS0Tfbu4OJty6YsQpnCFzKQrUvBfpGmyyJvywJly8Mrd5wcmFu9igd_qQ7k1e_Wcl6W8smysbRvEtaN2eL7ZFv2KO04zbHXqZMehIr1ilyPdWP3QnGxE7c"/>
+</div>
+<div class="flex-1">
+<textarea class="w-full bg-surface-container-low border-none rounded-2xl p-5 text-body-md focus:ring-2 focus:ring-primary/10 resize-none h-28 mb-4 transition-all placeholder:text-outline" placeholder="Share an update with the team..."></textarea>
+<div class="flex items-center justify-between pt-2">
+<div class="flex gap-1">
+<button class="p-2.5 text-on-surface-variant hover:bg-primary/5 hover:text-primary rounded-xl transition-all flex items-center gap-2" title="Add Image">
+<span class="material-symbols-outlined text-[20px]">image</span>
+<span class="hidden sm:inline text-label-sm">Media</span>
+</button>
+<button class="p-2.5 text-on-surface-variant hover:bg-primary/5 hover:text-primary rounded-xl transition-all flex items-center gap-2" title="Create Poll">
+<span class="material-symbols-outlined text-[20px]">poll</span>
+<span class="hidden sm:inline text-label-sm">Poll</span>
+</button>
+<button class="p-2.5 text-on-surface-variant hover:bg-primary/5 hover:text-primary rounded-xl transition-all flex items-center gap-2" title="Attach File">
+<span class="material-symbols-outlined text-[20px]">attach_file</span>
+<span class="hidden sm:inline text-label-sm">File</span>
+</button>
+</div>
+<button class="bg-primary text-on-primary px-8 py-3 rounded-2xl font-label-md hover:bg-secondary transition-all shadow-lg shadow-primary/10">Post Update</button>
+</div>
+</div>
+</div>
+</div>
+<!-- Pinned Post -->
+<div class="relative bg-primary/5 rounded-3xl border border-primary/20 p-8 shadow-sm overflow-hidden">
+<div class="absolute -top-3 left-6 bg-primary text-on-primary text-[10px] font-bold px-3 py-1.5 rounded-full flex items-center gap-1.5 uppercase tracking-widest shadow-md">
+<span class="material-symbols-outlined text-[14px]" style="font-variation-settings: 'FILL' 1;">push_pin</span>
+                    Pinned by Admin
+                </div>
+<div class="flex justify-between items-start mb-6">
+<div class="flex gap-4">
+<div class="h-12 w-12 bg-primary text-on-primary rounded-2xl flex items-center justify-center font-bold text-lg shadow-inner">CH</div>
+<div>
+<h4 class="font-label-md text-on-surface text-base">Community Hub Official</h4>
+<p class="text-label-sm text-on-surface-variant font-normal">2 days ago</p>
+</div>
+</div>
+<button class="text-outline hover:bg-primary/10 hover:text-primary p-2 rounded-full transition-all"><span class="material-symbols-outlined">more_horiz</span></button>
+</div>
+<p class="text-body-lg text-on-surface mb-6 leading-relaxed">Welcome to the Urban Garden Organizer Channel. Please review the safety guidelines and logistics document pinned in the files section before our first site visit this Saturday at 10:00 AM.</p>
+<div class="flex gap-4">
+<div class="flex items-center gap-3 px-5 py-3 bg-white border border-primary/10 rounded-2xl shadow-sm cursor-pointer hover:border-primary/30 transition-colors">
+<div class="w-8 h-8 rounded-lg bg-error/5 flex items-center justify-center text-error">
+<span class="material-symbols-outlined text-xl">description</span>
+</div>
+<span class="text-label-sm font-medium text-on-surface">Safety_Manual_v1.pdf</span>
+</div>
+</div>
+</div>
+<!-- Regular Post (Feed) -->
+<div class="space-y-8">
+<!-- Post 1 -->
+<div class="soft-card rounded-3xl overflow-hidden">
+<div class="p-8">
+<div class="flex justify-between items-start mb-6">
+<div class="flex gap-4">
+<div class="h-12 w-12 rounded-2xl overflow-hidden ring-4 ring-primary/5">
+<img alt="Sarah Miller" data-alt="A photo of Sarah Miller, a senior volunteer coordinator. She has a bright, confident expression, long brown hair, and is wearing a green 'Volunteer Leader' t-shirt. She is outdoors with a blurred urban park in the background. The lighting is golden hour, creating a warm, energetic mood that fits the empowered altruism brand." src="https://lh3.googleusercontent.com/aida-public/AB6AXuB5TGScBNwGzMjqKAYUBoyeItary47t7E50QAa3J1p3hLthkMk6aB1L3UVdBTNdV78D8iB1o8aisI9oDe_SPIu_EwBs_Qhzxtg_NaxGM1g_QqHV0ekuqDs5BTlWjq27GiP2sAw6Nx-Nm4ByXcUoFnecc2GL6veQvfbRpSdC3bQ54raQ9UBS3611PzHeKIP11xS8Nta8EQDO_dV-rXqOF9bpVr1RrXK6UoKy5mkUDYIbG1JeTxt7njJ511Zy09mDP2VCwIeyruZVq6s"/>
+</div>
+<div>
+<h4 class="font-label-md text-on-surface text-base flex items-center gap-2">
+                                        Sarah Miller 
+                                        <span class="text-[10px] text-primary bg-primary/10 px-2 py-0.5 rounded-full font-extrabold uppercase tracking-widest">Lead Staff</span>
+</h4>
+<p class="text-label-sm text-on-surface-variant font-normal">3 hours ago</p>
+</div>
+</div>
+<button class="text-outline hover:text-on-surface p-2 rounded-full"><span class="material-symbols-outlined">more_horiz</span></button>
+</div>
+<p class="text-body-lg text-on-surface mb-8 leading-relaxed">Quick check-in: Who's available to help transport the 200lb mulch bags from the South Warehouse on Friday afternoon? We'll need at least one truck.</p>
+<!-- Poll Integration -->
+<div class="space-y-4 mb-8 bg-surface-container-low p-6 rounded-2xl border border-outline-variant/30">
+<div class="flex justify-between items-center mb-2">
+<span class="text-label-md font-bold text-on-surface">Can you help with transport?</span>
+<span class="text-label-sm font-bold text-primary">18 votes</span>
+</div>
+<div class="space-y-3">
+<button class="w-full relative h-12 rounded-xl border border-primary/20 overflow-hidden text-left px-5 group">
+<div class="absolute inset-0 bg-primary/10 w-[65%]"></div>
+<div class="relative z-10 flex justify-between items-center h-full">
+<span class="text-label-md font-bold text-primary flex items-center gap-2">
+<span class="material-symbols-outlined text-[18px]">check_circle</span>
+                                            Yes, I have a truck
+                                        </span>
+<span class="text-label-md font-extrabold text-primary">65%</span>
+</div>
+</button>
+<button class="w-full relative h-12 rounded-xl border border-outline-variant/30 overflow-hidden text-left px-5 hover:border-outline transition-colors">
+<div class="absolute inset-0 bg-surface-container-highest w-[25%] opacity-50"></div>
+<div class="relative z-10 flex justify-between items-center h-full">
+<span class="text-label-md text-on-surface-variant">Available but no truck</span>
+<span class="text-label-md font-bold text-on-surface-variant">25%</span>
+</div>
+</button>
+<button class="w-full relative h-12 rounded-xl border border-outline-variant/30 overflow-hidden text-left px-5 hover:border-outline transition-colors">
+<div class="absolute inset-0 bg-surface-container-highest w-[10%] opacity-50"></div>
+<div class="relative z-10 flex justify-between items-center h-full">
+<span class="text-label-md text-on-surface-variant">Not available</span>
+<span class="text-label-md font-bold text-on-surface-variant">10%</span>
+</div>
+</button>
+</div>
+</div>
+<div class="flex items-center gap-8 pt-4 border-t border-outline-variant/30">
+<button class="flex items-center gap-2 text-on-surface-variant hover:text-primary transition-all group">
+<span class="material-symbols-outlined text-[22px] group-hover:scale-110 transition-transform" style="font-variation-settings: 'FILL' 1;">favorite</span>
+<span class="text-label-md">12 Likes</span>
+</button>
+<button class="flex items-center gap-2 text-on-surface-variant hover:text-primary transition-all group">
+<span class="material-symbols-outlined text-[22px] group-hover:scale-110 transition-transform">chat_bubble</span>
+<span class="text-label-md">4 Comments</span>
+</button>
+<button class="flex items-center gap-2 text-on-surface-variant hover:text-primary transition-all ml-auto">
+<span class="material-symbols-outlined text-[22px]">share</span>
+</button>
+</div>
+</div>
+<!-- Comments Section -->
+<div class="bg-surface-container-low/40 px-8 py-6 space-y-5 border-t border-outline-variant/20">
+<div class="flex gap-4">
+<div class="h-9 w-9 rounded-xl overflow-hidden flex-shrink-0 bg-secondary/10">
+<img alt="Marcus" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAgFJ95ILnotvPcr6tMlyeHNyDPh4cqNpb_L7byAT-IdILy05HF9XgWZs-xX6z163dfkZ_lsN8TXXSJWTgz8SY0PnJNlVTQf-oy84u8Bv1zbs8ys01ITpiIZH6YQ4q4jzR74_qm9PFFVUKpZWgEFE_F2s9JooW6EaCHcBYpG713nnah5QaNUWgQJVHWq5C8g_ryKeAzY4AWW8BAr7LpBybd3vvIg7P1_3CvrtI3WZmF_QpCsDgUWIwW7zC3uDwF4y0lMjlcqJ7RFw8"/>
+</div>
+<div class="flex-1 bg-white p-4 rounded-2xl rounded-tl-none border border-outline-variant/40 shadow-sm relative group">
+<div class="flex justify-between items-center mb-1.5">
+<span class="text-label-sm font-bold text-on-surface">Marcus Chen</span>
+<span class="text-[11px] font-medium text-outline">1h ago</span>
+</div>
+<p class="text-body-md text-on-surface-variant leading-relaxed">I can be there by 4 PM with my Ford F-150. Let me know the exact location!</p>
+<!-- Comment Actions (Visible on Hover) -->
+<div class="absolute -right-3 -top-3 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+<button class="h-8 w-8 bg-white shadow-md rounded-full flex items-center justify-center text-primary hover:bg-primary hover:text-white transition-all">
+<span class="material-symbols-outlined text-[18px]">favorite</span>
+</button>
+<button class="h-8 w-8 bg-white shadow-md rounded-full flex items-center justify-center text-error/70 hover:bg-error hover:text-white transition-all">
+<span class="material-symbols-outlined text-[18px]">delete</span>
+</button>
+</div>
+</div>
+</div>
+<div class="flex gap-4 items-center pt-2">
+<div class="h-10 w-10 rounded-xl overflow-hidden ring-2 ring-primary/10">
+<img alt="Me" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuA2jQiww78FaN9PV1lSdYK0DAlV504T2pRkvFTubNsh2JqaO-o5ZVMNnN9eHvGr_caxjrA_gzy1YA6-bhc40rgH6ka_yXMiIvB9b7HV4xf02kQ_FccB1hPrrOE0N20lQmiMx5VmMNFtagaWIf1NGgPEETmTgZHH8jnsWV-j5u74X2p9Ifuq51nhq1eW-nkBavcHYvo2fTleSMylgvJn7cIYP5yYMJ6SDdS0_G7mFVzvdO42EJSlCWFbwu6AY-6CdMrpYzA2m7NMB_0"/>
+</div>
+<div class="flex-1 relative">
+<input class="w-full bg-white border border-outline-variant/60 rounded-2xl py-3 px-5 text-label-md focus:ring-2 focus:ring-primary/10 focus:border-primary transition-all outline-none" placeholder="Write a kind comment..." type="text"/>
+<button class="absolute right-3 top-1/2 -translate-y-1/2 text-primary p-2 hover:scale-110 transition-transform">
+<span class="material-symbols-outlined font-bold">send</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Right Column: Sidebar Members & Info -->
+<div class="lg:col-span-4 space-y-8">
+<!-- Channel Stats Card -->
+<div class="soft-card rounded-3xl p-8">
+<h3 class="font-label-md text-on-surface mb-6 uppercase tracking-widest text-[11px] font-extrabold flex items-center gap-2 text-outline">
+<span class="material-symbols-outlined text-[18px]">analytics</span>
+                    Channel Activity
+                </h3>
+<div class="grid grid-cols-2 gap-4">
+<div class="p-5 bg-primary/5 rounded-2xl text-center">
+<span class="block font-headline-md text-primary text-3xl mb-1">24</span>
+<span class="text-[10px] text-primary/70 font-bold uppercase tracking-wider">Members</span>
+</div>
+<div class="p-5 bg-secondary/5 rounded-2xl text-center">
+<span class="block font-headline-md text-secondary text-3xl mb-1">156</span>
+<span class="text-[10px] text-secondary/70 font-bold uppercase tracking-wider">Updates</span>
+</div>
+</div>
+</div>
+<!-- Members List Sidebar -->
+<div class="soft-card rounded-3xl overflow-hidden">
+<div class="p-6 border-b border-outline-variant/30 flex justify-between items-center bg-surface-container-low/30">
+<h3 class="font-label-md text-on-surface font-bold text-base">Community Team</h3>
+<span class="bg-primary/10 text-primary text-[10px] px-3 py-1 rounded-full font-extrabold uppercase tracking-wider">4 Active</span>
+</div>
+<div class="p-3 max-h-[550px] overflow-y-auto scrollbar-hide">
+<!-- Staff Section -->
+<div class="px-4 py-3">
+<p class="text-[10px] font-extrabold text-outline uppercase tracking-widest mb-4">Staff &amp; Leads — 5</p>
+<div class="space-y-2">
+<div class="flex items-center justify-between p-3 rounded-2xl hover:bg-primary/5 transition-all group cursor-pointer border border-transparent hover:border-primary/10">
+<div class="flex items-center gap-4">
+<div class="relative">
+<img alt="Sarah" class="h-11 w-11 rounded-2xl object-cover ring-2 ring-white" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDYZtOxxTV0ejq_oMy1Au7KejMCHPK6fXldE69c3lXqk5h0CoaQwCEuK6C5_KPcC67KiZkahMLXtwIe71nys13VU8cNz7WB0AD-EBmsIB0t9n2NlDdQnW3SjqvUKeZfxpneEW_AahGRIuEsfYuMOIUR0aApjgbajef-cRpHwlRmyuUSvqFpaFHnufnLNXzbOF_AjQTTA4kP7kQIJVCmVwiIcllkxedaAFl1yDbyZa3L7rCb9igGEvekLSy66LaZq693Qa4Auy49e1o"/>
+<div class="absolute -bottom-1 -right-1 h-3.5 w-3.5 bg-emerald-500 border-2 border-white rounded-full"></div>
+</div>
+<div>
+<p class="text-label-md font-bold text-on-surface">Sarah Miller</p>
+<p class="text-[11px] font-medium text-primary">Coordinator</p>
+</div>
+</div>
+<span class="material-symbols-outlined text-primary opacity-0 group-hover:opacity-100 transition-all text-[20px]">chat</span>
+</div>
+<div class="flex items-center justify-between p-3 rounded-2xl hover:bg-primary/5 transition-all group cursor-pointer border border-transparent hover:border-primary/10">
+<div class="flex items-center gap-4">
+<div class="relative">
+<div class="h-11 w-11 bg-primary/10 text-primary rounded-2xl flex items-center justify-center font-extrabold text-sm ring-2 ring-white shadow-inner">CH</div>
+<div class="absolute -bottom-1 -right-1 h-3.5 w-3.5 bg-emerald-500 border-2 border-white rounded-full"></div>
+</div>
+<div>
+<p class="text-label-md font-bold text-on-surface">Community Hub</p>
+<p class="text-[11px] font-medium text-outline">Smart Bot</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Volunteers Section -->
+<div class="px-4 py-3 mt-4">
+<p class="text-[10px] font-extrabold text-outline uppercase tracking-widest mb-4">Volunteers — 19</p>
+<div class="space-y-2">
+<div class="flex items-center justify-between p-3 rounded-2xl hover:bg-primary/5 transition-all group cursor-pointer border border-transparent hover:border-primary/10">
+<div class="flex items-center gap-4">
+<img alt="Marcus" class="h-11 w-11 rounded-2xl object-cover ring-2 ring-white" src="https://lh3.googleusercontent.com/aida-public/AB6AXuD0hTpKXeSGn-MGAeBDpV-Mc_hK8iSh083JA0_-g41hNNxQCMCLUkJKWKmmubWrcKkcZqmmXbnbaJlOMw4oVHkwgl0NM1_znKqdfG-etNh-us2iHX44ru8cY34HYJje-_IhVIviTqWAV5KqHHJ8i4TZr4fEDrhN1a2xh6Q_kJlwtYU_HEh6PDxqTGaO5w3gqqdZPO-v4Nt4arGXGI2BgUgsKl-udF9dAbGEeofPVrP__7rqoHGEKhq3m0let4AUbDUsTFt422sqz7Q"/>
+<div>
+<p class="text-label-md font-bold text-on-surface">Marcus Chen</p>
+<p class="text-[11px] font-medium text-outline">Team Lead</p>
+</div>
+</div>
+<span class="material-symbols-outlined text-primary opacity-0 group-hover:opacity-100 transition-all text-[20px]">chat</span>
+</div>
+<div class="flex items-center justify-between p-3 rounded-2xl hover:bg-primary/5 transition-all group cursor-pointer border border-transparent hover:border-primary/10">
+<div class="flex items-center gap-4">
+<img alt="Elena" class="h-11 w-11 rounded-2xl object-cover ring-2 ring-white" data-alt="Profile avatar for Elena, a community garden volunteer. She has a friendly, warm smile and curly black hair. The background is a soft blue, maintaining the clean and minimal aesthetic of the VolunteerHub platform." src="https://lh3.googleusercontent.com/aida-public/AB6AXuATHR6AV3wCeWJEJUEcmF-hvTDWJUCVO63dHOhomgz5cPmVxkI-k28lAzCeyEQAR1oDELOemMiVZ0uFodasVp-99BfKfHQQRt9M1q2ZlSNedRxQTUSMQpRFBP5EpeR9-4oDMD7rt-B0CFlg80a_3CyIYS8nIZU7hiEpANn1BURZI0LwkeiNYQqgDdBKip-bqdHImG6dOFk0UJ3QmPgv1hMkulbc6GAcdAf-N4we8CrYZMbyMQuFQf6kE4nvHvUQDblRYXRwcp_0ffY"/>
+<div>
+<p class="text-label-md font-bold text-on-surface">Elena Rodriguez</p>
+<p class="text-[11px] font-medium text-outline">Volunteer</p>
+</div>
+</div>
+<span class="material-symbols-outlined text-primary opacity-0 group-hover:opacity-100 transition-all text-[20px]">chat</span>
+</div>
+</div>
+</div>
+</div>
+<button class="w-full py-4 text-label-sm text-primary font-extrabold hover:bg-primary/5 transition-colors uppercase tracking-widest border-t border-outline-variant/30">View All Members</button>
+</div>
+<!-- Resources Card -->
+<div class="bg-primary text-white rounded-3xl p-8 shadow-xl shadow-primary/20 relative overflow-hidden">
+<div class="absolute -right-6 -bottom-6 opacity-10">
+<span class="material-symbols-outlined text-[120px]">folder</span>
+</div>
+<div class="flex items-center gap-3 mb-6 relative z-10">
+<span class="material-symbols-outlined text-white/90">inventory_2</span>
+<h3 class="font-label-md font-extrabold uppercase tracking-widest text-white">Event Assets</h3>
+</div>
+<ul class="space-y-4 relative z-10">
+<li class="flex items-center justify-between group cursor-pointer bg-white/10 hover:bg-white/20 p-3 rounded-2xl transition-all border border-white/10">
+<div class="flex items-center gap-4">
+<div class="h-10 w-10 bg-white rounded-xl flex items-center justify-center text-error shadow-md">
+<span class="material-symbols-outlined text-xl">picture_as_pdf</span>
+</div>
+<span class="text-label-md font-medium text-white">Site_Map.pdf</span>
+</div>
+<span class="material-symbols-outlined text-white/70 text-lg group-hover:scale-125 transition-transform">download</span>
+</li>
+<li class="flex items-center justify-between group cursor-pointer bg-white/10 hover:bg-white/20 p-3 rounded-2xl transition-all border border-white/10">
+<div class="flex items-center gap-4">
+<div class="h-10 w-10 bg-white rounded-xl flex items-center justify-center text-primary shadow-md">
+<span class="material-symbols-outlined text-xl">table_chart</span>
+</div>
+<span class="text-label-md font-medium text-white">Volunteer_Roster.xlsx</span>
+</div>
+<span class="material-symbols-outlined text-white/70 text-lg group-hover:scale-125 transition-transform">download</span>
+</li>
+</ul>
+</div>
+</div>
+</div>
+</main>
+<!-- FAB for Quick Actions (Mobile Only) -->
+<button class="md:hidden fixed bottom-8 right-8 h-16 w-16 bg-primary text-on-primary rounded-2xl shadow-2xl shadow-primary/40 flex items-center justify-center z-50 hover:scale-110 active:scale-95 transition-all">
+<span class="material-symbols-outlined text-3xl">add_comment</span>
+</button>
+<script>
+    // Micro-interaction for Like button
+    document.querySelectorAll('.material-symbols-outlined').forEach(icon => {
+        if (icon.innerText === 'favorite') {
+            icon.parentElement.addEventListener('click', function() {
+                const isFilled = this.querySelector('span').style.fontVariationSettings.includes("'FILL' 1");
+                if (isFilled) {
+                    this.querySelector('span').style.fontVariationSettings = "'FILL' 0";
+                    this.classList.remove('text-primary');
+                    this.classList.add('text-on-surface-variant');
+                } else {
+                    this.querySelector('span').style.fontVariationSettings = "'FILL' 1";
+                    this.classList.add('text-primary');
+                    this.classList.remove('text-on-surface-variant');
+                }
+            });
+        }
+    });
+</script>
+</body></html>

@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>VolunteerHub | Manage Events</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "primary": "#0d9488", // Teal-600
+                      "primary-container": "#f0fdfa",
+                      "on-primary": "#ffffff",
+                      "secondary": "#0f766e", // Teal-700
+                      "background": "#f8fafc",
+                      "surface": "#ffffff",
+                      "surface-container-low": "#f1f5f9",
+                      "surface-container-high": "#e2e8f0",
+                      "on-surface": "#0f172a",
+                      "on-surface-variant": "#64748b",
+                      "outline-variant": "#e2e8f0",
+                      "error": "#ef4444",
+                      "success": "#10b981",
+                      "warning": "#f59e0b"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.5rem",
+                      "lg": "0.75rem",
+                      "xl": "1rem",
+                      "2xl": "1.5rem",
+                      "full": "9999px"
+              },
+              "spacing": {
+                      "stack-sm": "8px",
+                      "gutter": "24px",
+                      "stack-lg": "32px",
+                      "stack-md": "16px",
+                      "container-padding-desktop": "40px",
+                      "container-padding-mobile": "20px",
+                      "base": "8px"
+              },
+              "fontFamily": {
+                      "headline-lg": ["Plus Jakarta Sans"],
+                      "body-md": ["Plus Jakarta Sans"],
+                      "body-lg": ["Plus Jakarta Sans"],
+                      "headline-xl-mobile": ["Plus Jakarta Sans"],
+                      "headline-xl": ["Plus Jakarta Sans"],
+                      "headline-md": ["Plus Jakarta Sans"],
+                      "label-md": ["Inter"],
+                      "label-sm": ["Inter"]
+              },
+              "fontSize": {
+                      "headline-lg": ["30px", {"lineHeight": "38px", "letterSpacing": "-0.01em", "fontWeight": "700"}],
+                      "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                      "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}],
+                      "headline-xl-mobile": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                      "headline-xl": ["40px", {"lineHeight": "48px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                      "headline-md": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
+                      "label-md": ["14px", {"lineHeight": "20px", "letterSpacing": "0.01em", "fontWeight": "600"}],
+                      "label-sm": ["12px", {"lineHeight": "16px", "fontWeight": "500"}]
+              },
+              "boxShadow": {
+                "soft": "0 4px 20px -2px rgba(0, 0, 0, 0.05), 0 2px 10px -2px rgba(0, 0, 0, 0.03)"
+              }
+            },
+          },
+        }
+      </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+        .table-row-hover:hover {
+            background-color: #f8fafc;
+        }
+        body {
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+    </style>
+</head>
+<body class="bg-background text-on-surface font-body-md min-h-screen">
+<!-- Side Navigation Shell -->
+<aside class="hidden md:flex flex-col h-screen w-64 fixed left-0 top-0 bg-surface border-r border-outline-variant z-50">
+<div class="px-6 py-8">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 bg-primary rounded-xl flex items-center justify-center text-white">
+<span class="material-symbols-outlined font-bold text-headline-md" style="font-variation-settings: 'FILL' 1;">hub</span>
+</div>
+<div>
+<h1 class="font-headline-md text-xl font-bold text-on-surface tracking-tight leading-none">VolunteerHub</h1>
+<p class="font-label-sm text-[10px] text-primary font-bold uppercase tracking-widest mt-1">Impact Platform</p>
+</div>
+</div>
+</div>
+<nav class="flex-1 px-4 space-y-1">
+<a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:text-primary hover:bg-primary-container rounded-xl transition-all font-label-md" href="#">
+<span class="material-symbols-outlined" data-icon="dashboard">dashboard</span>
+<span>Dashboard</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-primary bg-primary-container rounded-xl font-bold transition-all font-label-md" href="#">
+<span class="material-symbols-outlined" data-icon="event" style="font-variation-settings: 'FILL' 1;">event</span>
+<span>Events</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:text-primary hover:bg-primary-container rounded-xl transition-all font-label-md" href="#">
+<span class="material-symbols-outlined" data-icon="group">group</span>
+<span>Community</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:text-primary hover:bg-primary-container rounded-xl transition-all font-label-md" href="#">
+<span class="material-symbols-outlined" data-icon="monitoring">monitoring</span>
+<span>Analytics</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:text-primary hover:bg-primary-container rounded-xl transition-all font-label-md" href="#">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+<span>Settings</span>
+</a>
+</nav>
+<div class="p-4 mt-auto">
+<button class="w-full bg-primary text-on-primary py-3.5 rounded-2xl font-label-md flex items-center justify-center gap-2 hover:bg-secondary shadow-lg shadow-primary/20 transition-all">
+<span class="material-symbols-outlined text-[20px]" data-icon="volunteer_activism">volunteer_activism</span>
+            Support Mission
+        </button>
+<div class="mt-4 pt-4 border-t border-outline-variant">
+<a class="flex items-center gap-3 px-4 py-2 text-on-surface-variant hover:text-primary transition-colors font-label-sm" href="#">
+<span class="material-symbols-outlined text-[20px]" data-icon="help">help</span>
+                Help Center
+            </a>
+<a class="flex items-center gap-3 px-4 py-2 text-on-surface-variant hover:text-error transition-colors font-label-sm" href="#">
+<span class="material-symbols-outlined text-[20px]" data-icon="logout">logout</span>
+                Logout
+            </a>
+</div>
+</div>
+</aside>
+<!-- Top Navigation Shell -->
+<header class="flex justify-between items-center w-full px-6 py-4 md:pl-72 z-40 bg-white/80 backdrop-blur-md sticky top-0 border-b border-outline-variant">
+<div class="flex items-center flex-1 max-w-xl">
+<div class="relative w-full">
+<span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant/60">search</span>
+<input class="w-full bg-slate-100 border-none rounded-2xl py-2.5 pl-12 pr-4 focus:ring-2 focus:ring-primary/20 text-body-md outline-none transition-all" placeholder="Search for events or people..." type="text"/>
+</div>
+</div>
+<div class="flex items-center gap-4 ml-6">
+<button class="relative p-2.5 text-on-surface-variant hover:bg-slate-100 rounded-xl transition-colors">
+<span class="material-symbols-outlined" data-icon="notifications">notifications</span>
+<span class="absolute top-2.5 right-2.5 w-2 h-2 bg-error rounded-full ring-2 ring-white"></span>
+</button>
+<div class="h-8 w-[1px] bg-outline-variant mx-1"></div>
+<div class="flex items-center gap-3 pl-2 cursor-pointer group">
+<div class="text-right hidden sm:block">
+<p class="font-label-md text-on-surface leading-tight">Alex Rivers</p>
+<p class="font-label-sm text-primary opacity-90">Senior Organizer</p>
+</div>
+<img alt="User Profile" class="w-10 h-10 rounded-xl object-cover ring-2 ring-primary/10 group-hover:ring-primary/30 transition-all" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBSBMLPhUMoITxiAV2ikpGlKRWXMGhcjzmn5lO-fVCNLIFhjPKta9f5G4tRYWNDBuTp-HMJ3IaEd7THMAKwzx4-yEF5lAvxlmTItTAVzP6KbS_He8TNs-2V7qfMp7cL0UQS0jVAhL0G8HKD6t3Wlo8dkvLOUNIRetMsR8rYeo7j0wPRg8dTdWWlvDf0zArR2Miu8qkDBCAxngfsKGqOtyN3I8We1oekThmb5V0qcuwQFg7Clr1PQpydNsatOtnHusSkBIxSBprOAa4"/>
+</div>
+</div>
+</header>
+<!-- Main Content Canvas -->
+<main class="md:pl-64 pt-8 pb-16 min-h-screen">
+<div class="max-w-[1400px] mx-auto px-6 md:px-10">
+<!-- Page Header Section -->
+<div class="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10">
+<div>
+<nav class="flex items-center gap-2 mb-3 text-label-sm text-on-surface-variant">
+<span class="hover:text-primary cursor-pointer transition-colors">Management</span>
+<span class="material-symbols-outlined text-[14px]">chevron_right</span>
+<span class="text-primary font-bold">Events Registry</span>
+</nav>
+<h2 class="font-headline-xl text-3xl md:text-headline-xl text-on-surface tracking-tight">Manage Events</h2>
+<p class="text-body-lg text-on-surface-variant mt-2 max-w-2xl">Coordinate logistics, track volunteer impact, and manage schedules across your active programs.</p>
+</div>
+<button class="bg-primary text-white px-7 py-3.5 rounded-2xl font-label-md flex items-center gap-2 shadow-lg shadow-primary/20 hover:bg-secondary hover:translate-y-[-2px] transition-all">
+<span class="material-symbols-outlined" data-icon="add">add</span>
+                Create New Event
+            </button>
+</div>
+<!-- Dashboard Bento Stats -->
+<div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-10">
+<div class="bg-white p-6 rounded-2xl border border-outline-variant shadow-soft">
+<div class="flex items-center justify-between mb-4">
+<div class="p-2.5 bg-primary/10 rounded-xl text-primary">
+<span class="material-symbols-outlined" data-icon="event_available">event_available</span>
+</div>
+<span class="text-success font-label-sm bg-success/10 px-2 py-0.5 rounded-full flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">trending_up</span> 12%
+                    </span>
+</div>
+<p class="text-on-surface-variant font-label-sm font-medium uppercase tracking-wider">Active Events</p>
+<p class="text-3xl font-bold text-on-surface mt-1">24</p>
+</div>
+<div class="bg-white p-6 rounded-2xl border border-outline-variant shadow-soft">
+<div class="flex items-center justify-between mb-4">
+<div class="p-2.5 bg-sky-100 rounded-xl text-sky-600">
+<span class="material-symbols-outlined" data-icon="group">group</span>
+</div>
+<span class="text-success font-label-sm bg-success/10 px-2 py-0.5 rounded-full flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">trending_up</span> 8%
+                    </span>
+</div>
+<p class="text-on-surface-variant font-label-sm font-medium uppercase tracking-wider">Total Volunteers</p>
+<p class="text-3xl font-bold text-on-surface mt-1">1,482</p>
+</div>
+<div class="bg-white p-6 rounded-2xl border border-outline-variant shadow-soft">
+<div class="flex items-center justify-between mb-4">
+<div class="p-2.5 bg-amber-100 rounded-xl text-amber-600">
+<span class="material-symbols-outlined" data-icon="schedule">schedule</span>
+</div>
+<span class="text-on-surface-variant font-label-sm bg-slate-100 px-2 py-0.5 rounded-full">4 zones</span>
+</div>
+<p class="text-on-surface-variant font-label-sm font-medium uppercase tracking-wider">Pending Approvals</p>
+<p class="text-3xl font-bold text-on-surface mt-1">07</p>
+</div>
+<div class="bg-white p-6 rounded-2xl border border-outline-variant shadow-soft">
+<div class="flex items-center justify-between mb-4">
+<div class="p-2.5 bg-red-100 rounded-xl text-red-600">
+<span class="material-symbols-outlined" data-icon="warning">warning</span>
+</div>
+<span class="text-red-600 font-label-sm bg-red-50 px-2 py-0.5 rounded-full font-bold">Priority</span>
+</div>
+<p class="text-on-surface-variant font-label-sm font-medium uppercase tracking-wider">Under-staffed</p>
+<p class="text-3xl font-bold text-on-surface mt-1">03</p>
+</div>
+</div>
+<!-- Filter & Search Bar -->
+<div class="bg-slate-100/50 p-3 rounded-2xl mb-8 flex flex-wrap items-center gap-3 border border-outline-variant">
+<div class="flex-1 min-w-[180px] relative">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant/60 text-[20px]">filter_list</span>
+<select class="w-full bg-white border border-outline-variant/50 rounded-xl py-2.5 pl-10 pr-4 text-label-md appearance-none focus:ring-2 focus:ring-primary/20 focus:border-primary/30 outline-none transition-all">
+<option>All Statuses</option>
+<option>Approved</option>
+<option>Draft</option>
+<option>Pending</option>
+</select>
+</div>
+<div class="flex-1 min-w-[180px] relative">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant/60 text-[20px]">category</span>
+<select class="w-full bg-white border border-outline-variant/50 rounded-xl py-2.5 pl-10 pr-4 text-label-md appearance-none focus:ring-2 focus:ring-primary/20 focus:border-primary/30 outline-none transition-all">
+<option>All Categories</option>
+<option>Education</option>
+<option>Environment</option>
+<option>Healthcare</option>
+<option>Social Impact</option>
+</select>
+</div>
+<div class="flex-1 min-w-[180px] relative">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant/60 text-[20px]">calendar_today</span>
+<input class="w-full bg-white border border-outline-variant/50 rounded-xl py-2.5 pl-10 pr-4 text-label-md focus:ring-2 focus:ring-primary/20 focus:border-primary/30 outline-none transition-all" placeholder="Date range..." type="text"/>
+</div>
+<button class="px-5 py-2.5 bg-white text-on-surface border border-outline-variant/50 rounded-xl font-label-md hover:bg-slate-50 transition-colors flex items-center gap-2">
+<span class="material-symbols-outlined text-[20px]">restart_alt</span>
+                Reset
+            </button>
+</div>
+<!-- Events Table Container -->
+<div class="bg-white rounded-2xl border border-outline-variant shadow-soft overflow-hidden">
+<div class="overflow-x-auto custom-scrollbar">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-slate-50/50">
+<th class="px-6 py-5 font-label-sm text-on-surface-variant font-bold uppercase tracking-widest border-b border-outline-variant">Event Name</th>
+<th class="px-6 py-5 font-label-sm text-on-surface-variant font-bold uppercase tracking-widest border-b border-outline-variant">Date &amp; Schedule</th>
+<th class="px-6 py-5 font-label-sm text-on-surface-variant font-bold uppercase tracking-widest border-b border-outline-variant">Status</th>
+<th class="px-6 py-5 font-label-sm text-on-surface-variant font-bold uppercase tracking-widest border-b border-outline-variant">Volunteers</th>
+<th class="px-6 py-5 font-label-sm text-on-surface-variant font-bold uppercase tracking-widest border-b border-outline-variant text-right">Actions</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-outline-variant">
+<!-- Row 1: Approved -->
+<tr class="table-row-hover transition-all group">
+<td class="px-6 py-5">
+<div class="flex items-center gap-4">
+<div class="w-12 h-12 rounded-2xl bg-primary/5 flex items-center justify-center overflow-hidden flex-shrink-0">
+<img alt="Environment Event" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCbK8pRdU7qoabuTO0PE_-6YDOY2ZHd2ATLzN2zo6JYzw73AlaOc_P3tOsW5DqjbdzKWMblX9p5A79WOEO-Pna38MmlAaZ6HHdDY_0zAjIIk-F7X45tp1oJFvigbZDA-nRCT1_ieA4uHBEV3pZRNho-T-9U5Hj3cVxlM0u-b17b5SGY0BkExRcAW6tqCrrKyC01ewyFzlJWywUSf9u6KSo_4wunrLRTtxWSFRJJGWYp7uvJJh3AR7sGc9D8qArofPf-hLymDv2i5PU"/>
+</div>
+<div>
+<p class="font-bold text-on-surface group-hover:text-primary transition-colors">Urban Forest Initiative</p>
+<p class="text-label-sm text-on-surface-variant">Environment &amp; Sustainability</p>
+</div>
+</div>
+</td>
+<td class="px-6 py-5">
+<div class="text-body-md font-medium text-on-surface">Oct 24, 2024</div>
+<div class="text-label-sm text-on-surface-variant">09:00 AM - 04:00 PM</div>
+</td>
+<td class="px-6 py-5">
+<span class="inline-flex items-center px-3 py-1 rounded-full bg-emerald-100 text-emerald-700 text-label-sm font-bold">
+                                    Approved
+                                </span>
+</td>
+<td class="px-6 py-5">
+<div class="w-full max-w-[140px]">
+<div class="flex justify-between text-label-sm mb-1.5">
+<span class="font-bold text-on-surface">124/150</span>
+<span class="text-on-surface-variant">82%</span>
+</div>
+<div class="h-2 bg-slate-100 rounded-full overflow-hidden">
+<div class="h-full bg-primary rounded-full transition-all duration-500" style="width: 82%"></div>
+</div>
+</div>
+</td>
+<td class="px-6 py-5 text-right">
+<div class="flex items-center justify-end gap-1">
+<button class="p-2 text-on-surface-variant hover:text-primary hover:bg-primary/10 rounded-xl transition-all" title="Edit">
+<span class="material-symbols-outlined text-[22px]" data-icon="edit">edit</span>
+</button>
+<button class="p-2 text-on-surface-variant hover:text-primary hover:bg-primary/10 rounded-xl transition-all" title="Manage Shifts">
+<span class="material-symbols-outlined text-[22px]" data-icon="assignment_ind">assignment_ind</span>
+</button>
+<button class="p-2 text-on-surface-variant hover:text-primary hover:bg-primary/10 rounded-xl transition-all" title="Registrations">
+<span class="material-symbols-outlined text-[22px]" data-icon="how_to_reg">how_to_reg</span>
+</button>
+<button class="p-2 text-on-surface-variant hover:text-error hover:bg-error/10 rounded-xl transition-all" title="Transfer Ownership">
+<span class="material-symbols-outlined text-[22px]" data-icon="move_up">move_up</span>
+</button>
+</div>
+</td>
+</tr>
+<!-- Row 2: Draft -->
+<tr class="table-row-hover transition-all group">
+<td class="px-6 py-5">
+<div class="flex items-center gap-4">
+<div class="w-12 h-12 rounded-2xl bg-primary/5 flex items-center justify-center overflow-hidden flex-shrink-0">
+<img alt="Education Event" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuARDDALifCjI7LcEQwUGQH67bQlQuLlaUs-CaS8DB8fhhdhEvWrZSn58Qxtpz1NgWH6UtuFBj4BikAAgCCSMKgKdixWs11WjrnLEe79Vff8D9qcMWEO_EGEhJBVbcicRqceaY24H9Y1LJYkzJlH-Jjqf2BtbiLlGwnaC3FGXWmXbm6WlQsnzt2LKn5UmaJob5p2HJ-Kozr9y5ewudVBojqqDahNPndBDEQCD2SKVZlPbGB8MRftT68fzUQiEHGg18_GEgyTxtpJSkc"/>
+</div>
+<div>
+<p class="font-bold text-on-surface group-hover:text-primary transition-colors">Digital Literacy Workshop</p>
+<p class="text-label-sm text-on-surface-variant">Education</p>
+</div>
+</div>
+</td>
+<td class="px-6 py-5">
+<div class="text-body-md font-medium text-on-surface">Nov 02, 2024</div>
+<div class="text-label-sm text-on-surface-variant">10:30 AM - 02:00 PM</div>
+</td>
+<td class="px-6 py-5">
+<span class="inline-flex items-center px-3 py-1 rounded-full bg-slate-100 text-slate-600 text-label-sm font-bold">
+                                    Draft
+                                </span>
+</td>
+<td class="px-6 py-5">
+<div class="w-full max-w-[140px]">
+<div class="flex justify-between text-label-sm mb-1.5">
+<span class="font-bold text-on-surface">0/20</span>
+<span class="text-on-surface-variant">0%</span>
+</div>
+<div class="h-2 bg-slate-100 rounded-full overflow-hidden">
+<div class="h-full bg-primary rounded-full transition-all" style="width: 0%"></div>
+</div>
+</div>
+</td>
+<td class="px-6 py-5 text-right">
+<div class="flex items-center justify-end gap-1">
+<button class="p-2 text-on-surface-variant hover:text-primary hover:bg-primary/10 rounded-xl transition-all" title="Edit">
+<span class="material-symbols-outlined text-[22px]" data-icon="edit">edit</span>
+</button>
+<button class="p-2 text-on-surface-variant hover:text-primary hover:bg-primary/10 rounded-xl transition-all" title="Manage Shifts">
+<span class="material-symbols-outlined text-[22px]" data-icon="assignment_ind">assignment_ind</span>
+</button>
+<button class="p-2 text-on-surface-variant hover:text-primary hover:bg-primary/10 rounded-xl transition-all" title="Registrations">
+<span class="material-symbols-outlined text-[22px]" data-icon="how_to_reg">how_to_reg</span>
+</button>
+<button class="p-2 text-on-surface-variant hover:text-error hover:bg-error/10 rounded-xl transition-all" title="Transfer Ownership">
+<span class="material-symbols-outlined text-[22px]" data-icon="move_up">move_up</span>
+</button>
+</div>
+</td>
+</tr>
+<!-- Row 3: Pending -->
+<tr class="table-row-hover transition-all group">
+<td class="px-6 py-5">
+<div class="flex items-center gap-4">
+<div class="w-12 h-12 rounded-2xl bg-primary/5 flex items-center justify-center overflow-hidden flex-shrink-0">
+<img alt="Community Event" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCn7ww2nOmMTIGHZUnFob_0pBeoNED0xlYmSDKNSKKQ0gUl1gHQ56IOLCJWOjfhj-5GY1V2CHnWzCeytdT6z97nPwAq_yQiv7Xn00nsDCjLxmbqO14p1JOR_jn8Gg7TktAiz16exsvYjRRGowxRa4E9_ethEuEmsKY87CFpb9DoRckuSC35ZEXQcy5gHrb4OYj9ZXv_z-yCMNloHOonvo6pKdc9MVhLnNoTKS5hyNsYwbpIy_md2bSYmE2IEy9XhSth6RscCMwwItk"/>
+</div>
+<div>
+<p class="font-bold text-on-surface group-hover:text-primary transition-colors">Hunger Relief Gala</p>
+<p class="text-label-sm text-on-surface-variant">Social Impact</p>
+</div>
+</div>
+</td>
+<td class="px-6 py-5">
+<div class="text-body-md font-medium text-on-surface">Dec 12, 2024</div>
+<div class="text-label-sm text-on-surface-variant">06:00 PM - 11:00 PM</div>
+</td>
+<td class="px-6 py-5">
+<span class="inline-flex items-center px-3 py-1 rounded-full bg-amber-100 text-amber-700 text-label-sm font-bold">
+                                    Pending
+                                </span>
+</td>
+<td class="px-6 py-5">
+<div class="w-full max-w-[140px]">
+<div class="flex justify-between text-label-sm mb-1.5">
+<span class="font-bold text-on-surface">45/50</span>
+<span class="text-on-surface-variant">90%</span>
+</div>
+<div class="h-2 bg-slate-100 rounded-full overflow-hidden">
+<div class="h-full bg-amber-500 rounded-full transition-all" style="width: 90%"></div>
+</div>
+</div>
+</td>
+<td class="px-6 py-5 text-right">
+<div class="flex items-center justify-end gap-1">
+<button class="p-2 text-on-surface-variant hover:text-primary hover:bg-primary/10 rounded-xl transition-all" title="Edit">
+<span class="material-symbols-outlined text-[22px]" data-icon="edit">edit</span>
+</button>
+<button class="p-2 text-on-surface-variant hover:text-primary hover:bg-primary/10 rounded-xl transition-all" title="Manage Shifts">
+<span class="material-symbols-outlined text-[22px]" data-icon="assignment_ind">assignment_ind</span>
+</button>
+<button class="p-2 text-on-surface-variant hover:text-primary hover:bg-primary/10 rounded-xl transition-all" title="Registrations">
+<span class="material-symbols-outlined text-[22px]" data-icon="how_to_reg">how_to_reg</span>
+</button>
+<button class="p-2 text-on-surface-variant hover:text-error hover:bg-error/10 rounded-xl transition-all" title="Transfer Ownership">
+<span class="material-symbols-outlined text-[22px]" data-icon="move_up">move_up</span>
+</button>
+</div>
+</td>
+</tr>
+<!-- Row 4: Approved -->
+<tr class="table-row-hover transition-all group">
+<td class="px-6 py-5">
+<div class="flex items-center gap-4">
+<div class="w-12 h-12 rounded-2xl bg-primary/5 flex items-center justify-center overflow-hidden flex-shrink-0">
+<img alt="Healthcare Event" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDpKtc03RtoNHQ1jvLqyEkmyH7TfdM-aGIj_E9yXJ8RMV-y0AGXwnVRvcMTyUKGFF0jQzw56Kr-wtmnx6W2CUg1vv9iAYIQz59SDLUAuFjVRY2h42GTcRYLfWGmhePSckIrAcgpKe7aEdybI3meG5EoLaQ4XKM-iZIh3T0Ue52-I8kC2RHoZUOORuve_HMQovLA85-lK8Ti6ucbRSdo4weJOqBVyLC2MCO9hrngBVcox3WH9fYJ5cN1HYvbEGRW5ERrr_Zx4mtwKVc"/>
+</div>
+<div>
+<p class="font-bold text-on-surface group-hover:text-primary transition-colors">City Blood Drive</p>
+<p class="text-label-sm text-on-surface-variant">Healthcare</p>
+</div>
+</div>
+</td>
+<td class="px-6 py-5">
+<div class="text-body-md font-medium text-on-surface">Oct 30, 2024</div>
+<div class="text-label-sm text-on-surface-variant">08:00 AM - 05:00 PM</div>
+</td>
+<td class="px-6 py-5">
+<span class="inline-flex items-center px-3 py-1 rounded-full bg-emerald-100 text-emerald-700 text-label-sm font-bold">
+                                    Approved
+                                </span>
+</td>
+<td class="px-6 py-5">
+<div class="w-full max-w-[140px]">
+<div class="flex justify-between text-label-sm mb-1.5">
+<span class="font-bold text-on-surface">18/60</span>
+<span class="text-on-surface-variant">30%</span>
+</div>
+<div class="h-2 bg-slate-100 rounded-full overflow-hidden">
+<div class="h-full bg-primary rounded-full transition-all" style="width: 30%"></div>
+</div>
+</div>
+</td>
+<td class="px-6 py-5 text-right">
+<div class="flex items-center justify-end gap-1">
+<button class="p-2 text-on-surface-variant hover:text-primary hover:bg-primary/10 rounded-xl transition-all" title="Edit">
+<span class="material-symbols-outlined text-[22px]" data-icon="edit">edit</span>
+</button>
+<button class="p-2 text-on-surface-variant hover:text-primary hover:bg-primary/10 rounded-xl transition-all" title="Manage Shifts">
+<span class="material-symbols-outlined text-[22px]" data-icon="assignment_ind">assignment_ind</span>
+</button>
+<button class="p-2 text-on-surface-variant hover:text-primary hover:bg-primary/10 rounded-xl transition-all" title="Registrations">
+<span class="material-symbols-outlined text-[22px]" data-icon="how_to_reg">how_to_reg</span>
+</button>
+<button class="p-2 text-on-surface-variant hover:text-error hover:bg-error/10 rounded-xl transition-all" title="Transfer Ownership">
+<span class="material-symbols-outlined text-[22px]" data-icon="move_up">move_up</span>
+</button>
+</div>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<!-- Table Footer / Pagination -->
+<div class="px-6 py-5 flex items-center justify-between bg-slate-50/50">
+<p class="text-label-sm text-on-surface-variant">Showing <span class="font-bold text-on-surface">4</span> of <span class="font-bold text-on-surface">24</span> active events</p>
+<div class="flex items-center gap-1.5">
+<button class="p-2 rounded-xl border border-outline-variant text-on-surface-variant hover:bg-white disabled:opacity-30 transition-all" disabled="">
+<span class="material-symbols-outlined text-[20px]">chevron_left</span>
+</button>
+<button class="w-10 h-10 rounded-xl bg-primary text-white font-bold text-label-md shadow-lg shadow-primary/20">1</button>
+<button class="w-10 h-10 rounded-xl hover:bg-white text-on-surface font-medium border border-transparent hover:border-outline-variant transition-all">2</button>
+<button class="w-10 h-10 rounded-xl hover:bg-white text-on-surface font-medium border border-transparent hover:border-outline-variant transition-all">3</button>
+<button class="p-2 rounded-xl border border-outline-variant text-on-surface-variant hover:bg-white transition-all">
+<span class="material-symbols-outlined text-[20px]">chevron_right</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+</main>
+<!-- Mobile Bottom Navigation -->
+<nav class="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-outline-variant flex justify-around items-center py-4 px-2 z-50 shadow-[0_-4px_20px_rgba(0,0,0,0.05)]">
+<a class="flex flex-col items-center gap-1 text-on-surface-variant" href="#">
+<span class="material-symbols-outlined" data-icon="dashboard">dashboard</span>
+<span class="text-[10px] font-bold">Home</span>
+</a>
+<a class="flex flex-col items-center gap-1 text-primary" href="#">
+<span class="material-symbols-outlined" data-icon="event" style="font-variation-settings: 'FILL' 1;">event</span>
+<span class="text-[10px] font-bold">Events</span>
+</a>
+<a class="flex flex-col items-center gap-1 text-on-surface-variant" href="#">
+<span class="material-symbols-outlined" data-icon="group">group</span>
+<span class="text-[10px] font-bold">Impact</span>
+</a>
+<a class="flex flex-col items-center gap-1 text-on-surface-variant" href="#">
+<span class="material-symbols-outlined" data-icon="person">person</span>
+<span class="text-[10px] font-bold">Profile</span>
+</a>
+</nav>
+<script>
+    // Subtle hover interactions
+    document.querySelectorAll('tr.table-row-hover').forEach(row => {
+        row.addEventListener('mouseenter', () => {
+            row.style.transform = 'translateX(2px)';
+        });
+        row.addEventListener('mouseleave', () => {
+            row.style.transform = 'translateX(0)';
+        });
+    });
+</script>
+</body></html>

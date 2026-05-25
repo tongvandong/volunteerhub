@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Organizer Dashboard | VolunteerHub</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;family=Inter:wght@400;500;600&amp;family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .soft-card {
+            background: #ffffff;
+            border: 1px solid rgba(13, 148, 136, 0.1);
+            box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.05);
+        }
+        body {
+            background-color: #f0fdfa; /* Very light teal background */
+            color: #134e4a; /* Deep teal text */
+        }
+        .chart-bar {
+            transition: height 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .sidebar-item-active {
+            background-color: #f0fdfa;
+            color: #0d9488;
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "primary": "#0d9488", /* Teal 600 */
+                      "secondary": "#8b5cf6", /* Violet */
+                      "tertiary": "#f59e0b", /* Amber */
+                      "on-primary": "#ffffff",
+                      "background": "#f0fdfa",
+                      "surface": "#ffffff",
+                      "on-surface": "#134e4a",
+                      "on-background": "#134e4a",
+                      "outline": "#99f6e4", /* Teal 200 */
+                      "outline-variant": "#ccfbf1", /* Teal 100 */
+                      "error": "#ef4444",
+                      "surface-container": "#ffffff",
+                      "surface-container-low": "#f9fafb",
+                      "surface-container-high": "#f0fdfa",
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.5rem",
+                      "lg": "0.75rem",
+                      "xl": "1rem",
+                      "2xl": "1.5rem",
+                      "3xl": "2rem",
+                      "full": "9999px"
+              },
+              "spacing": {
+                      "container-padding-mobile": "20px",
+                      "stack-sm": "8px",
+                      "base": "8px",
+                      "gutter": "24px",
+                      "container-padding-desktop": "40px",
+                      "stack-lg": "32px",
+                      "stack-md": "16px"
+              },
+              "fontFamily": {
+                      "headline": ["Plus Jakarta Sans", "sans-serif"],
+                      "body": ["Plus Jakarta Sans", "sans-serif"],
+                      "label": ["Inter", "sans-serif"]
+              },
+              "fontSize": {
+                      "headline-xl": ["40px", {"lineHeight": "48px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                      "headline-lg": ["30px", {"lineHeight": "38px", "letterSpacing": "-0.01em", "fontWeight": "700"}],
+                      "headline-md": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
+                      "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}],
+                      "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                      "label-md": ["14px", {"lineHeight": "20px", "letterSpacing": "0.02em", "fontWeight": "600"}],
+                      "label-sm": ["12px", {"lineHeight": "16px", "fontWeight": "500"}]
+              }
+            },
+          },
+        }
+      </script>
+</head>
+<body class="font-body text-on-surface">
+<!-- Sidebar Shell -->
+<aside class="hidden md:flex flex-col h-screen w-64 fixed left-0 top-0 bg-white border-r border-outline-variant z-50">
+<div class="px-6 py-8">
+<div class="flex items-center gap-2 mb-10">
+<div class="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center">
+<span class="material-symbols-outlined text-primary text-2xl" style="font-variation-settings: 'FILL' 1;">volunteer_activism</span>
+</div>
+<span class="font-headline text-xl font-extrabold tracking-tight text-primary">VolunteerHub</span>
+</div>
+<nav class="space-y-2">
+<!-- Dashboard Active -->
+<a class="flex items-center gap-3 px-4 py-3 text-primary font-bold rounded-xl bg-primary/5 transition-all" href="#">
+<span class="material-symbols-outlined" data-icon="dashboard">dashboard</span>
+<span class="font-label text-label-md">Dashboard</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-on-surface/60 hover:text-primary hover:bg-primary/5 rounded-xl transition-colors" href="#">
+<span class="material-symbols-outlined" data-icon="event">event</span>
+<span class="font-label text-label-md">Events</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-on-surface/60 hover:text-primary hover:bg-primary/5 rounded-xl transition-colors" href="#">
+<span class="material-symbols-outlined" data-icon="group">group</span>
+<span class="font-label text-label-md">Community</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-on-surface/60 hover:text-primary hover:bg-primary/5 rounded-xl transition-colors" href="#">
+<span class="material-symbols-outlined" data-icon="monitoring">monitoring</span>
+<span class="font-label text-label-md">Analytics</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-on-surface/60 hover:text-primary hover:bg-primary/5 rounded-xl transition-colors" href="#">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+<span class="font-label text-label-md">Settings</span>
+</a>
+</nav>
+</div>
+<div class="mt-auto p-4 border-t border-outline-variant">
+<button class="w-full bg-primary text-on-primary py-3 px-4 rounded-2xl font-label text-label-md flex items-center justify-center gap-2 hover:bg-primary/90 transition-all shadow-lg shadow-primary/20">
+<span class="material-symbols-outlined" data-icon="add">add</span>
+                Create New Event
+            </button>
+</div>
+<div class="px-6 py-6 space-y-2">
+<a class="flex items-center gap-3 px-4 py-2 text-on-surface/50 hover:text-primary transition-colors" href="#">
+<span class="material-symbols-outlined text-xl" data-icon="help">help</span>
+<span class="font-label text-label-sm">Help Center</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-2 text-error/70 hover:text-error transition-colors" href="#">
+<span class="material-symbols-outlined text-xl" data-icon="logout">logout</span>
+<span class="font-label text-label-sm">Logout</span>
+</a>
+</div>
+</aside>
+<!-- Top Bar -->
+<header class="flex justify-between items-center w-full px-6 py-4 md:pl-72 z-40 bg-white/80 backdrop-blur-md sticky top-0 border-b border-outline-variant">
+<div class="flex items-center gap-4 flex-1">
+<div class="relative w-full max-w-md hidden sm:block">
+<span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-on-surface/40" data-icon="search">search</span>
+<input class="w-full pl-12 pr-4 py-2.5 bg-background border-none rounded-2xl text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all placeholder:text-on-surface/30" placeholder="Search events or volunteers..." type="text"/>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<button class="p-2.5 text-on-surface/60 hover:bg-background rounded-xl transition-all relative">
+<span class="material-symbols-outlined" data-icon="notifications">notifications</span>
+<span class="absolute top-2.5 right-2.5 w-2 h-2 bg-error rounded-full border-2 border-white"></span>
+</button>
+<div class="h-10 w-10 rounded-xl overflow-hidden border-2 border-primary/10 cursor-pointer hover:border-primary/30 transition-all">
+<img alt="User Profile Menu" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDvhh-IjWANK_RnLzs5LgVGq1UATzTmTuR3ThHBjPgW61rK8fcVyA08eGUAKR-T5_zGx6clhiXpyc0pSTvuRbMJ2g1V8wEZ3lzMEQvOh9UCcxerIKjz9UzsdquW1BJiGzIP_jLOt9q4kBpJj3CsNUtSjhTwwux6T_na42CAQP05mrDF0NUYBHL7legHBPGeCD2_N0FkHbJnjVfINiYyAs0fUHGrU_Xna5iaw-nBiOjJtoNCSsY4AoEeexRfcOzh2DWL4HoRQHRSwM4"/>
+</div>
+</div>
+</header>
+<!-- Main Canvas -->
+<main class="md:ml-64 p-6 lg:p-10 space-y-10 min-h-screen">
+<!-- Welcome Header -->
+<div class="flex flex-col md:flex-row md:items-end justify-between gap-6">
+<div>
+<h1 class="font-headline text-headline-xl text-on-background mb-1">Welcome back, Sarah! 👋</h1>
+<p class="text-body-lg text-on-surface/60">Here’s what’s happening with your missions today.</p>
+</div>
+<div class="flex gap-3">
+<button class="bg-white text-on-surface border border-outline px-5 py-3 rounded-2xl font-label text-label-md flex items-center gap-2 hover:bg-background transition-all">
+<span class="material-symbols-outlined text-xl" data-icon="download">download</span>
+                    Export Report
+                </button>
+<button class="bg-primary text-on-primary px-6 py-3 rounded-2xl font-label text-label-md flex items-center gap-2 hover:shadow-lg hover:shadow-primary/25 transition-all transform active:scale-[0.98]">
+<span class="material-symbols-outlined text-xl" data-icon="add">add</span>
+                    Create New Event
+                </button>
+</div>
+</div>
+<!-- Quick Stats Bento Grid -->
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+<div class="soft-card p-6 rounded-3xl hover:translate-y-[-4px] transition-all duration-300">
+<div class="flex justify-between items-start mb-4">
+<div class="p-3 bg-primary/10 rounded-2xl">
+<span class="material-symbols-outlined text-primary" data-icon="groups">groups</span>
+</div>
+<span class="text-xs font-bold text-primary bg-primary/10 px-2.5 py-1 rounded-full">+12%</span>
+</div>
+<div class="font-headline text-headline-md mb-1">1,284</div>
+<div class="font-label text-label-sm text-on-surface/50 uppercase tracking-widest">Total Volunteers</div>
+</div>
+<div class="soft-card p-6 rounded-3xl hover:translate-y-[-4px] transition-all duration-300">
+<div class="flex justify-between items-start mb-4">
+<div class="p-3 bg-secondary/10 rounded-2xl">
+<span class="material-symbols-outlined text-secondary" data-icon="volunteer_activism">volunteer_activism</span>
+</div>
+<span class="text-xs font-bold text-secondary bg-secondary/10 px-2.5 py-1 rounded-full">8 Active</span>
+</div>
+<div class="font-headline text-headline-md mb-1">$45.2k</div>
+<div class="font-label text-label-sm text-on-surface/50 uppercase tracking-widest">Donation Campaigns</div>
+</div>
+<div class="soft-card p-6 rounded-3xl hover:translate-y-[-4px] transition-all duration-300">
+<div class="flex justify-between items-start mb-4">
+<div class="p-3 bg-tertiary/10 rounded-2xl">
+<span class="material-symbols-outlined text-tertiary" data-icon="schedule">schedule</span>
+</div>
+<span class="text-xs font-bold text-tertiary bg-tertiary/10 px-2.5 py-1 rounded-full">High</span>
+</div>
+<div class="font-headline text-headline-md mb-1">89%</div>
+<div class="font-label text-label-sm text-on-surface/50 uppercase tracking-widest">Participation Rate</div>
+</div>
+<div class="soft-card p-6 rounded-3xl hover:translate-y-[-4px] transition-all duration-300">
+<div class="flex justify-between items-start mb-4">
+<div class="p-3 bg-on-surface/5 rounded-2xl">
+<span class="material-symbols-outlined text-on-surface/60" data-icon="bolt">bolt</span>
+</div>
+<span class="text-xs font-bold text-on-surface/40 bg-on-surface/5 px-2.5 py-1 rounded-full">24h Avg</span>
+</div>
+<div class="font-headline text-headline-md mb-1">3.4k</div>
+<div class="font-label text-label-sm text-on-surface/50 uppercase tracking-widest">Impact Hours Gen</div>
+</div>
+</div>
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+<!-- Event Insights Chart Section -->
+<div class="lg:col-span-8 flex flex-col gap-6">
+<section class="soft-card p-8 rounded-[2.5rem]">
+<div class="flex justify-between items-center mb-10">
+<div>
+<h2 class="font-headline text-headline-md">Event Insights</h2>
+<p class="text-label-sm text-on-surface/50">Performance analysis for the last 30 days</p>
+</div>
+<div class="bg-background px-4 py-2 rounded-xl">
+<select class="bg-transparent border-none text-label-md font-bold focus:ring-0 cursor-pointer text-primary p-0">
+<option>Impact Hours</option>
+<option>Participation Rate</option>
+</select>
+</div>
+</div>
+<div class="relative h-64 flex items-end justify-between px-6">
+<!-- Simulated Chart Grid -->
+<div class="absolute inset-0 flex flex-col justify-between pointer-events-none px-6">
+<div class="w-full border-t border-outline-variant/40 h-0"></div>
+<div class="w-full border-t border-outline-variant/40 h-0"></div>
+<div class="w-full border-t border-outline-variant/40 h-0"></div>
+<div class="w-full border-t border-outline-variant/40 h-0"></div>
+</div>
+<!-- Chart Bars -->
+<div class="group relative flex flex-col items-center gap-3">
+<div class="chart-bar w-12 bg-primary/10 rounded-xl hover:bg-primary/30 transition-colors cursor-pointer" style="height: 40%"></div>
+<span class="text-[11px] font-bold text-on-surface/40">WK 1</span>
+</div>
+<div class="group relative flex flex-col items-center gap-3">
+<div class="chart-bar w-12 bg-primary/10 rounded-xl hover:bg-primary/30 transition-colors cursor-pointer" style="height: 65%"></div>
+<span class="text-[11px] font-bold text-on-surface/40">WK 2</span>
+</div>
+<div class="group relative flex flex-col items-center gap-3">
+<div class="chart-bar w-12 bg-primary rounded-xl shadow-lg shadow-primary/20 transition-colors cursor-pointer" style="height: 85%">
+<div class="absolute -top-12 left-1/2 -translate-x-1/2 bg-on-surface text-white px-3 py-1.5 rounded-lg text-[11px] font-bold opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">850 hrs ✨</div>
+</div>
+<span class="text-[11px] font-bold text-primary">WK 3</span>
+</div>
+<div class="group relative flex flex-col items-center gap-3">
+<div class="chart-bar w-12 bg-primary/10 rounded-xl hover:bg-primary/30 transition-colors cursor-pointer" style="height: 55%"></div>
+<span class="text-[11px] font-bold text-on-surface/40">WK 4</span>
+</div>
+<div class="group relative flex flex-col items-center gap-3">
+<div class="chart-bar w-12 bg-primary/10 rounded-xl hover:bg-primary/30 transition-colors cursor-pointer" style="height: 95%"></div>
+<span class="text-[11px] font-bold text-on-surface/40">WK 5</span>
+</div>
+<div class="group relative flex flex-col items-center gap-3">
+<div class="chart-bar w-12 bg-primary/10 rounded-xl hover:bg-primary/30 transition-colors cursor-pointer" style="height: 45%"></div>
+<span class="text-[11px] font-bold text-on-surface/40">WK 6</span>
+</div>
+<div class="group relative flex flex-col items-center gap-3">
+<div class="chart-bar w-12 bg-primary/10 rounded-xl hover:bg-primary/30 transition-colors cursor-pointer" style="height: 75%"></div>
+<span class="text-[11px] font-bold text-on-surface/40">WK 7</span>
+</div>
+</div>
+</section>
+<!-- My Events List -->
+<section class="soft-card p-8 rounded-[2.5rem]">
+<div class="flex justify-between items-center mb-8">
+<h2 class="font-headline text-headline-md">Manage Events</h2>
+<a class="text-primary font-label text-label-md hover:underline inline-flex items-center gap-1" href="#">
+                            View All
+                            <span class="material-symbols-outlined text-sm">arrow_forward</span>
+</a>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full text-left">
+<thead>
+<tr class="text-on-surface/40 font-label text-label-sm uppercase tracking-widest border-b border-outline-variant/50">
+<th class="pb-4 font-bold">Event Name</th>
+<th class="pb-4 font-bold">Date</th>
+<th class="pb-4 font-bold">Volunteers</th>
+<th class="pb-4 font-bold">Status</th>
+<th class="pb-4 font-bold"></th>
+</tr>
+</thead>
+<tbody class="divide-y divide-outline-variant/30">
+<tr class="hover:bg-background/50 transition-colors group">
+<td class="py-5">
+<div class="flex items-center gap-4">
+<div class="w-12 h-12 rounded-2xl overflow-hidden flex-shrink-0 border-2 border-white shadow-sm">
+<img alt="Nature Mission" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuA-J5NTpNMCG4MjKph-T6VLpbEdvUTo4A_VyUvFEWmoBkHpzthFJYEBWD6UgRAlt3E4-DzqmCN8aVo_16rR5I0aXpZSuMKhs0himyWL5zJo8MBEAXjrY59PpzzmDNpNdPPBzAR5luyLThFzixmrDASx4B2ap8jsq-6-5yFcdgRHIqC-gUTTwSIUjNvDqhjKyGdy5aGSSom5UforsDzsdX88WNYQa1WK44zMnGXlrVI-2d0hM7EvbtfRqu5OEu7Zq7BusDtJlfqBrJM"/>
+</div>
+<span class="font-bold text-on-surface">City Park Cleanup</span>
+</div>
+</td>
+<td class="py-5 text-on-surface/60 font-medium">Oct 24, 2023</td>
+<td class="py-5 text-on-surface/60 font-medium">124 / 150</td>
+<td class="py-5">
+<span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700">Live</span>
+</td>
+<td class="py-5 text-right">
+<button class="p-2 text-on-surface/30 hover:text-primary hover:bg-primary/10 rounded-xl transition-all">
+<span class="material-symbols-outlined" data-icon="more_vert">more_vert</span>
+</button>
+</td>
+</tr>
+<tr class="hover:bg-background/50 transition-colors group">
+<td class="py-5">
+<div class="flex items-center gap-4">
+<div class="w-12 h-12 rounded-2xl overflow-hidden flex-shrink-0 border-2 border-white shadow-sm">
+<img alt="Art Workshop" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAw94IwJFQBr9ZDwoMlBV_UlTb9kI06sZMjHnRb-USm4ycGANYHzrAsL7f_JOWZdeFVZHmf-bcWDdfGs7PDJudARP60VpfP-M2m5yDaGbI3utMEI8kvizoyfyYiTFUz3XyqEzXgKHXxGmgf_Ga8XXtpntMf59Qb1YDEJ3ZgZDDk_se232f7dBCg0Z2vEu-I9CLRs4xRY_D3jAtJJo3X1o994OGzrI8GecKEsv8zbBUwLwgNhJYHFaMvCzUuW8ysgqLDH7tR6DLOBIk"/>
+</div>
+<span class="font-bold text-on-surface">Youth Art Workshop</span>
+</div>
+</td>
+<td class="py-5 text-on-surface/60 font-medium">Nov 02, 2023</td>
+<td class="py-5 text-on-surface/60 font-medium">45 / 50</td>
+<td class="py-5">
+<span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-700">Pending Admin</span>
+</td>
+<td class="py-5 text-right">
+<button class="p-2 text-on-surface/30 hover:text-primary hover:bg-primary/10 rounded-xl transition-all">
+<span class="material-symbols-outlined" data-icon="more_vert">more_vert</span>
+</button>
+</td>
+</tr>
+<tr class="hover:bg-background/50 transition-colors group">
+<td class="py-5">
+<div class="flex items-center gap-4">
+<div class="w-12 h-12 rounded-2xl overflow-hidden flex-shrink-0 border-2 border-white shadow-sm">
+<img alt="Food Bank" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAOxKIjFRJ1Rem4kvQTouLnRP3IKv0ZUnqNt1wj3jQkE3Flb2KIAy0_L6fUVttTji4wU_peChCv9AujQPAEkgrbUWFCX_dOsOdlZu-4zc_tuqb4O5rY2teuoGEmOXlRxIRn-fhhBDEbWzL4m8XHnL6g12XfWFPeXK968qAze--39WDVD1nRYXufnPUhR1hHqfm_ovrTPXslOHtOIsP3c5TDmoanIe95qItseeD3uGorzZGo0d4HQGBy70w4dSFb_z6Dr3WP2NPP7uA"/>
+</div>
+<span class="font-bold text-on-surface">Food Drive Gala</span>
+</div>
+</td>
+<td class="py-5 text-on-surface/60 font-medium">Sep 15, 2023</td>
+<td class="py-5 text-on-surface/60 font-medium">200 / 200</td>
+<td class="py-5">
+<span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-600">Completed</span>
+</td>
+<td class="py-5 text-right">
+<button class="p-2 text-on-surface/30 hover:text-primary hover:bg-primary/10 rounded-xl transition-all">
+<span class="material-symbols-outlined" data-icon="more_vert">more_vert</span>
+</button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+</div>
+<!-- Pending Actions Sidebar -->
+<div class="lg:col-span-4 space-y-8">
+<section class="soft-card p-8 rounded-[2.5rem]">
+<div class="flex items-center gap-3 mb-8">
+<div class="w-10 h-10 bg-error/10 rounded-xl flex items-center justify-center">
+<span class="material-symbols-outlined text-error text-2xl" data-icon="pending_actions">pending_actions</span>
+</div>
+<h2 class="font-headline text-headline-md">Needs Attention</h2>
+</div>
+<div class="space-y-5">
+<div class="p-5 rounded-3xl bg-background border border-outline-variant/30 hover:border-primary/30 transition-all">
+<div class="flex justify-between items-start mb-3">
+<span class="text-[10px] font-bold text-secondary uppercase tracking-[0.15em]">Registration Request</span>
+<span class="text-[10px] text-on-surface/40 font-bold">2h ago</span>
+</div>
+<p class="font-bold text-on-surface mb-1">Alex Johnson</p>
+<p class="text-label-sm text-on-surface/60 mb-5 leading-relaxed">Requesting to join "Community Kitchen" as Team Lead.</p>
+<div class="flex gap-2">
+<button class="flex-1 bg-primary text-on-primary py-2.5 rounded-xl font-label text-label-sm hover:opacity-90 transition-all">Confirm</button>
+<button class="flex-1 bg-white text-on-surface py-2.5 rounded-xl font-label text-label-sm border border-outline hover:bg-background transition-all">Review</button>
+</div>
+</div>
+<div class="p-5 rounded-3xl bg-background border border-outline-variant/30 hover:border-tertiary/30 transition-all">
+<div class="flex justify-between items-start mb-3">
+<span class="text-[10px] font-bold text-tertiary uppercase tracking-[0.15em]">Sponsorship</span>
+<span class="text-[10px] text-on-surface/40 font-bold">5h ago</span>
+</div>
+<p class="font-bold text-on-surface mb-1">TechCorp Global</p>
+<p class="text-label-sm text-on-surface/60 mb-5 leading-relaxed">Proposed $5,000 sponsorship for the Annual Fundraiser.</p>
+<button class="w-full bg-tertiary text-white py-2.5 rounded-xl font-label text-label-sm hover:opacity-90 transition-all">View Proposal</button>
+</div>
+<div class="p-5 rounded-3xl bg-background border border-outline-variant/30 hover:border-primary/30 transition-all">
+<div class="flex justify-between items-start mb-3">
+<span class="text-[10px] font-bold text-primary uppercase tracking-[0.15em]">Verification</span>
+<span class="text-[10px] text-on-surface/40 font-bold">Yesterday</span>
+</div>
+<p class="font-bold text-on-surface mb-1">Maria Garcia</p>
+<p class="text-label-sm text-on-surface/60 mb-5 leading-relaxed">Verification documents uploaded for Student Leader status.</p>
+<button class="w-full py-2.5 border border-outline text-on-surface/60 rounded-xl font-label text-label-sm hover:bg-white transition-all">Review Documents</button>
+</div>
+</div>
+<button class="w-full mt-8 text-primary font-label text-label-md flex items-center justify-center gap-2 hover:gap-3 transition-all group">
+                        View all 12 actions
+                        <span class="material-symbols-outlined text-sm transition-transform group-hover:translate-x-1" data-icon="arrow_forward">arrow_forward</span>
+</button>
+</section>
+<!-- Impact Promotion Card -->
+<div class="relative overflow-hidden rounded-[2.5rem] aspect-square bg-primary group shadow-xl shadow-primary/20">
+<img alt="Volunteer Impact" class="absolute inset-0 w-full h-full object-cover opacity-40 group-hover:scale-105 transition-transform duration-1000" src="https://lh3.googleusercontent.com/aida-public/AB6AXuD4dlj3OisNBW5aXNFtLNrufbwoaSD0G4mS6rnbtX49DNr5qtjypFlF5dN3BT7nGx7fUPBSHGd8EBvpG6k4ck3V8nS6U46olKmPxU-KpfJ93e-LNHDujV3fc_gkYJzymvfDwlvPL7y8ot7MhDZ6M9J2djYAL05B380LS0CgYXYCZLnHQuH3O6butIb9Ya7AddlErsjuXoX2N0lRfLa0V4KTz8Jd6--s5iV5yH-4xictq6fwrAcPSNjpbmjaRlFhBe_FQ69-oCfGlzk"/>
+<div class="absolute inset-0 bg-gradient-to-t from-primary/90 via-primary/20 to-transparent"></div>
+<div class="absolute bottom-0 left-0 p-8 w-full">
+<div class="inline-block px-3 py-1 rounded-full bg-white/20 backdrop-blur-md text-white text-[10px] font-bold uppercase tracking-wider mb-4 border border-white/10">Milestone reached ✨</div>
+<h3 class="font-headline text-headline-lg text-white mb-2 leading-tight">You've helped 5,000+ people this month</h3>
+<p class="text-white/80 text-body-md mb-6 leading-relaxed">Your leadership is making a tangible difference in our local community.</p>
+<button class="w-full bg-white text-primary px-6 py-3.5 rounded-2xl font-bold text-label-md hover:bg-background hover:scale-[1.02] transition-all duration-300">Share Impact Story</button>
+</div>
+</div>
+</div>
+</div>
+</main>
+<!-- Footer for Mobile -->
+<footer class="md:hidden fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-xl border-t border-outline-variant flex justify-around items-center p-4 z-50 rounded-t-[2rem] shadow-2xl">
+<a class="flex flex-col items-center gap-1 text-primary" href="#">
+<span class="material-symbols-outlined" data-icon="dashboard" style="font-variation-settings: 'FILL' 1;">dashboard</span>
+<span class="text-[10px] font-bold">Home</span>
+</a>
+<a class="flex flex-col items-center gap-1 text-on-surface/40" href="#">
+<span class="material-symbols-outlined" data-icon="event">event</span>
+<span class="text-[10px]">Events</span>
+</a>
+<div class="relative -top-8">
+<button class="bg-primary text-on-primary p-5 rounded-3xl shadow-xl shadow-primary/40 ring-4 ring-white">
+<span class="material-symbols-outlined text-2xl" data-icon="add">add</span>
+</button>
+</div>
+<a class="flex flex-col items-center gap-1 text-on-surface/40" href="#">
+<span class="material-symbols-outlined" data-icon="group">group</span>
+<span class="text-[10px]">Social</span>
+</a>
+<a class="flex flex-col items-center gap-1 text-on-surface/40" href="#">
+<span class="material-symbols-outlined" data-icon="person">person</span>
+<span class="text-[10px]">Profile</span>
+</a>
+</footer>
+<script>
+        // Simple Chart Animation on load
+        window.addEventListener('DOMContentLoaded', () => {
+            const bars = document.querySelectorAll('.chart-bar');
+            bars.forEach((bar, index) => {
+                const finalHeight = bar.style.height;
+                bar.style.height = '0';
+                setTimeout(() => {
+                    bar.style.height = finalHeight;
+                }, index * 100);
+            });
+        });
+    </script>
+</body></html>

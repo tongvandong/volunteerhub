@@ -36,22 +36,15 @@ namespace BaseCore.Services.VolunteerHub
                     (e.Location != null && e.Location.ToLower().Contains(kw)));
             }
             if (categoryId.HasValue) query = query.Where(e => e.CategoryId == categoryId.Value);
-            if (!string.IsNullOrEmpty(status))
+            if (publicOnly)
+            {
+                // Public listing/tìm sự kiện chỉ hiển thị sự kiện đang mở đăng ký.
+                // Kể cả khi client truyền status=Approved, sự kiện đã bắt đầu/quá hạn/Completed không còn là "mở" cho volunteer.
+                query = query.Where(e => e.Status == "Approved" && e.StartDate > DateTime.UtcNow && e.EndDate > DateTime.UtcNow);
+            }
+            else if (!string.IsNullOrEmpty(status))
             {
                 query = query.Where(e => e.Status == status);
-                // For public listing: hide Approved events that have already ended
-                if (status == "Approved")
-                {
-                    query = query.Where(e => e.EndDate > DateTime.UtcNow);
-                }
-            }
-            else if (publicOnly)
-            {
-                // Mặc định public listing: chỉ Approved (chưa hết hạn) hoặc Completed.
-                // Pending/Rejected/Cancelled bị ẩn để tránh leak event chưa duyệt.
-                query = query.Where(e =>
-                    (e.Status == "Approved" && e.EndDate > DateTime.UtcNow) ||
-                    e.Status == "Completed");
             }
             if (startDateFrom.HasValue) query = query.Where(e => e.StartDate >= startDateFrom.Value);
 
@@ -106,10 +99,13 @@ namespace BaseCore.Services.VolunteerHub
                 .Select(vs => vs.SkillId)
                 .ToListAsync();
 
+            var now = DateTime.UtcNow;
             var events = await _context.Events
                 .Include(e => e.Category)
                 .Include(e => e.Organizer)
                 .Where(e => e.Status == "Approved" &&
+                            e.StartDate > now &&
+                            e.EndDate > now &&
                             e.RequiredSkillIds != null && e.RequiredSkillIds != "[]" && e.RequiredSkillIds != "")
                 .OrderByDescending(e => e.StartDate)
                 .Take(50)
@@ -417,9 +413,9 @@ namespace BaseCore.Services.VolunteerHub
 
         public async Task<int> AutoCompleteOverdueAsync()
         {
-            var cutoff = DateTime.UtcNow.AddDays(-1); // Complete only if EndDate passed more than 1 day ago
+            var now = DateTime.UtcNow;
             var candidates = await _context.Events
-                .Where(e => e.Status == "Approved" && e.EndDate <= cutoff)
+                .Where(e => e.Status == "Approved" && e.EndDate <= now && e.CurrentParticipants >= e.MinParticipants)
                 .ToListAsync();
 
             var completed = 0;
@@ -438,13 +434,49 @@ namespace BaseCore.Services.VolunteerHub
                 {
                     await _notificationService.SendAsync(ev.OrganizerId,
                         "Sự kiện đã tự động hoàn thành",
-                        $"Sự kiện '{ev.Title}' đã được hệ thống đánh dấu hoàn thành do đã quá hạn EndDate hơn 24 giờ.",
+                        $"Sự kiện '{ev.Title}' đã đủ số lượng volunteer ({ev.CurrentParticipants}/{ev.MinParticipants}) và đã được hệ thống đánh dấu hoàn thành sau khi quá EndDate.",
                         "EventAutoCompleted", ev.Id);
                 }
                 catch { }
             }
 
             return completed;
+        }
+
+        public async Task<int> NotifyUnderstaffedUpcomingAsync()
+        {
+            var now = DateTime.UtcNow;
+            var windowEnd = now.AddDays(1);
+
+            var candidates = await _context.Events
+                .Where(e => e.Status == "Approved"
+                            && e.StartDate > now
+                            && e.StartDate <= windowEnd
+                            && e.CurrentParticipants < e.MinParticipants)
+                .ToListAsync();
+
+            var sent = 0;
+            foreach (var ev in candidates)
+            {
+                var alreadySent = await _context.Notifications.AnyAsync(n =>
+                    n.UserId == ev.OrganizerId &&
+                    n.Type == "EventUnderstaffedReminder" &&
+                    n.RelatedId == ev.Id);
+
+                if (alreadySent) continue;
+
+                try
+                {
+                    await _notificationService.SendAsync(ev.OrganizerId,
+                        "Sự kiện sắp diễn ra nhưng chưa đủ volunteer",
+                        $"Sự kiện '{ev.Title}' sẽ bắt đầu lúc {ev.StartDate:dd/MM/yyyy HH:mm} nhưng hiện mới có {ev.CurrentParticipants}/{ev.MinParticipants} volunteer. Vui lòng bổ sung tình nguyện viên hoặc điều chỉnh kế hoạch trước ngày tổ chức.",
+                        "EventUnderstaffedReminder", ev.Id);
+                    sent++;
+                }
+                catch { }
+            }
+
+            return sent;
         }
 
         private static bool RequiredSkillsContain(string? requiredSkillIds, int skillId)

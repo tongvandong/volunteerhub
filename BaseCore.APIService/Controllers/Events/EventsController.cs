@@ -459,13 +459,24 @@ namespace BaseCore.APIService.Controllers
             return Ok(new { completed });
         }
 
+        [HttpPost("notify-understaffed-upcoming"), Authorize(Roles = "Admin")]
+        [EnableRateLimiting("write-sensitive")]
+        public async Task<IActionResult> NotifyUnderstaffedUpcoming()
+        {
+            if (!int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var userId))
+                return Unauthorized();
+            var notificationsSent = await _eventService.NotifyUnderstaffedUpcomingAsync();
+            await RecordAuditAsync(userId, "Event.NotifyUnderstaffedUpcoming", "Event", null, $"NotificationsSent={notificationsSent}");
+            return Ok(new { notificationsSent });
+        }
+
         [HttpGet("overdue-preview"), Authorize(Roles = "Admin")]
         public async Task<IActionResult> GetOverduePreview()
         {
-            var cutoff = DateTime.UtcNow.AddDays(-1);
+            var now = DateTime.UtcNow;
             var items = await _context.Events
                 .Include(e => e.Organizer)
-                .Where(e => e.Status == "Approved" && e.EndDate <= cutoff)
+                .Where(e => e.Status == "Approved" && e.EndDate <= now && e.CurrentParticipants >= e.MinParticipants)
                 .OrderBy(e => e.EndDate)
                 .Select(e => new
                 {
@@ -480,7 +491,7 @@ namespace BaseCore.APIService.Controllers
                 })
                 .ToListAsync();
 
-            return Ok(new { items, totalCount = items.Count, cutoff });
+            return Ok(new { items, totalCount = items.Count, cutoff = now });
         }
 
         [HttpPut("{id}/transfer"), Authorize(Roles = "Admin")]

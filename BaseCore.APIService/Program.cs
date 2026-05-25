@@ -7,6 +7,7 @@ using BaseCore.Repository;
 using BaseCore.Repository.Infrastructure;
 using BaseCore.Repository.EFCore;
 using BaseCore.Services.VolunteerHub;
+using BaseCore.APIService;
 using Microsoft.AspNetCore.RateLimiting;
 using System.Threading.RateLimiting;
 using System.Text;
@@ -171,6 +172,7 @@ builder.Services.AddScoped<IRegistrationService, RegistrationService>();
 builder.Services.AddScoped<IChannelService, ChannelService>();
 builder.Services.AddScoped<IChannelRealtimeNotifier, NullChannelRealtimeNotifier>();
 builder.Services.AddScoped<IAuditLogService, AuditLogService>();
+builder.Services.AddHostedService<EventLifecycleHostedService>();
 
 // JWT Authentication
 var key = Encoding.ASCII.GetBytes(builder.Configuration["Jwt:SecretKey"] ?? "YourSecretKeyForAuthenticationShouldBeLongEnough");

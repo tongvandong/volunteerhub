@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Volunteer Profile &amp; Passport | VolunteerHub</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "primary": "#0d9488", // Teal 600
+                        "primary-container": "#ccfbf1", // Teal 100
+                        "on-primary-container": "#115e59", // Teal 800
+                        "surface": "#ffffff",
+                        "background": "#f8fafc", // Slate 50
+                        "on-surface": "#0f172a", // Slate 900
+                        "on-surface-variant": "#64748b", // Slate 500
+                        "outline-variant": "#e2e8f0", // Slate 200
+                        "secondary": "#8b5cf6", // Violet 500
+                        "tertiary": "#f59e0b", // Amber 500
+                        "error": "#ef4444",
+                        "error-container": "#fee2e2"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.5rem",
+                        "lg": "0.75rem",
+                        "xl": "1rem",
+                        "2xl": "1.5rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "stack-lg": "32px",
+                        "container-padding-mobile": "20px",
+                        "stack-md": "16px",
+                        "stack-sm": "8px",
+                        "gutter": "24px",
+                        "container-padding-desktop": "40px",
+                        "base": "8px"
+                    },
+                    "fontFamily": {
+                        "label-md": ["Inter"],
+                        "headline-md": ["Plus Jakarta Sans"],
+                        "body-md": ["Plus Jakarta Sans"],
+                        "label-sm": ["Inter"],
+                        "headline-xl-mobile": ["Plus Jakarta Sans"],
+                        "body-lg": ["Plus Jakarta Sans"],
+                        "headline-lg": ["Plus Jakarta Sans"],
+                        "headline-xl": ["Plus Jakarta Sans"]
+                    },
+                    "fontSize": {
+                        "label-md": ["14px", {"lineHeight": "20px", "letterSpacing": "0.02em", "fontWeight": "600"}],
+                        "headline-md": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
+                        "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                        "label-sm": ["12px", {"lineHeight": "16px", "fontWeight": "500"}],
+                        "headline-xl-mobile": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                        "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}],
+                        "headline-lg": ["30px", {"lineHeight": "38px", "letterSpacing": "-0.01em", "fontWeight": "700"}],
+                        "headline-xl": ["40px", {"lineHeight": "48px", "letterSpacing": "-0.02em", "fontWeight": "700"}]
+                    },
+                    "boxShadow": {
+                        "soft": "0 4px 20px -2px rgba(0, 0, 0, 0.05), 0 2px 10px -2px rgba(0, 0, 0, 0.02)"
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .soft-card {
+            background: white;
+            border: 1px solid #f1f5f9;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05), 0 2px 4px -2px rgb(0 0 0 / 0.05);
+            border-radius: 1.5rem;
+        }
+    </style>
+</head>
+<body class="bg-background text-on-surface font-body-md min-h-screen">
+<!-- SideNavBar Shell -->
+<aside class="h-screen w-64 fixed left-0 top-0 hidden md:flex flex-col bg-white border-r border-outline-variant z-50">
+<div class="flex flex-col h-full py-8">
+<div class="px-6 mb-10">
+<div class="flex items-center gap-2">
+<div class="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
+<span class="material-symbols-outlined text-white text-xl">volunteer_activism</span>
+</div>
+<h1 class="font-headline-md text-xl font-bold text-on-surface">VolunteerHub</h1>
+</div>
+<p class="font-label-sm text-[11px] text-on-surface-variant mt-1 uppercase tracking-wider">Empowered Altruism</p>
+</div>
+<nav class="flex-1 px-4 space-y-1">
+<a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-background hover:text-primary transition-all rounded-xl group" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+<span class="font-label-md text-label-md">Dashboard</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-background hover:text-primary transition-all rounded-xl group" href="#">
+<span class="material-symbols-outlined">calendar_month</span>
+<span class="font-label-md text-label-md">Events</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-background hover:text-primary transition-all rounded-xl group" href="#">
+<span class="material-symbols-outlined">assignment_turned_in</span>
+<span class="font-label-md text-label-md">My Registrations</span>
+</a>
+<!-- Active Tab: Profile -->
+<a class="flex items-center gap-3 px-4 py-3 text-primary font-bold bg-primary-container/30 rounded-xl transition-all" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">person</span>
+<span class="font-label-md text-label-md">Profile</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-background hover:text-primary transition-all rounded-xl group" href="#">
+<span class="material-symbols-outlined">group</span>
+<span class="font-label-md text-label-md">Community</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-background hover:text-primary transition-all rounded-xl group" href="#">
+<span class="material-symbols-outlined">workspace_premium</span>
+<span class="font-label-md text-label-md">Certificates</span>
+</a>
+</nav>
+<div class="px-6 mt-auto">
+<button class="w-full flex items-center justify-center gap-2 py-3.5 bg-primary text-white rounded-2xl font-label-md text-label-md hover:bg-primary/90 transition-all shadow-lg shadow-primary/20">
+<span class="material-symbols-outlined text-xl">add</span>
+                    New Impact
+                </button>
+</div>
+</div>
+</aside>
+<!-- Main Content Canvas -->
+<main class="md:pl-64 min-h-screen">
+<!-- TopNavBar Shell -->
+<header class="sticky top-0 z-40 bg-white/80 backdrop-blur-md border-b border-outline-variant/50">
+<div class="flex justify-between items-center w-full px-6 py-4">
+<div class="flex items-center flex-1">
+<div class="relative w-full max-w-md hidden md:block">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant">search</span>
+<input class="w-full pl-10 pr-4 py-2.5 bg-background border-none rounded-2xl focus:ring-2 focus:ring-primary/20 font-body-md text-body-md" placeholder="Search opportunities..." type="text"/>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<button class="p-2 text-on-surface-variant hover:bg-background rounded-full transition-all">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<button class="p-2 text-on-surface-variant hover:bg-background rounded-full transition-all">
+<span class="material-symbols-outlined">settings</span>
+</button>
+<div class="w-10 h-10 rounded-full overflow-hidden border-2 border-primary-container ring-2 ring-white">
+<img alt="Volunteer Profile Picture" class="w-full h-full object-cover" data-alt="A professional yet warm portrait of a young adult female volunteer smiling, set against a blurred outdoor park background. The lighting is soft and golden, characteristic of a late afternoon sun. The image maintains a high-quality, modern light-mode aesthetic with a clean and bright atmosphere, reflecting a sense of community engagement and leadership." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAv9eHklC3HaPI5iNJRnGwopw2VCxbJzjLhajI-KICfJM5uUCLBiT8N0Q58oUco3Pk_khKl4yXk0pIbBgLgddNbISmgkz3n47qvrPO2lkw0f1vjnr3ZFrNOKoGGDIL2EpxsfaD3PL7Dd6qoSyRqjzgnSqfwDg8Uc1VibPtvbwc2OTerThHpSb4VFTWrJmnqhZLh3vlEKeqrfbDiwJYyuIGWA6UcL6l6IgwsxXB7EMrE4V4-s66IEfpoRVJMe3o7YzNUDbCN6Cr-o6A"/>
+</div>
+</div>
+</div>
+</header>
+<!-- Profile Canvas -->
+<div class="px-6 py-8 md:px-10 max-w-7xl mx-auto space-y-stack-lg">
+<!-- Bento Grid Header & Passport -->
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-gutter">
+<!-- Profile Header Card (Column 1-5) -->
+<div class="lg:col-span-5 soft-card p-8 flex flex-col items-center text-center">
+<div class="relative mb-6">
+<div class="w-36 h-36 rounded-full overflow-hidden border-4 border-primary-container p-1.5 bg-white">
+<img alt="User Avatar" class="w-full h-full object-cover rounded-full" data-alt="Close up portrait of a vibrant, confident female volunteer in her late 20s. She is wearing a simple modern white shirt, looking directly into the camera with a gentle, trustworthy smile. The setting is a bright, airy architectural space with natural wood accents and plants. High-key lighting emphasizes a clean, minimalist, and professional design aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCJCm-mN0zWzu3-ftFsE1yz6GMLpr-ozuPqkQwds5opy56TnICD-DxAcqD8kSUWT_WG5k8CUrJvnZZ2Kszk3YEao9HfOaVwkatioJJLkSEPvtMeuZgQtXPh13r2HSfLrleyYDQSt-xXPbtCYSzNN7vF0yezeha3wPt0dB09O37TDMTf0XjYYYZPWNqpCXkPnrKis2oPGq0pBVv9sB4wNVXkbUdzX5cKs612TpH40n6ln877OlREZbBpYFh3CwaL51YYYP65dIsVZj4"/>
+</div>
+<div class="absolute bottom-2 right-2 bg-primary text-white p-1.5 rounded-full border-4 border-white shadow-sm" title="Verified KYC">
+<span class="material-symbols-outlined text-[18px]" style="font-variation-settings: 'FILL' 1;">verified</span>
+</div>
+</div>
+<h2 class="font-headline-lg text-2xl font-bold text-on-surface">Alexandria Rivera</h2>
+<p class="text-on-surface-variant font-body-md mb-8">Community Architect &amp; Sustainability Advocate</p>
+<!-- KYC Status Mini Card -->
+<div class="w-full bg-primary-container/40 rounded-2xl p-4 flex items-center gap-4 border border-primary/10">
+<div class="bg-primary text-white p-2.5 rounded-xl">
+<span class="material-symbols-outlined">id_card</span>
+</div>
+<div class="text-left">
+<p class="font-label-md text-label-md text-on-primary-container">Identity Verified</p>
+<p class="text-[12px] text-on-primary-container/70">KYC Status: Tier 2 Complete</p>
+</div>
+<span class="material-symbols-outlined text-primary ml-auto" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+</div>
+</div>
+<!-- Volunteer Passport (Column 6-12) -->
+<div class="lg:col-span-7 soft-card p-8 flex flex-col">
+<div class="flex justify-between items-start mb-10">
+<div>
+<h3 class="font-headline-md text-headline-md text-on-surface">Volunteer Passport</h3>
+<p class="text-on-surface-variant font-label-md text-label-md">Your global social impact journal</p>
+</div>
+<div class="text-right">
+<span class="text-primary font-bold text-2xl">Level 12</span>
+<p class="text-[12px] font-label-md text-on-surface-variant mt-1">2,450 XP</p>
+</div>
+</div>
+<div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-10">
+<div class="bg-background rounded-2xl p-4 text-center border border-outline-variant/50 hover:border-primary/20 transition-all">
+<span class="material-symbols-outlined text-primary mb-2 text-3xl">schedule</span>
+<p class="text-on-surface-variant text-[10px] uppercase tracking-widest font-bold">Total Hours</p>
+<p class="text-2xl font-bold text-on-surface mt-1">142</p>
+</div>
+<div class="bg-background rounded-2xl p-4 text-center border border-outline-variant/50 hover:border-secondary/20 transition-all">
+<span class="material-symbols-outlined text-secondary mb-2 text-3xl">favorite</span>
+<p class="text-on-surface-variant text-[10px] uppercase tracking-widest font-bold">Impact Score</p>
+<p class="text-2xl font-bold text-on-surface mt-1">98</p>
+</div>
+<div class="bg-background rounded-2xl p-4 text-center border border-outline-variant/50 hover:border-tertiary/20 transition-all">
+<span class="material-symbols-outlined text-tertiary mb-2 text-3xl">emoji_events</span>
+<p class="text-on-surface-variant text-[10px] uppercase tracking-widest font-bold">Badges</p>
+<p class="text-2xl font-bold text-on-surface mt-1">14</p>
+</div>
+<div class="bg-background rounded-2xl p-4 text-center border border-outline-variant/50 hover:border-slate-300 transition-all">
+<span class="material-symbols-outlined text-on-surface-variant mb-2 text-3xl">public</span>
+<p class="text-on-surface-variant text-[10px] uppercase tracking-widest font-bold">Causes</p>
+<p class="text-2xl font-bold text-on-surface mt-1">6</p>
+</div>
+</div>
+<div class="mt-auto">
+<div class="flex justify-between items-center mb-3">
+<span class="font-label-md text-label-md text-on-surface-variant">Progress to Level 13</span>
+<span class="font-label-md text-label-md text-primary">75%</span>
+</div>
+<div class="w-full h-3.5 bg-background rounded-full overflow-hidden border border-outline-variant">
+<div class="h-full bg-primary w-3/4 rounded-full transition-all duration-1000 ease-out shadow-[0_0_12px_rgba(13,148,136,0.3)]"></div>
+</div>
+</div>
+</div>
+</div>
+<!-- Lower Sections Layout -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-gutter">
+<!-- Skills Section -->
+<div class="md:col-span-2 space-y-stack-md">
+<div class="flex justify-between items-center">
+<h3 class="font-headline-md text-xl font-bold text-on-surface">Verified Skills</h3>
+<button class="flex items-center gap-1.5 text-primary font-label-md text-label-md hover:text-primary/80 transition-colors">
+<span class="material-symbols-outlined text-xl">add_circle</span>
+                            Add Skill
+                        </button>
+</div>
+<div class="soft-card overflow-hidden">
+<div class="overflow-x-auto">
+<table class="w-full text-left">
+<thead class="bg-background border-b border-outline-variant">
+<tr>
+<th class="px-6 py-4 font-label-sm text-[11px] text-on-surface-variant uppercase tracking-wider">Skillset</th>
+<th class="px-6 py-4 font-label-sm text-[11px] text-on-surface-variant uppercase tracking-wider">Level</th>
+<th class="px-6 py-4 font-label-sm text-[11px] text-on-surface-variant uppercase tracking-wider text-right">Status</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-outline-variant">
+<tr class="hover:bg-background/50 transition-colors">
+<td class="px-6 py-5">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center text-primary">
+<span class="material-symbols-outlined">forest</span>
+</div>
+<span class="font-body-md text-body-md font-semibold">Environmental Conservation</span>
+</div>
+</td>
+<td class="px-6 py-5 text-on-surface-variant">Expert</td>
+<td class="px-6 py-5 text-right">
+<span class="bg-primary-container/50 text-primary px-3 py-1 rounded-full text-[12px] font-bold border border-primary/10">Verified</span>
+</td>
+</tr>
+<tr class="hover:bg-background/50 transition-colors">
+<td class="px-6 py-5">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 bg-secondary/10 rounded-xl flex items-center justify-center text-secondary">
+<span class="material-symbols-outlined">campaign</span>
+</div>
+<span class="font-body-md text-body-md font-semibold">Social Media Outreach</span>
+</div>
+</td>
+<td class="px-6 py-5 text-on-surface-variant">Intermediate</td>
+<td class="px-6 py-5 text-right">
+<span class="bg-primary-container/50 text-primary px-3 py-1 rounded-full text-[12px] font-bold border border-primary/10">Verified</span>
+</td>
+</tr>
+<tr class="hover:bg-background/50 transition-colors">
+<td class="px-6 py-5">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 bg-tertiary/10 rounded-xl flex items-center justify-center text-tertiary">
+<span class="material-symbols-outlined">emergency</span>
+</div>
+<span class="font-body-md text-body-md font-semibold">First Aid &amp; CPR</span>
+</div>
+</td>
+<td class="px-6 py-5 text-on-surface-variant">Advanced</td>
+<td class="px-6 py-5 text-right">
+<span class="bg-tertiary/10 text-tertiary px-3 py-1 rounded-full text-[12px] font-bold border border-tertiary/20">Pending</span>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+<!-- Badges & Recent Achievements -->
+<div class="space-y-stack-md">
+<h3 class="font-headline-md text-xl font-bold text-on-surface">Top Badges</h3>
+<div class="soft-card p-6 space-y-4">
+<div class="flex items-center gap-4 p-4 bg-background rounded-2xl border border-outline-variant/30 hover:border-primary/30 transition-all group">
+<div class="w-12 h-12 bg-white rounded-xl shadow-sm flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
+<span class="material-symbols-outlined text-3xl" style="font-variation-settings: 'FILL' 1;">eco</span>
+</div>
+<div>
+<h4 class="font-label-md text-label-md text-on-surface">Environment Pro</h4>
+<p class="text-[12px] text-on-surface-variant mt-0.5">Completed 5 green initiatives</p>
+</div>
+</div>
+<div class="flex items-center gap-4 p-4 bg-background rounded-2xl border border-outline-variant/30 hover:border-secondary/30 transition-all group">
+<div class="w-12 h-12 bg-white rounded-xl shadow-sm flex items-center justify-center text-secondary group-hover:scale-110 transition-transform">
+<span class="material-symbols-outlined text-3xl" style="font-variation-settings: 'FILL' 1;">volunteer_activism</span>
+</div>
+<div>
+<h4 class="font-label-md text-label-md text-on-surface">Super Donor</h4>
+<p class="text-[12px] text-on-surface-variant mt-0.5">Platinum Tier blood donor</p>
+</div>
+</div>
+<div class="flex items-center gap-4 p-4 bg-background rounded-2xl border border-outline-variant/30 hover:border-tertiary/30 transition-all group">
+<div class="w-12 h-12 bg-white rounded-xl shadow-sm flex items-center justify-center text-tertiary group-hover:scale-110 transition-transform">
+<span class="material-symbols-outlined text-3xl" style="font-variation-settings: 'FILL' 1;">handshake</span>
+</div>
+<div>
+<h4 class="font-label-md text-label-md text-on-surface">Unity Builder</h4>
+<p class="text-[12px] text-on-surface-variant mt-0.5">Mentored 3 new volunteers</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Certificates List -->
+<div class="space-y-stack-md">
+<div class="flex justify-between items-center">
+<h3 class="font-headline-md text-xl font-bold text-on-surface">Event Certificates</h3>
+<button class="text-primary font-label-md text-label-md hover:underline decoration-2 underline-offset-4">View All</button>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+<!-- Certificate Card -->
+<div class="bg-white rounded-2xl p-5 border border-outline-variant hover:shadow-soft hover:border-primary/30 transition-all group flex items-center gap-5">
+<div class="w-14 h-14 bg-primary/10 rounded-2xl flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-white transition-all">
+<span class="material-symbols-outlined text-3xl">workspace_premium</span>
+</div>
+<div class="flex-1 overflow-hidden">
+<h4 class="font-label-md text-label-md text-on-surface truncate">Global Climate Rally 2023</h4>
+<p class="text-[12px] text-on-surface-variant mt-0.5">Issued Oct 12, 2023</p>
+</div>
+<a class="p-2.5 text-on-surface-variant hover:text-primary hover:bg-primary/5 rounded-full transition-all" href="#">
+<span class="material-symbols-outlined text-xl">download_for_offline</span>
+</a>
+</div>
+<!-- Certificate Card -->
+<div class="bg-white rounded-2xl p-5 border border-outline-variant hover:shadow-soft hover:border-primary/30 transition-all group flex items-center gap-5">
+<div class="w-14 h-14 bg-primary/10 rounded-2xl flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-white transition-all">
+<span class="material-symbols-outlined text-3xl">workspace_premium</span>
+</div>
+<div class="flex-1 overflow-hidden">
+<h4 class="font-label-md text-label-md text-on-surface truncate">Community Tech Workshop</h4>
+<p class="text-[12px] text-on-surface-variant mt-0.5">Issued Sep 05, 2023</p>
+</div>
+<a class="p-2.5 text-on-surface-variant hover:text-primary hover:bg-primary/5 rounded-full transition-all" href="#">
+<span class="material-symbols-outlined text-xl">download_for_offline</span>
+</a>
+</div>
+<!-- Certificate Card -->
+<div class="bg-white rounded-2xl p-5 border border-outline-variant hover:shadow-soft hover:border-primary/30 transition-all group flex items-center gap-5">
+<div class="w-14 h-14 bg-primary/10 rounded-2xl flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-white transition-all">
+<span class="material-symbols-outlined text-3xl">workspace_premium</span>
+</div>
+<div class="flex-1 overflow-hidden">
+<h4 class="font-label-md text-label-md text-on-surface truncate">Winter Food Drive Relief</h4>
+<p class="text-[12px] text-on-surface-variant mt-0.5">Issued Jan 20, 2023</p>
+</div>
+<a class="p-2.5 text-on-surface-variant hover:text-primary hover:bg-primary/5 rounded-full transition-all" href="#">
+<span class="material-symbols-outlined text-xl">download_for_offline</span>
+</a>
+</div>
+</div>
+</div>
+<!-- KYC Action Card (Hidden by default but updated for style) -->
+<div class="bg-error-container/30 border-2 border-dashed border-error/20 rounded-3xl p-8 flex flex-col md:flex-row items-center gap-6 hidden">
+<div class="w-16 h-16 bg-white text-error rounded-2xl shadow-sm flex items-center justify-center flex-shrink-0">
+<span class="material-symbols-outlined text-4xl">warning</span>
+</div>
+<div class="text-center md:text-left flex-1">
+<h3 class="font-headline-md text-headline-md text-on-surface font-bold">Identity Verification Required</h3>
+<p class="text-on-surface-variant mt-1">To unlock access to premium disaster relief opportunities and international travel grants, please complete your Level 3 KYC check.</p>
+</div>
+<button class="bg-error text-white px-8 py-3.5 rounded-2xl font-label-md text-label-md hover:opacity-90 transition-all shadow-lg shadow-error/10 flex-shrink-0">
+                    Verify Identity Now
+                </button>
+</div>
+</div>
+<!-- Footer -->
+<footer class="mt-20 py-12 bg-white border-t border-outline-variant/50">
+<div class="max-w-7xl mx-auto px-6 text-center">
+<div class="flex items-center justify-center gap-2 mb-4">
+<div class="w-6 h-6 bg-primary/20 rounded-md flex items-center justify-center">
+<span class="material-symbols-outlined text-primary text-sm">volunteer_activism</span>
+</div>
+<span class="font-bold text-on-surface">VolunteerHub</span>
+</div>
+<p class="font-label-sm text-[12px] text-on-surface-variant">© 2024 VolunteerHub. Designed for social impact and community growth.</p>
+</div>
+</footer>
+</main>
+<!-- FAB for New Impact (Responsive Mobile only) -->
+<button class="md:hidden fixed bottom-6 right-6 w-16 h-16 bg-primary text-white rounded-2xl shadow-2xl flex items-center justify-center z-50 hover:scale-105 active:scale-95 transition-all">
+<span class="material-symbols-outlined text-3xl">add</span>
+</button>
+<script>
+        // Soft hover effect for cards
+        document.querySelectorAll('.soft-card, .bg-white.rounded-2xl').forEach(card => {
+            card.addEventListener('mouseenter', () => {
+                card.style.transform = 'translateY(-2px)';
+                card.style.transition = 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)';
+            });
+            card.addEventListener('mouseleave', () => {
+                card.style.transform = 'translateY(0)';
+            });
+        });
+    </script>
+</body></html>

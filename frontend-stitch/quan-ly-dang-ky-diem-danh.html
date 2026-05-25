@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<title>Organizer Registration &amp; Attendance - VolunteerHub</title>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+            "on-secondary-fixed-variant": "#6800b4",
+            "error": "#ba1a1a",
+            "secondary-fixed-dim": "#ddb8ff",
+            "secondary": "#831ada",
+            "tertiary-container": "#a36700",
+            "background": "#f0fdfa", /* Lighter teal-tinted background */
+            "surface-dim": "#ccdbf3",
+            "on-secondary-fixed": "#2c0051",
+            "tertiary-fixed": "#ffddb8",
+            "on-error-container": "#93000a",
+            "surface-container-highest": "#d5e3fc",
+            "primary-fixed-dim": "#6bd8cb",
+            "on-surface-variant": "#4b5563", /* Modern gray */
+            "outline": "#94a3b8",
+            "on-primary-fixed-variant": "#005049",
+            "on-surface": "#1f2937",
+            "surface-container-high": "#f1f5f9",
+            "inverse-primary": "#6bd8cb",
+            "surface": "#f0fdfa",
+            "tertiary-fixed-dim": "#ffb95f",
+            "secondary-fixed": "#f0dbff",
+            "on-tertiary": "#ffffff",
+            "on-primary-fixed": "#00201d",
+            "inverse-on-surface": "#eaf1ff",
+            "primary": "#0d9488", /* Teal primary brand color */
+            "on-primary": "#ffffff",
+            "surface-bright": "#ffffff",
+            "on-tertiary-fixed-variant": "#653e00",
+            "secondary-container": "#9e41f5",
+            "on-tertiary-container": "#fffbff",
+            "on-secondary-container": "#fffbff",
+            "surface-tint": "#0d9488",
+            "primary-fixed": "#ccfbf1",
+            "surface-variant": "#f1f5f9",
+            "surface-container-lowest": "#ffffff",
+            "on-primary-container": "#134e4a",
+            "surface-container-low": "#f8fafc",
+            "error-container": "#ffdad6",
+            "primary-container": "#ccfbf1",
+            "on-error": "#ffffff",
+            "tertiary": "#825100",
+            "surface-container": "#f1f5f9",
+            "outline-variant": "#e2e8f0",
+            "on-secondary": "#ffffff",
+            "inverse-surface": "#1e293b",
+            "on-background": "#1f2937",
+            "on-tertiary-fixed": "#2a1700"
+          },
+          "borderRadius": {
+            "DEFAULT": "0.5rem",
+            "lg": "0.75rem",
+            "xl": "1rem",
+            "2xl": "1.5rem",
+            "full": "9999px"
+          },
+          "spacing": {
+            "stack-sm": "8px",
+            "gutter": "24px",
+            "stack-lg": "32px",
+            "stack-md": "16px",
+            "container-padding-desktop": "40px",
+            "container-padding-mobile": "20px",
+            "base": "8px"
+          },
+          "fontFamily": {
+            "headline-lg": ["Plus Jakarta Sans"],
+            "body-md": ["Plus Jakarta Sans"],
+            "body-lg": ["Plus Jakarta Sans"],
+            "headline-xl-mobile": ["Plus Jakarta Sans"],
+            "headline-xl": ["Plus Jakarta Sans"],
+            "headline-md": ["Plus Jakarta Sans"],
+            "label-md": ["Inter"],
+            "label-sm": ["Inter"]
+          },
+          "fontSize": {
+            "headline-lg": ["30px", {"lineHeight": "38px", "letterSpacing": "-0.01em", "fontWeight": "700"}],
+            "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+            "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}],
+            "headline-xl-mobile": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+            "headline-xl": ["40px", {"lineHeight": "48px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+            "headline-md": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
+            "label-md": ["14px", {"lineHeight": "20px", "letterSpacing": "0.05em", "fontWeight": "600"}],
+            "label-sm": ["12px", {"lineHeight": "16px", "fontWeight": "500"}]
+          }
+        }
+      }
+    }
+  </script>
+<style>
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+    }
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 6px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: #e2e8f0;
+      border-radius: 10px;
+    }
+    .soft-card {
+      background: #ffffff;
+      box-shadow: 0 4px 20px -2px rgba(13, 148, 136, 0.05), 0 2px 10px -2px rgba(13, 148, 136, 0.03);
+    }
+  </style>
+</head>
+<body class="bg-background text-on-surface font-body-md min-h-screen">
+<!-- Side Navigation Shell -->
+<aside class="hidden md:flex flex-col h-full border-r border-teal-100 bg-white dark:bg-inverse-surface h-screen w-64 fixed left-0 top-0 z-50">
+<div class="p-6">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 bg-primary rounded-xl flex items-center justify-center text-on-primary shadow-lg shadow-primary/20">
+<span class="material-symbols-outlined">volunteer_activism</span>
+</div>
+<div>
+<h1 class="font-headline-md text-headline-md font-bold text-primary">VolunteerHub</h1>
+<p class="text-[10px] font-label-sm uppercase tracking-widest text-primary/60 font-bold">Social Impact</p>
+</div>
+</div>
+</div>
+<nav class="flex-1 mt-4 px-3 space-y-2">
+<a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-teal-50 hover:text-primary transition-all rounded-xl" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+<span class="font-label-md text-label-md">Dashboard</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-primary font-bold bg-teal-50 transition-all rounded-xl" href="#">
+<span class="material-symbols-outlined">event</span>
+<span class="font-label-md text-label-md">Events</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-teal-50 hover:text-primary transition-all rounded-xl" href="#">
+<span class="material-symbols-outlined">group</span>
+<span class="font-label-md text-label-md">Community</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-teal-50 hover:text-primary transition-all rounded-xl" href="#">
+<span class="material-symbols-outlined">monitoring</span>
+<span class="font-label-md text-label-md">Analytics</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-teal-50 hover:text-primary transition-all rounded-xl" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span class="font-label-md text-label-md">Settings</span>
+</a>
+</nav>
+<div class="mt-auto p-4 border-t border-teal-50">
+<button class="w-full bg-primary text-on-primary py-3 rounded-xl font-label-md hover:bg-primary/90 transition-all shadow-md shadow-primary/10 flex items-center justify-center gap-2 mb-4">
+<span class="material-symbols-outlined text-[18px]">favorite</span>
+        Support Mission
+      </button>
+<div class="space-y-1">
+<a class="flex items-center gap-3 px-4 py-2 text-on-surface-variant hover:text-primary transition-colors text-label-sm" href="#">
+<span class="material-symbols-outlined text-[20px]">help</span>
+          Help
+        </a>
+<a class="flex items-center gap-3 px-4 py-2 text-on-surface-variant hover:text-error transition-colors text-label-sm" href="#">
+<span class="material-symbols-outlined text-[20px]">logout</span>
+          Logout
+        </a>
+</div>
+</div>
+</aside>
+<!-- Main Content Canvas -->
+<main class="md:pl-64 min-h-screen">
+<!-- Top Nav Bar -->
+<header class="flex justify-between items-center w-full px-6 py-4 z-40 bg-white/80 backdrop-blur-md sticky top-0 border-b border-teal-50">
+<div class="flex items-center gap-4 flex-1">
+<div class="relative w-full max-w-md hidden sm:block">
+<span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-primary/40">search</span>
+<input class="w-full bg-slate-50 border-none rounded-full py-2.5 pl-11 pr-4 focus:ring-2 focus:ring-primary/20 text-body-md transition-all placeholder:text-slate-400" placeholder="Search volunteers..." type="text"/>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<button class="p-2.5 text-on-surface-variant hover:bg-teal-50 hover:text-primary rounded-full transition-colors relative">
+<span class="material-symbols-outlined">notifications</span>
+<span class="absolute top-2 right-2 w-2 h-2 bg-error rounded-full ring-2 ring-white"></span>
+</button>
+<button class="p-2.5 text-on-surface-variant hover:bg-teal-50 hover:text-primary rounded-full transition-colors">
+<span class="material-symbols-outlined">help</span>
+</button>
+<div class="h-8 w-[1px] bg-slate-100 mx-2"></div>
+<div class="flex items-center gap-3 cursor-pointer group px-2 py-1 rounded-full hover:bg-teal-50 transition-colors">
+<img alt="User Profile" class="w-10 h-10 rounded-full border-2 border-primary/20 group-hover:border-primary transition-all" data-alt="A professional headshot of a smiling community organizer, depicted as a minimalist 3D avatar with clean lines and high-key studio lighting. The style is modern and approachable, using a palette of soft teal and warm neutral tones, fitting perfectly within a clean, professional management dashboard interface." src="https://lh3.googleusercontent.com/aida-public/AB6AXuB3Xx6nfkpIZDe39EespaRy0btYsH2zioVdBdTBE3a_lj4xhHXs1kwxFLlKcnFfeoheVSy1g8A4KAdO2PeHm4JQ7RBvKYVQuB-0_7TkyUxjMG6CHaewoVkwq-3DNkWUFBduzEKq9bDkutHzbCUh12dH-7HEoudDgQCLcog_c4fstBrQNHFywJsVHznm4gTBbU-dsMfnnKrupXYuso5T-u0E_gcTlj9hIayg-QyCuuFHV4ldMXEiftC2jBpg08JzsXhClixHN9IOTBs"/>
+<div class="hidden lg:block text-left">
+<p class="font-label-md text-on-surface">Alex Rivera</p>
+<p class="text-[11px] font-label-sm text-primary/70 uppercase font-bold tracking-tight">Lead Organizer</p>
+</div>
+</div>
+</div>
+</header>
+<div class="p-6 md:p-stack-lg max-w-7xl mx-auto space-y-stack-lg">
+<!-- Page Header & Stats Bento Grid -->
+<section class="space-y-stack-md">
+<div class="flex flex-col md:flex-row md:items-end justify-between gap-4">
+<div>
+<nav class="flex items-center gap-2 text-label-sm text-on-surface-variant mb-2">
+<span class="hover:text-primary cursor-pointer">Events</span>
+<span class="material-symbols-outlined text-[16px]">chevron_right</span>
+<span class="text-primary font-semibold">City Garden Restoration</span>
+</nav>
+<h2 class="font-headline-xl text-headline-xl text-on-surface tracking-tight">Attendance Management</h2>
+</div>
+<div class="flex flex-wrap gap-3">
+<button class="bg-primary-container text-on-primary-container px-6 py-2.5 rounded-xl font-label-md flex items-center gap-2 hover:opacity-90 transition-all border border-primary/10" onclick="document.getElementById('qr-modal').classList.remove('hidden')">
+<span class="material-symbols-outlined">qr_code_2</span>
+              Self Check-in QR
+            </button>
+<button class="bg-primary text-on-primary px-6 py-2.5 rounded-xl font-label-md flex items-center gap-2 hover:opacity-90 transition-all shadow-md shadow-primary/20">
+<span class="material-symbols-outlined">person_add</span>
+              Manual Check-in
+            </button>
+</div>
+</div>
+<!-- Stats Grid -->
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-gutter">
+<div class="soft-card p-6 rounded-2xl flex flex-col justify-between border border-teal-50">
+<div class="flex justify-between items-start">
+<span class="text-label-md text-slate-500 font-semibold uppercase tracking-wider text-[11px]">Checked-in</span>
+<div class="p-2.5 bg-teal-50 rounded-xl text-primary">
+<span class="material-symbols-outlined">how_to_reg</span>
+</div>
+</div>
+<div class="mt-4">
+<div class="flex items-baseline gap-2">
+<span class="text-headline-lg font-headline-lg text-teal-900">142</span>
+<span class="text-label-md text-slate-400">/ 180 total</span>
+</div>
+<div class="w-full bg-slate-100 mt-3 h-2 rounded-full overflow-hidden">
+<div class="bg-primary h-full rounded-full" style="width: 78.8%"></div>
+</div>
+</div>
+</div>
+<div class="soft-card p-6 rounded-2xl flex flex-col justify-between border border-teal-50">
+<div class="flex justify-between items-start">
+<span class="text-label-md text-slate-500 font-semibold uppercase tracking-wider text-[11px]">Expected Soon</span>
+<div class="p-2.5 bg-amber-50 rounded-xl text-amber-600">
+<span class="material-symbols-outlined">schedule</span>
+</div>
+</div>
+<div class="mt-4">
+<span class="text-headline-lg font-headline-lg text-teal-900">38</span>
+<p class="text-label-sm text-slate-400 mt-1">Arriving in next 30 mins</p>
+</div>
+</div>
+<div class="soft-card p-6 rounded-2xl flex flex-col justify-between border border-teal-50">
+<div class="flex justify-between items-start">
+<span class="text-label-md text-slate-500 font-semibold uppercase tracking-wider text-[11px]">Total Hours</span>
+<div class="p-2.5 bg-indigo-50 rounded-xl text-indigo-600">
+<span class="material-symbols-outlined">timer</span>
+</div>
+</div>
+<div class="mt-4">
+<span class="text-headline-lg font-headline-lg text-teal-900">568.5</span>
+<p class="text-label-sm text-slate-400 mt-1">Accumulated today</p>
+</div>
+</div>
+<div class="soft-card p-6 rounded-2xl flex flex-col justify-between border border-teal-50">
+<div class="flex justify-between items-start">
+<span class="text-label-md text-slate-500 font-semibold uppercase tracking-wider text-[11px]">Event Health</span>
+<div class="p-2.5 bg-emerald-50 rounded-xl text-emerald-600">
+<span class="material-symbols-outlined">volunteer_activism</span>
+</div>
+</div>
+<div class="mt-4">
+<span class="text-headline-lg font-headline-lg text-teal-900">94%</span>
+<p class="text-label-sm text-slate-400 mt-1">Fulfillment rate</p>
+</div>
+</div>
+</div>
+</section>
+<!-- Table Section -->
+<section class="soft-card rounded-2xl overflow-hidden border border-teal-50">
+<div class="p-6 border-b border-teal-50 flex flex-col md:flex-row justify-between gap-4 items-center">
+<div class="flex items-center gap-4 w-full md:w-auto">
+<h3 class="font-headline-md text-headline-md text-teal-900">Volunteer List</h3>
+<div class="flex bg-slate-50 p-1 rounded-xl">
+<button class="px-5 py-1.5 rounded-lg text-label-sm bg-white shadow-sm text-primary font-bold transition-all">All</button>
+<button class="px-5 py-1.5 rounded-lg text-label-sm text-on-surface-variant hover:text-primary transition-all">Confirmed</button>
+<button class="px-5 py-1.5 rounded-lg text-label-sm text-on-surface-variant hover:text-primary transition-all">Pending</button>
+<button class="px-5 py-1.5 rounded-lg text-label-sm text-on-surface-variant hover:text-primary transition-all">Cancelled</button>
+</div>
+</div>
+<div class="flex gap-2 w-full md:w-auto">
+<button class="p-2.5 rounded-xl border border-slate-100 hover:bg-teal-50 hover:border-teal-100 text-on-surface-variant flex items-center gap-2 transition-all">
+<span class="material-symbols-outlined text-[20px]">filter_list</span>
+<span class="text-label-sm font-semibold">Filters</span>
+</button>
+<button class="p-2.5 rounded-xl border border-slate-100 hover:bg-teal-50 hover:border-teal-100 text-on-surface-variant flex items-center gap-2 transition-all">
+<span class="material-symbols-outlined text-[20px]">download</span>
+<span class="text-label-sm font-semibold">Export</span>
+</button>
+</div>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-teal-50/30">
+<th class="px-6 py-5 text-label-sm text-slate-500 uppercase tracking-widest font-bold text-[11px]">Volunteer Name</th>
+<th class="px-6 py-5 text-label-sm text-slate-500 uppercase tracking-widest font-bold text-[11px]">Status</th>
+<th class="px-6 py-5 text-label-sm text-slate-500 uppercase tracking-widest font-bold text-[11px]">Check-in Time</th>
+<th class="px-6 py-5 text-label-sm text-slate-500 uppercase tracking-widest font-bold text-[11px]">Hours</th>
+<th class="px-6 py-5 text-label-sm text-slate-500 uppercase tracking-widest font-bold text-[11px] text-right">Actions</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-slate-50">
+<!-- Row 1 -->
+<tr class="hover:bg-teal-50/20 transition-colors group">
+<td class="px-6 py-4">
+<div class="flex items-center gap-3">
+<img alt="Marcus" class="w-10 h-10 rounded-xl bg-teal-50 object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBZ9ecHxohrgwqEFew_bj0EVZDcgA6X7Zkb2hQARQ4Bad1M7dgcIxdo69o3PeUGPl59K6ULkzHOwzybM2GTrr_5vXlWtJfZKyXMWYl4wdN30CbgB41dl_s89cmcT0hLEArILZmo3vOnLSDzhBhIy1Ww_0NdLKktUcz2XXPC1gVDr5C4V4YblSXYykDPHy_fy3nQ_CQe99NaIgqR-7f1bZ3Mrg41kXvjnp2lPrAd3q0BYD2B48xZkPxnj0edSWbtEC0sE_YN8fgMn5Q"/>
+<div>
+<p class="font-label-md text-on-surface font-semibold">Marcus Holloway</p>
+<p class="text-[12px] text-primary/60 font-medium">Lead Gardener</p>
+</div>
+</div>
+</td>
+<td class="px-6 py-4">
+<span class="inline-flex items-center px-3 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider bg-emerald-50 text-emerald-700">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-2"></span>
+                    Confirmed
+                  </span>
+</td>
+<td class="px-6 py-4 text-body-md text-on-surface">08:45 AM</td>
+<td class="px-6 py-4 font-label-md text-teal-900 font-semibold">4.5 hrs</td>
+<td class="px-6 py-4 text-right">
+<div class="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+<button class="p-2 text-primary hover:bg-primary/10 rounded-lg transition-colors" title="Check-out">
+<span class="material-symbols-outlined">logout</span>
+</button>
+<button class="p-2 text-slate-400 hover:text-primary hover:bg-primary/10 rounded-lg transition-colors" title="Adjust Hours">
+<span class="material-symbols-outlined">edit_calendar</span>
+</button>
+</div>
+</td>
+</tr>
+<!-- Row 2 -->
+<tr class="hover:bg-teal-50/20 transition-colors group">
+<td class="px-6 py-4">
+<div class="flex items-center gap-3">
+<img alt="Sarah" class="w-10 h-10 rounded-xl bg-teal-50 object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDW70ovyNi017KVb4vI7zIO95_AZGww0t2g9EZyI0t1H5CUGbCZWzkQ0gkiN7Ggjfhk6enJ-6b0_syaa5RmQlw4XlpXS93cYDsxzvZykIKCsRc0cEaiPaAZ_EADUYPMMm-rEoHOWJuGTGUSHKm74UT88v6G216hMtMMHmJmunTvK7AR4SyX0077xM-7TwQW6GnOvHPM8Py3xVYadxHZGVVzVsHLqXUPgRm2vaf6LPbA7m9w4tZEAiRK2OlDnpT9yfmGaM8P9iCSHIY"/>
+<div>
+<p class="font-label-md text-on-surface font-semibold">Sarah Jenkins</p>
+<p class="text-[12px] text-primary/60 font-medium">General Support</p>
+</div>
+</div>
+</td>
+<td class="px-6 py-4">
+<span class="inline-flex items-center px-3 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider bg-amber-50 text-amber-700">
+<span class="w-1.5 h-1.5 rounded-full bg-amber-500 mr-2"></span>
+                    Pending
+                  </span>
+</td>
+<td class="px-6 py-4 text-body-md text-slate-300">--:--</td>
+<td class="px-6 py-4 font-label-md text-slate-400">0.0 hrs</td>
+<td class="px-6 py-4 text-right">
+<button class="bg-primary text-on-primary px-4 py-2 rounded-lg text-label-sm font-bold hover:bg-primary/90 transition-all shadow-sm shadow-primary/10">
+                     Check-in
+                   </button>
+</td>
+</tr>
+<!-- Row 3 -->
+<tr class="hover:bg-teal-50/20 transition-colors group">
+<td class="px-6 py-4">
+<div class="flex items-center gap-3">
+<img alt="Liam" class="w-10 h-10 rounded-xl bg-teal-50 object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCbS3bF8HSnnGSlbDxLz16H8Vpc1Mxp0kPMezJ7eQU0DKKxyWyBxHTlNSr_6p_-dMFXpNK65kmRaaghW4tRSIgxJ68Ye9SHfQjRVkmn4LqeUC-cxYUPECNpE7bcKx_gnbRDOzRgkAlLOG6YEkaMz6jtNuHJ5qhzQVXIRszuP_-wZ2NDlofcfMUEDkP3BXcUYiqguIZFBdkFS-R6esewLVgykeVuu-MJ4gefLNk7Y5iIDq7m0n5KiqA7oZAgOTU496IZJ4xmZB8Oe74"/>
+<div>
+<p class="font-label-md text-on-surface font-semibold">Liam O'Connor</p>
+<p class="text-[12px] text-primary/60 font-medium">Logistics</p>
+</div>
+</div>
+</td>
+<td class="px-6 py-4">
+<span class="inline-flex items-center px-3 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider bg-slate-100 text-slate-600">
+<span class="w-1.5 h-1.5 rounded-full bg-slate-400 mr-2"></span>
+                    Completed
+                  </span>
+</td>
+<td class="px-6 py-4 text-body-md text-on-surface">08:00 AM</td>
+<td class="px-6 py-4 font-label-md text-teal-900 font-semibold">8.0 hrs</td>
+<td class="px-6 py-4 text-right">
+<span class="text-label-sm text-slate-400 font-bold uppercase tracking-tight px-4">Checked out</span>
+</td>
+</tr>
+<!-- Row 4 -->
+<tr class="hover:bg-teal-50/20 transition-colors group">
+<td class="px-6 py-4">
+<div class="flex items-center gap-3">
+<img alt="Elena" class="w-10 h-10 rounded-xl bg-teal-50 object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCj4EspVXIsTa6NFxFNcrblEqle2x5GZbkf90k3OhESllaFIcGXUgm0RXkYhHhCMbFhGXMcBaMflQ-2NDQzzUBjRVPq6U_ap9NZSmQNC9snhl4wu9fVuoPw_xXAhGLNis6w7opsluLy8rTH1cyk-ZA02ZoihxGlPmQzkx4WZkT43jhBkz2UJFuE5lphCmPe2jY9VTUb0UGyDB_DEMgVizVIuqbSZ41SSNZtk_XjtMsFsOkaBJ9UVuZPLqVnswhvY1bHUQSgzavpAqg"/>
+<div>
+<p class="font-label-md text-on-surface font-semibold">Elena Rodriguez</p>
+<p class="text-[12px] text-primary/60 font-medium">Coordinator</p>
+</div>
+</div>
+</td>
+<td class="px-6 py-4">
+<span class="inline-flex items-center px-3 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider bg-rose-50 text-rose-700">
+<span class="w-1.5 h-1.5 rounded-full bg-rose-500 mr-2"></span>
+                    Cancelled
+                  </span>
+</td>
+<td class="px-6 py-4 text-body-md text-slate-300">--:--</td>
+<td class="px-6 py-4 font-label-md text-slate-400">0.0 hrs</td>
+<td class="px-6 py-4 text-right">
+<button class="p-2 text-slate-400 hover:text-primary hover:bg-primary/10 rounded-lg transition-colors">
+<span class="material-symbols-outlined">more_vert</span>
+</button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="p-5 bg-slate-50/50 flex justify-between items-center">
+<p class="text-label-sm text-slate-500 font-medium">Showing 4 of 180 volunteers</p>
+<div class="flex gap-2">
+<button class="p-2 bg-white border border-slate-100 rounded-lg hover:border-teal-100 hover:text-primary transition-all disabled:opacity-30" disabled="">
+<span class="material-symbols-outlined text-[20px]">chevron_left</span>
+</button>
+<button class="p-2 bg-white border border-slate-100 rounded-lg hover:border-teal-100 hover:text-primary transition-all">
+<span class="material-symbols-outlined text-[20px]">chevron_right</span>
+</button>
+</div>
+</div>
+</section>
+</div>
+</main>
+<!-- QR Modal Overlay -->
+<div class="hidden fixed inset-0 z-[60] flex items-center justify-center p-4" id="qr-modal">
+<div class="absolute inset-0 bg-teal-900/40 backdrop-blur-md" onclick="document.getElementById('qr-modal').classList.add('hidden')"></div>
+<div class="relative bg-white w-full max-w-md rounded-[2rem] shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-300">
+<div class="p-8 text-center space-y-6">
+<div class="flex justify-between items-center">
+<h4 class="font-headline-md text-headline-md text-teal-900">Volunteer Check-in</h4>
+<button class="p-2.5 hover:bg-teal-50 text-slate-400 hover:text-primary rounded-full transition-colors" onclick="document.getElementById('qr-modal').classList.add('hidden')">
+<span class="material-symbols-outlined">close</span>
+</button>
+</div>
+<div class="bg-teal-50/50 rounded-3xl p-10 inline-block mx-auto relative">
+<div class="absolute inset-0 border-4 border-dashed border-primary/10 rounded-3xl animate-pulse"></div>
+<img alt="Event QR Code" class="w-64 h-64 mx-auto relative z-10 mix-blend-multiply" data-alt="A clean, high-contrast QR code displayed on a modern smartphone screen held by a volunteer. The background is a vibrant outdoor community garden with soft morning sunlight filtering through trees. The overall mood is bright, professional, and tech-forward, emphasizing ease of use in a volunteer setting." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDKs91Viar01Iq0hdPl83XkC9Yan-LaoLTDUlpW1OCBpwyvmfNY1JK7qYTTZjEfZMAWxduKSleOdM6B1JBQ33BUHboLdNcujCGzUlkJkrzT1COk37WRg3XrujVRNEZXB3hVtnDac6y_cRBo1US3PJbUVwek-YJ04S3aGv5AKsp4cVmku9sNetqsCPUS0cHzQiRLp4dy3mf_OZPkB_Pgr8ZqWBXHh20F61rPZPlroyxs14iLTqnXLUUVz2mGnmUApEi7ADeCWBfRvSo"/>
+</div>
+<div class="space-y-2">
+<p class="font-headline-md text-primary tracking-tight">City Garden Restoration</p>
+<p class="text-body-md text-slate-500">Volunteers can scan this code to automatically check in for today's shift.</p>
+</div>
+<div class="pt-6 border-t border-slate-100 grid grid-cols-2 gap-4">
+<button class="flex items-center justify-center gap-2 py-3.5 rounded-2xl border border-slate-100 hover:bg-teal-50 hover:border-teal-100 transition-all font-bold text-slate-600">
+<span class="material-symbols-outlined">print</span>
+            Print Flyer
+          </button>
+<button class="flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-primary text-on-primary hover:bg-primary/90 transition-all shadow-lg shadow-primary/20 font-bold">
+<span class="material-symbols-outlined">share</span>
+            Share Link
+          </button>
+</div>
+</div>
+</div>
+</div>
+<!-- Micro-interactions Script -->
+<script>
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        document.getElementById('qr-modal').classList.add('hidden');
+      }
+    });
+
+    function showToast(message, type = 'success') {
+      const toast = document.createElement('div');
+      toast.className = 'fixed bottom-8 right-8 bg-white shadow-2xl shadow-teal-900/10 p-5 rounded-2xl border border-teal-50 flex items-center gap-4 animate-in slide-in-from-right duration-300 z-[70]';
+      toast.innerHTML = `
+        <div class="p-2 bg-teal-50 rounded-xl">
+          <span class="material-symbols-outlined text-primary">check_circle</span>
+        </div>
+        <div>
+          <p class="font-bold text-teal-900">${message}</p>
+          <p class="text-[13px] text-slate-500">The volunteer list has been updated.</p>
+        </div>
+      `;
+      document.body.appendChild(toast);
+      setTimeout(() => {
+        toast.classList.add('animate-out', 'fade-out', 'slide-out-to-right');
+        setTimeout(() => toast.remove(), 300);
+      }, 3000);
+    }
+
+    // Connect to manual check-in buttons
+    const manualCheckInButtons = Array.from(document.querySelectorAll('button')).filter(btn => btn.textContent.trim().includes("Check-in") || btn.textContent.trim().includes("Manual Check-in"));
+    manualCheckInButtons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        if (!btn.closest('#qr-modal')) { // Skip if it's in the modal or is the specialized one
+           showToast("Check-in Successful");
+        }
+      });
+    });
+  </script>
+</body></html>
