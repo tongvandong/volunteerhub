@@ -1098,3 +1098,8 @@ Hiện tại với toàn bộ kế hoạch trên:
 | (Không cần đăng ký dịch vụ ngoài nào) | | |
 
 Tất cả tính năng đều dùng tool có sẵn, không cần đăng ký Firebase/Pusher/etc.
+## Cập nhật nghiệp vụ 2026-05-25
+
+Tài liệu này là plan lịch sử cho module channel. Khi thao tác admin/channel hiện tại, cần tuân thủ rule chung mới: không xóa cứng dữ liệu đã phát sinh lịch sử nếu có lựa chọn hủy, ẩn hoặc chuyển trạng thái.
+
+Các phần quản trị mới đã được bổ sung ở tài liệu nghiệp vụ chính gồm: admin badge management, admin finance watch, admin event hard delete có điều kiện, và luồng `ChangesRequested` cho KYC/kỹ năng. Channel vẫn được xem là dữ liệu nghiệp vụ của event, nên event có channel không được xóa cứng.

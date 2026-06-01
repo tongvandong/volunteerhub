@@ -24,7 +24,20 @@ builder.Services.AddControllers()
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddHealthChecks();
-builder.Services.AddSignalR();
+
+// Redis-backed distributed cache (falls back to in-memory when Redis is not configured).
+var redisConnectionString = builder.Services.AddVolunteerHubCache(builder.Configuration);
+
+// SignalR + optional Redis backplane so realtime works across multiple EventService instances.
+var signalRBuilder = builder.Services.AddSignalR();
+if (!string.IsNullOrWhiteSpace(redisConnectionString))
+{
+    signalRBuilder.AddStackExchangeRedis(redisConnectionString, options =>
+    {
+        options.Configuration.ChannelPrefix = StackExchange.Redis.RedisChannel.Literal("vhub-signalr");
+    });
+}
+
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
@@ -119,11 +132,15 @@ builder.Services.AddSwaggerGen(c =>
     });
 });
 
+// Allowed origins are configurable for production (env Cors__AllowedOrigins, comma/semicolon separated).
+// SignalR requires AllowCredentials, which forbids a wildcard origin, so we keep an explicit list.
+var corsOrigins = (builder.Configuration["Cors:AllowedOrigins"] ?? "http://localhost:3000,http://127.0.0.1:3000")
+    .Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAll", policy =>
     {
-        policy.WithOrigins("http://localhost:3000", "http://127.0.0.1:3000")
+        policy.WithOrigins(corsOrigins)
               .AllowAnyMethod()
               .AllowAnyHeader()
               .AllowCredentials();
@@ -157,6 +174,7 @@ builder.Services.AddScoped<IBadgeService, BadgeService>();
 builder.Services.AddScoped<ICertificateService, CertificateService>();
 builder.Services.AddScoped<IEventService, EventService>();
 builder.Services.AddScoped<IRegistrationService, RegistrationService>();
+builder.Services.AddScoped<IInterviewService, InterviewService>();
 builder.Services.AddScoped<IChannelService, ChannelService>();
 builder.Services.AddScoped<IChannelRealtimeNotifier, SignalRChannelRealtimeNotifier>();
 builder.Services.AddScoped<IAuditLogService, AuditLogService>();

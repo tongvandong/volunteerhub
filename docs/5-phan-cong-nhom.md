@@ -180,3 +180,26 @@ chore: ...   → config, setup
 | Messenger/Zalo | Giao tiếp hàng ngày | (link group) |
 | Swagger | Test API | http://localhost:5002/swagger (Identity), http://localhost:5003/swagger (Event), http://localhost:5004/swagger (Finance) |
 | Postman | Test API nâng cao | (optional) |
+
+## Cập nhật phân công 2026-05-25
+
+### Thành viên A - Identity / Profile / Verification
+- Phụ trách thêm `BaseCore.WebClient/src/pages/admin/AdminBadges.jsx`.
+- Phụ trách API badge trong `BadgesController`: `POST/PUT/DELETE /api/badges`.
+- Phụ trách trạng thái `ChangesRequested` cho KYC volunteer và skill verification.
+- Phụ trách UI `AdminVolunteerVerifications.jsx` với ba thao tác: duyệt, yêu cầu bổ sung, từ chối.
+
+### Thành viên B - Event / Registration / Attendance
+- Phụ trách `AdminEvents.jsx`: xem chi tiết, duyệt/từ chối, hủy, hoàn thành/mở lại, transfer organizer, xóa có điều kiện.
+- Phụ trách rule xóa event: chỉ xóa khi chưa có registration, shift, channel, campaign, sponsor/proposal, certificate, rating.
+- Tiếp tục phụ trách danh mục sự kiện và rating moderation.
+
+### Thành viên C - Finance / Sponsorship / SponsorProfile
+- Phụ trách thêm `BaseCore.WebClient/src/pages/admin/AdminFinanceWatch.jsx`.
+- Phụ trách các endpoint giám sát finance: stale donations, unreported campaigns, open proposals past event.
+- Màn finance watch chỉ đọc và đối soát, không thêm action sửa/xóa trực tiếp dữ liệu tài chính.
+
+### File dùng chung cần báo nhóm trước khi sửa
+- `BaseCore.WebClient/src/App.jsx`: đã thêm route `/admin/badges`, `/admin/finance`.
+- `BaseCore.WebClient/src/components/layouts/MainLayout.jsx`: đã thêm menu Huy hiệu và Giám sát tài chính cho Admin.
+- `BaseCore.WebClient/src/services/api.js`: đã thêm API badge, request changes KYC/skill và finance watch.

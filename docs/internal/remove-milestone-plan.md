@@ -468,3 +468,8 @@ if ($list.Count -gt 0) {
 - **Chỉ xóa `SponsorProjectMilestone`** — bảng cột mốc tiến độ.
 - **Tracking endpoint giữ nguyên route** (`GET /api/sponsors/my/{id}/tracking`) — chỉ đổi logic bên trong.
 - **Migration sẽ DROP TABLE** — dữ liệu milestone cũ mất. OK vì chỉ có demo data.
+## Cập nhật nghiệp vụ 2026-05-25
+
+Milestone tài chính đã được thay bằng báo cáo campaign/proposal và màn giám sát tài chính admin. Admin hiện có thêm `/admin/finance` để theo dõi stale donations, unreported campaigns và open proposals past event.
+
+Màn finance chỉ đọc dữ liệu và phát hiện việc cần xử lý. Không sửa/xóa trực tiếp dòng tiền từ màn này; các thao tác thực tế vẫn đi qua campaign, donation hoặc sponsorship proposal tương ứng.

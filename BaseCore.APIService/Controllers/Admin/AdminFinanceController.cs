@@ -14,6 +14,19 @@ namespace BaseCore.APIService.Controllers
     [Authorize(Roles = "Admin")]
     public class AdminFinanceController : ControllerBase
     {
+#if FINANCE_SERVICE
+        private const string FinanceOverviewRoute = "finance/overview";
+        private const string OpenProposalsPastEventRoute = "finance/open-proposals-past-event";
+        private const string StaleDonationsRoute = "finance/stale-donations";
+        private const string UnreportedCampaignsRoute = "finance/unreported-campaigns";
+        private const string ExportFinanceRoute = "export/finance";
+#else
+        private const string FinanceOverviewRoute = "finance/overview-detail";
+        private const string OpenProposalsPastEventRoute = "finance-detail/open-proposals-past-event";
+        private const string StaleDonationsRoute = "finance-detail/stale-donations";
+        private const string UnreportedCampaignsRoute = "finance-detail/unreported-campaigns";
+        private const string ExportFinanceRoute = "export/finance-detail";
+#endif
         private readonly MySqlDbContext _context;
         private readonly IAuditLogService _auditLogService;
 
@@ -23,7 +36,7 @@ namespace BaseCore.APIService.Controllers
             _auditLogService = auditLogService;
         }
 
-        [HttpGet("finance/overview-detail")]
+        [HttpGet(FinanceOverviewRoute)]
         public async Task<IActionResult> GetFinanceOverview()
         {
             var donationConfirmedAmount = await _context.IndividualDonations
@@ -64,7 +77,7 @@ namespace BaseCore.APIService.Controllers
             });
         }
 
-        [HttpGet("finance/open-proposals-past-event")]
+        [HttpGet(OpenProposalsPastEventRoute)]
         public async Task<IActionResult> GetOpenProposalsPastEvent()
         {
             var items = await _context.SponsorshipProposals
@@ -95,7 +108,7 @@ namespace BaseCore.APIService.Controllers
             return Ok(items);
         }
 
-        [HttpGet("finance/stale-donations")]
+        [HttpGet(StaleDonationsRoute)]
         public async Task<IActionResult> GetStaleDonations([FromQuery] int days = 7)
         {
             if (days < 1) days = 7;
@@ -128,7 +141,7 @@ namespace BaseCore.APIService.Controllers
             return Ok(items);
         }
 
-        [HttpGet("finance/unreported-campaigns")]
+        [HttpGet(UnreportedCampaignsRoute)]
         public async Task<IActionResult> GetUnreportedCampaigns()
         {
             var items = await _context.SupportCampaigns
@@ -156,7 +169,7 @@ namespace BaseCore.APIService.Controllers
             return Ok(items);
         }
 
-        [HttpGet("export/finance-detail")]
+        [HttpGet(ExportFinanceRoute)]
         [EnableRateLimiting("read-sensitive")]
         public async Task<IActionResult> ExportFinance([FromQuery] string format = "json")
         {

@@ -93,6 +93,35 @@ namespace BaseCore.APIService.Controllers
             return Ok(new { ratings, averageScore = avgScore, totalRatings = ratings.Count });
         }
 
+        [HttpGet("api/events/{eventId}/ratings")]
+        [EnableRateLimiting("read-sensitive")]
+        public async Task<IActionResult> GetEventRatings(int eventId)
+        {
+            var ev = await _context.Events
+                .AsNoTracking()
+                .FirstOrDefaultAsync(e => e.Id == eventId);
+            if (ev == null) return NotFound(new { message = "Event not found" });
+
+            var ratings = await _context.Ratings
+                .AsNoTracking()
+                .Include(r => r.Rater)
+                .Where(r => r.EventId == eventId && !r.IsHidden && r.RateeId == ev.OrganizerId)
+                .OrderByDescending(r => r.CreatedAt)
+                .Select(r => new
+                {
+                    r.Id,
+                    r.Score,
+                    r.Comment,
+                    r.CreatedAt,
+                    r.RaterId,
+                    raterName = r.Rater != null ? (r.Rater.Name ?? r.Rater.UserName) : "Tình nguyện viên"
+                })
+                .ToListAsync();
+
+            var averageScore = ratings.Count == 0 ? 0 : Math.Round(ratings.Average(r => r.Score), 1);
+            return Ok(new { ratings, averageScore, totalRatings = ratings.Count });
+        }
+
         [HttpPut("api/ratings/{id}"), Authorize]
         [EnableRateLimiting("write-sensitive")]
         public async Task<IActionResult> UpdateRating(int id, [FromBody] RatingUpdateDto dto)

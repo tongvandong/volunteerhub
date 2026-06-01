@@ -44,10 +44,16 @@ Context/e2e-screenshots/
 playwright-report/
 test-results/
 coverage/
+artifacts/
+TestResults/manual-critical/*.pdf
 BaseCore.WebClient/tests/.auth/
 BaseCore.WebClient/full-run.json
 BaseCore.WebClient/fails.txt
 BaseCore.WebClient/parse-fails.ps1
+
+# Local assistant/editor launch settings
+.claude/
+**/.claude/
 
 # OS files
 Thumbs.db

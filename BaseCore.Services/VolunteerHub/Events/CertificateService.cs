@@ -1,4 +1,4 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using BaseCore.Entities;
 using BaseCore.Repository;
 using System.Drawing;
@@ -196,6 +196,7 @@ namespace BaseCore.Services.VolunteerHub
             graphics.DrawRectangle(qrBorderPen, qrBox);
             graphics.DrawImage(qrBitmap, 1245, 745, 230, 230);
             DrawCenteredInRect(graphics, "Quét để xác thực", tinyFont, brush, new RectangleF(1220, 990, 280, 36));
+
 
             var output = new MemoryStream();
             bitmap.Save(output, ImageFormat.Jpeg);

@@ -170,3 +170,31 @@ sqlcmd -S "(localdb)\MSSQLLocalDB" -Q "DROP DATABASE IF EXISTS VolunteerHub"
 ```
 
 Sau đó restart bất kỳ service nào — migration sẽ tạo lại database + seed data (bao gồm SponsorProfile demo).
+
+## Cập nhật demo quản trị 2026-05-25
+
+Sau khi đăng nhập `admin / admin123`, có thể kiểm tra thêm:
+
+1. Vào `/admin/badges` để thêm/sửa huy hiệu. Thử xóa huy hiệu đã cấp cho user sẽ bị chặn.
+2. Vào `/admin/finance` để xem donation chờ xác nhận lâu, campaign chưa báo cáo và proposal tài trợ bị treo.
+3. Vào `/admin/volunteer-verifications`, chọn KYC hoặc kỹ năng, thử thao tác `Yêu cầu bổ sung`. Volunteer sẽ thấy trạng thái `Cần bổ sung` và có thể gửi lại minh chứng.
+4. Vào `/admin/events`, kiểm tra các thao tác quản trị sự kiện: xem chi tiết, duyệt/từ chối, hủy, transfer organizer, hoàn thành/mở lại, xóa có điều kiện.
+
+Ghi chú:
+
+- Không xóa cứng dữ liệu đã có lịch sử nghiệp vụ. Ưu tiên hủy, ẩn, yêu cầu bổ sung, báo cáo hoặc export.
+- Admin finance watch là màn giám sát, không thay thế flow xác nhận donation/proposal của organizer/sponsor.
+- Badge đã cấp cho user không được xóa; nếu cần thay đổi, chỉ sửa thông tin hiển thị hoặc tạo badge mới.
+- KYC/kỹ năng có ba hướng xử lý chính: duyệt, yêu cầu bổ sung, từ chối. Từ chối/yêu cầu bổ sung phải có lý do rõ ràng.
+## Cập nhật workflow demo lõi 2026-05-25
+
+Khi demo nghiệp vụ chính, nên đi theo thứ tự:
+
+1. Organizer verified tạo event không chia ca, admin duyệt, volunteer đăng ký, organizer confirm.
+2. Organizer check-in volunteer, sau đó check-out để hệ thống tính giờ thực tế.
+3. Organizer complete event. Nếu còn registration pending, xác nhận cảnh báo rằng các đăng ký này không được tính tham gia.
+4. Organizer tạo event thứ hai, trước khi có ai đăng ký thì bấm `Chia ca`, tạo ca trong khoảng thời gian event.
+5. Volunteer đăng ký event có ca và bắt buộc chọn ca; check-in/check-out phải đúng cửa sổ ca.
+6. Organizer tạo campaign ủng hộ nếu cần; volunteer donate; organizer confirm/reject; sau event organizer report campaign.
+7. Sponsor gửi proposal tài trợ hoặc organizer mời sponsor; bên nhận accept/reject; organizer mark received và report.
+8. Admin vào `/admin/finance` để đối soát các khoản pending/chưa report, không sửa trực tiếp dữ liệu tiền tại màn này.

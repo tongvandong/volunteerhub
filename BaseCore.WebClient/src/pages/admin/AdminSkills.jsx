@@ -5,7 +5,7 @@ import Modal from '../../components/ui/Modal';
 
 const EMPTY = { name: '', category: '' };
 
-export default function AdminSkills() {
+export default function AdminSkills({ embedded = false }) {
   const [skills, setSkills] = useState([]);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(false);
@@ -97,7 +97,7 @@ export default function AdminSkills() {
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between flex-wrap gap-3">
-        <h1 className="text-xl font-bold" style={{ color: '#181d26' }}>Quản lý kỹ năng</h1>
+        {embedded ? <span /> : <h1 className="text-xl font-bold" style={{ color: '#181d26' }}>Quản lý kỹ năng</h1>}
         <div className="flex gap-2">
           <input
             type="text"
@@ -120,7 +120,7 @@ export default function AdminSkills() {
 
       {filtered.length === 0 ? (
         <div className="card p-12 text-center">
-          <i className="fa-solid fa-wrench text-4xl text-gray-300 mb-3 block" />
+          <i className="fa-solid fa-wrench text-4xl text-warmink-3 mb-3 block" />
           <p style={{ color: 'rgba(4,14,32,0.50)' }}>{search ? 'Không tìm thấy kỹ năng phù hợp' : 'Chưa có kỹ năng nào'}</p>
         </div>
       ) : (

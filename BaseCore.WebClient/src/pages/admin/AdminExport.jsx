@@ -26,7 +26,15 @@ export default function AdminExport() {
       const blob = new Blob([content], { type: mimeType });
       downloadBlob(blob, `${type}_export_${new Date().toISOString().slice(0, 10)}.${ext}`);
     } catch (err) {
-      alert(err.response?.data?.message || 'Xuất dữ liệu thất bại');
+      let msg = 'Xuất dữ liệu thất bại';
+      const data = err.response?.data;
+      if (data instanceof Blob) {
+        // CSV dùng responseType blob → lỗi BE cũng là blob, phải đọc text để lấy message thật.
+        try { msg = JSON.parse(await data.text()).message || msg; } catch { /* keep default */ }
+      } else if (data?.message) {
+        msg = data.message;
+      }
+      alert(msg);
     } finally {
       setLoading((prev) => ({ ...prev, [key]: false }));
     }
@@ -62,8 +70,8 @@ export default function AdminExport() {
   return (
     <div className="space-y-5">
       <div>
-        <h1 className="text-xl font-bold text-gray-900">Xuất dữ liệu</h1>
-        <p className="text-sm text-gray-500 mt-0.5">Tải xuống dữ liệu hệ thống ở định dạng CSV hoặc JSON</p>
+        <h1 className="text-xl font-bold text-warmink">Xuất dữ liệu</h1>
+        <p className="text-sm text-warmink-2 mt-0.5">Tải xuống dữ liệu hệ thống ở định dạng CSV hoặc JSON</p>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
@@ -74,10 +82,10 @@ export default function AdminExport() {
                 <i className={`fa-solid ${card.icon} ${card.color} text-xl`} />
               </div>
               <div>
-                <h2 className="font-semibold text-gray-900">Dữ liệu {card.title}</h2>
+                <h2 className="font-semibold text-warmink">Dữ liệu {card.title}</h2>
               </div>
             </div>
-            <p className="text-sm text-gray-500">{card.description}</p>
+            <p className="text-sm text-warmink-2">{card.description}</p>
             <div className="flex gap-3">
               <button
                 onClick={() => exportData(card.type, 'csv')}
@@ -95,7 +103,7 @@ export default function AdminExport() {
                 className="flex-1 btn-secondary flex items-center justify-center gap-2"
               >
                 {loading[`${card.type}_json`]
-                  ? <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
+                  ? <div className="w-4 h-4 border-2 border-warmborder-2 border-t-transparent rounded-full animate-spin" />
                   : <i className="fa-solid fa-file-code" />}
                 JSON
               </button>

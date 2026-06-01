@@ -76,6 +76,11 @@ namespace BaseCore.APIService.Controllers
             var ev = await _eventRepo.GetByIdAsync(eventId);
             if (ev == null) return NotFound(new { message = "Event not found" });
             if (ev.OrganizerId != userId) return Forbid();
+            var activeRegistrations = await _context.Registrations
+                .CountAsync(r => r.EventId == eventId && (r.Status == "Pending" || r.Status == "Confirmed"));
+            if (activeRegistrations > 0)
+                return BadRequest(new { message = "Cannot create work shifts after volunteers have registered for this event." });
+
             var validation = ValidateShift(dto.Name, dto.StartTime, dto.EndTime, dto.MaxVolunteers, ev.StartDate, ev.EndDate);
             if (validation != null) return BadRequest(new { message = validation });
 

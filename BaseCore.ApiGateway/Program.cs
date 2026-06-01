@@ -5,7 +5,10 @@ using Ocelot.Middleware;
 DotEnvLoader.LoadIfPresent(AppContext.BaseDirectory);
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Configuration.AddJsonFile("ocelot.json", optional: false, reloadOnChange: true);
+// Allow swapping the route map per environment (e.g. ocelot.docker.json for container hostnames)
+// via env Ocelot__ConfigFile. Defaults to the local-development ocelot.json.
+var ocelotConfigFile = builder.Configuration["Ocelot:ConfigFile"] ?? "ocelot.json";
+builder.Configuration.AddJsonFile(ocelotConfigFile, optional: false, reloadOnChange: true);
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddHealthChecks();

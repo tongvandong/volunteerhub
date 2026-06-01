@@ -1,497 +1,626 @@
-# Hướng dẫn tạo repo mới và commit theo timeline
+# Hướng dẫn tạo repo mới và commit theo timeline 2 tuần
 
-## Tổng quan
+## 1. Mục tiêu
 
-Repo mới sẽ được commit theo 6 tuần. Mỗi người làm phần mình trên branch riêng rồi merge vào main. Kết quả cuối cùng: git log trông tự nhiên, mỗi người có commit đều đặn.
+Dựng repo nộp bài `volunteerhub2026_TTN` từ source hoàn thiện `BaseCore`, theo tiến độ kỹ thuật 2 tuần. Vì nhóm làm trên **3 máy**, không làm trực tiếp trên `master` hằng ngày. Mỗi người làm trên nhánh riêng, push nhánh của mình lên GitHub, sau đó tạo Pull Request hoặc nhờ người tích hợp merge về `master`.
 
-## Cấu trúc repo đồ án
+Lưu ý: Trello và biên bản vẫn tổ chức theo **6 tuần** để đáp ứng yêu cầu môn Thực tập nhóm. Lịch 14 ngày dưới đây chỉ là lịch copy/commit kỹ thuật.
 
+- **Source hiện tại**: `D:\FW\FW\BaseCore`
+- **Repo mới local**: `D:\FW\FW\volunteerhub2026_TTN`
+- **GitHub**: `https://github.com/taoladong/volunteerhub2026_TTN`
+- **Trello**: `https://trello.com/b/q3SPEszi/b%E1%BA%A3ng-trello-c%E1%BB%A7a-toi`
+- **Google Drive**: `https://drive.google.com/drive/u/0/folders/1qnu4XJEBNgHDcGQzNKacwwpaZxygxAdZ`
+
+Commit theo ngày hiện tại khi thực hiện, không chỉnh ngày commit quá khứ. Commit message viết bằng tiếng Việt không dấu; vẫn giữ prefix ngắn để phân loại, ví dụ `feat(events): them luong su kien`.
+
+Tên card Trello và ghi chú tiến độ ưu tiên tiếng Việt; chỉ giữ nguyên thuật ngữ kỹ thuật cần thiết như `backend`, `frontend`, `API`, `build`, `deploy`, `VietQR`, `GitHub`, `Drive`.
+
+## 2. Branch workflow
+
+`master` là nhánh tích hợp cuối. Mỗi thành viên làm trên nhánh riêng:
+
+| Thành viên | Nhánh làm việc | Phạm vi chính |
+|---|---|---|
+| Tống Văn Đông | `feature/events-dong` | Repo/main coordination, event lifecycle, gateway/service split, public/organizer UI, tổng hợp báo cáo |
+| Phạm Tiến Dũng | `feature/auth-verification-dung` | Auth, profile, organizer/volunteer verification, RBAC, auth UI |
+| Hồ Sỹ Vinh | `feature/finance-donation-vinh` | Finance, donation, sponsor, donor stats, campaign bank info, VietQR |
+
+Quy trình hằng ngày cho mỗi người:
+
+```powershell
+git switch master
+git pull origin master
+
+git switch feature/events-dong
+git merge master
+
+# copy/làm phần việc trong ngày
+git status --short
+git add .
+git commit -m "feat(events): mo ta ngan gon bang tieng Viet"
+git push origin feature/events-dong
 ```
-volunteerhub-group10/
-├── docs/                              ← 5 file tài liệu chính
-│   ├── 1-mo-ta-de-tai.md
-│   ├── 2-yeu-cau-chuc-nang.md
-│   ├── 3-thiet-ke-he-thong.md
-│   ├── 4-huong-dan-cai-dat.md
-│   └── 5-phan-cong-nhom.md
-├── docs/internal/                     ← Tài liệu nội bộ (flow spec chi tiết, dev reference)
-│   ├── event-registration-flow.md
-│   ├── sponsorship-donation-flow.md
-│   ├── real-world-scenarios.md
-│   └── demo-workflow.md
-├── Thực tập nhóm/                     ← Biên bản + báo cáo + slide
-│   ├── Bien_ban_tuan_1.docx
-│   ├── ...
-│   ├── Bao_cao_tong_hop.docx
-│   └── Slide_thuyet_trinh.pptx
-├── BaseCore.sln
-├── BaseCore.ApiGateway/
-├── BaseCore.AuthService/
-├── BaseCore.EventService/
-├── BaseCore.FinanceService/
-├── BaseCore.APIService/
-├── BaseCore.Entities/
-├── BaseCore.Repository/
-├── BaseCore.Services/
-├── BaseCore.Common/
-├── BaseCore.WebClient/
-├── README.md
-├── .gitignore
-└── seed_data.sql
-```
 
-## Bước 0: Chuẩn bị
+Thay `feature/events-dong` bằng nhánh tương ứng của Dũng hoặc Vinh.
 
-### Tạo repo trên GitHub
+Sau khi push, tạo Pull Request từ nhánh cá nhân vào `master`. Chỉ merge khi:
 
-1. Vào https://github.com/new
-2. Tên repo: `volunteerhub-group10` (hoặc tên nhóm bạn chọn)
-3. Chọn Private (hoặc Public tùy ý)
-4. KHÔNG tick "Add README" — để repo trống
-5. Bấm "Create repository"
-6. Vào Settings → Collaborators → Add 2 account còn lại
+- Phần việc đúng phạm vi.
+- Không commit file output nặng hoặc file rác.
+- Build/test liên quan pass hoặc có ghi chú lỗi môi trường.
+- Trello card đã cập nhật.
 
-### Clone về máy
+## 3. Chuẩn bị repo
+
+### 3.1 Clone repo
 
 ```powershell
 cd D:\FW\FW
-git clone https://github.com/taoladong/volunteerhub-group10.git
-cd volunteerhub-group10
+git clone https://github.com/taoladong/volunteerhub2026_TTN.git volunteerhub2026_TTN
+cd volunteerhub2026_TTN
 ```
 
----
+### 3.2 Kiểm tra nhánh có sẵn
 
-## TUẦN 1 — Phân tích yêu cầu
+Repo remote hiện có ít nhất nhánh `master` và `dung`. Trước khi copy file, phải kiểm tra nội dung:
 
-**Ai làm**: Cả 3 người, mỗi người commit phần mình.
-
-### Người A (Identity) commit:
-
-1. Tạo cấu trúc folder:
 ```powershell
-mkdir docs
-mkdir "Thực tập nhóm"
+git fetch origin
+git branch -a
+git status --short --branch
+git log --oneline --decorate -n 20
 ```
 
-2. Copy từ repo cũ (`D:\FW\FW\BaseCore\docs\`):
-   - `docs/1-mo-ta-de-tai.md`
-   - `.gitignore`
-   - `README.md` (chỉ giữ phần giới thiệu ngắn, chưa có hướng dẫn chạy chi tiết)
+Nếu cần xem nhánh `dung`:
+
+```powershell
+git switch dung
+git status --short --branch
+git log --oneline --decorate -n 10
+git switch master
+```
+
+Không xóa hoặc ghi đè nội dung cũ nếu chưa thống nhất. Mặc định giữ file hợp lệ và copy bổ sung theo kế hoạch.
+
+### 3.3 Tạo nhánh cá nhân
+
+Tống Văn Đông:
+
+```powershell
+git switch master
+git pull origin master
+git switch -c feature/events-dong
+git push -u origin feature/events-dong
+```
+
+Phạm Tiến Dũng:
+
+```powershell
+git switch master
+git pull origin master
+git switch -c feature/auth-verification-dung
+git push -u origin feature/auth-verification-dung
+```
+
+Hồ Sỹ Vinh:
+
+```powershell
+git switch master
+git pull origin master
+git switch -c feature/finance-donation-vinh
+git push -u origin feature/finance-donation-vinh
+```
+
+## 4. Cấu trúc repo đích
+
+```text
+volunteerhub2026_TTN/
+├── docs/
+├── docs/internal/
+├── Context/
+├── Thực tập nhóm/
+├── BaseCore.sln
+├── BaseCore.ApiGateway/
+├── BaseCore.APIService/
+├── BaseCore.AuthService/
+├── BaseCore.EventService/
+├── BaseCore.FinanceService/
+├── BaseCore.Common/
+├── BaseCore.DTO/
+├── BaseCore.Entities/
+├── BaseCore.Repository/
+├── BaseCore.Services/
+├── BaseCore.Libs/
+├── BaseCore.WebClient/
+├── scripts/
+├── seed_data.sql
+├── README.md
+└── .gitignore
+```
+
+Không commit:
+
+```text
+bin/
+obj/
+node_modules/
+dist/
+.vs/
+*.log
+```
+
+`TestResults/manual-critical/` hoặc `artifacts/` chỉ copy nếu dùng làm minh chứng nộp bài và đã lọc file nặng.
+
+## 5. Lịch copy và nhánh phụ trách
+
+### Ngày 1 - Khởi tạo repo
+
+**Owner**: Tống Văn Đông  
+**Nhánh**: `feature/events-dong`, merge về `master` sau khi tạo nền.
+
+Copy/tạo:
+
+- `.gitignore`
+- README bản đầu
+- Folder `docs`, `docs/internal`, `Context`, `Thực tập nhóm`
+
+Commit:
 
 ```powershell
 git add .
-git commit -m "docs: add project description and initial setup"
-git push origin main
+git commit -m "chore: khoi tao repo nop bai VolunteerHub"
+git push origin feature/events-dong
 ```
 
-### Người B (Event) commit:
+Tạo PR vào `master`. Sau khi merge, Dũng và Vinh pull `master` mới rồi tiếp tục từ nhánh của mình.
 
-1. Pull: `git pull origin main`
-2. Copy `docs/2-yeu-cau-chuc-nang.md` từ repo cũ (phần FR-01 đến FR-19 — event/registration/attendance/certificate/rating/channel).
+### Ngày 2 - Tài liệu phân tích
+
+**Owner**: Cả nhóm  
+**Nhánh**:
+
+- Đông: `feature/events-dong`
+- Dũng: `feature/auth-verification-dung`
+- Vinh: `feature/finance-donation-vinh`
+
+Copy/cập nhật:
+
+- `docs/1-mo-ta-de-tai.md`
+- `docs/2-yeu-cau-chuc-nang.md`
+- `docs/5-phan-cong-nhom.md`
+- `Context/VolunteerHub-description.md`
+- `Context/VolunteerHub-requirements-spec.md`
+
+Phân chia:
+
+- Đông: mô tả đề tài, event requirements, phân công nhóm.
+- Dũng: auth/profile/verification/RBAC requirements.
+- Vinh: finance/donation/sponsor requirements.
+
+Commit gợi ý:
+
+```text
+docs: them tong quan de tai va yeu cau su kien
+docs(auth): them yeu cau dang nhap va xac minh
+docs(finance): them yeu cau ung ho va tai tro
+```
+
+### Ngày 3 - Solution nền và database
+
+**Owner**: Tống Văn Đông  
+**Nhánh**: `feature/events-dong`
+
+Copy:
+
+- `BaseCore.sln`
+- `BaseCore.Common/`
+- `BaseCore.DTO/`
+- `BaseCore.Entities/`
+- `BaseCore.Repository/`
+- `BaseCore.Libs/`
+- `seed_data.sql`
+- `scripts/reset-demo-data.ps1`
+- `scripts/reset-demo-data.sql`
+
+Bao gồm migration/entity mới:
+
+- `InterviewSlot`
+- `AddInterviewSlot`
+- `AddCampaignBankInfo`
+- `AddDonorStats`
+- `AddOrganizerLogo`
+- `MySqlDbContextModelSnapshot`
+- `DesignTimeDbContextFactory`
+
+Commit:
 
 ```powershell
-git add docs/2-yeu-cau-chuc-nang.md
-git commit -m "docs: add functional requirements for event and registration flows"
-git push origin main
+git add BaseCore.sln BaseCore.Common BaseCore.DTO BaseCore.Entities BaseCore.Repository BaseCore.Libs seed_data.sql scripts
+git commit -m "feat: them cau truc solution repository va du lieu mau"
+git push origin feature/events-dong
 ```
 
-### Người C (Finance) commit:
+### Ngày 4 - Auth, profile, verification
 
-1. Pull: `git pull origin main`
-2. Bổ sung vào `docs/2-yeu-cau-chuc-nang.md` — thêm FR-20 đến FR-28 (finance, admin, notification, upload).
-3. Copy `docs/internal/sponsorship-donation-flow.md` từ repo cũ (`Context/VolunteerHub-sponsorship-donation-flow-spec.md`).
+**Owner**: Phạm Tiến Dũng  
+**Nhánh**: `feature/auth-verification-dung`
+
+Copy:
+
+- `BaseCore.AuthService/`
+- `BaseCore.APIService/Controllers/Identity/`
+- `BaseCore.Services/Authen/`
+- Entity/migration liên quan `OrganizerVerification`, `VolunteerProfile`, verification fields.
+
+Commit:
 
 ```powershell
-mkdir docs/internal
-git add docs/
-git commit -m "docs: add finance, sponsorship and admin requirements"
-git push origin main
+git add BaseCore.AuthService BaseCore.APIService/Controllers/Identity BaseCore.Services/Authen BaseCore.Entities BaseCore.Repository/Migrations
+git commit -m "feat(auth): them luong dang nhap ho so va xac minh"
+git push origin feature/auth-verification-dung
 ```
 
-### Biên bản tuần 1
+### Ngày 5 - Event lifecycle và interview
 
-Tạo file `Thực tập nhóm/Bien_ban_tuan_1.docx` theo mẫu. Ai commit cũng được.
+**Owner**: Tống Văn Đông  
+**Nhánh**: `feature/events-dong`
+
+Copy:
+
+- `BaseCore.APIService/Controllers/Events/`
+- `BaseCore.APIService/Controllers/Shared/RatingsController.cs`
+- `BaseCore.Services/VolunteerHub/Events/`
+- `BaseCore.Services/VolunteerHub/Engagement/`
+- Event/registration/certificate/badge entities liên quan.
+
+Đảm bảo có:
+
+- `InterviewCallController.cs`
+- `InterviewSlot.cs`
+- `IInterviewService.cs`
+- `InterviewService.cs`
+- API đặt lịch/cập nhật/hủy/chấm kết quả phỏng vấn.
+- `RequiresInterview`, `InterviewStatus`, `InterviewSlot`.
+- QR/GPS check-in window, self check-in, actual volunteer hours.
+- `MinParticipants`, event visibility.
+
+Commit:
 
 ```powershell
-git add "Thực tập nhóm/"
-git commit -m "docs: add meeting minutes week 1"
-git push origin main
+git add BaseCore.APIService/Controllers/Events BaseCore.APIService/Controllers/Shared BaseCore.Services/VolunteerHub/Events BaseCore.Services/VolunteerHub/Engagement BaseCore.Entities BaseCore.Repository
+git commit -m "feat(events): them luong su kien phong van diem danh va chung chi"
+git push origin feature/events-dong
 ```
 
----
+### Ngày 6 - Finance, donation, sponsor
 
-## TUẦN 2 — Thiết kế hệ thống
+**Owner**: Hồ Sỹ Vinh  
+**Nhánh**: `feature/finance-donation-vinh`
 
-### Người A commit:
+Copy:
 
-1. Pull: `git pull origin main`
-2. Tạo solution structure (copy từ repo cũ, CHỈ lấy):
-   - `BaseCore.sln`
-   - `BaseCore.Entities/` (toàn bộ `.cs` + `.csproj`)
-   - `BaseCore.Common/` (toàn bộ)
-   - `BaseCore.DTO/` (toàn bộ)
-   - `BaseCore.Repository/` (`.csproj`, `MySqlDbContext.cs`, `Infrastructure/`, `EFCore/`, migration `InitialDatabase` + snapshot)
-   - `BaseCore.Libs/` (toàn bộ)
+- `BaseCore.APIService/Controllers/Finance/`
+- `BaseCore.APIService/Controllers/Admin/AdminFinanceController.cs`
+- Finance-related services/entities/migrations.
+- `SupportCampaign`, `IndividualDonation`, `SponsorProfile`, `SponsorshipProposal`.
+
+Đảm bảo có:
+
+- Campaign bank info.
+- Donor stats.
+- Donation-based badge condition.
+- Public donor/confirmed amount.
+- `ActualReceivedAmount`.
+- Admin finance watch.
+
+Commit:
+
+```powershell
+git add BaseCore.APIService/Controllers/Finance BaseCore.APIService/Controllers/Admin BaseCore.Entities BaseCore.Repository BaseCore.Services
+git commit -m "feat(finance): them ung ho tai tro thong ke donor va thong tin ngan hang"
+git push origin feature/finance-donation-vinh
+```
+
+### Ngày 7 - Tích hợp backend
+
+**Owner chính**: Tống Văn Đông  
+**Nhánh tích hợp**: `feature/events-dong`, sau đó PR vào `master`
+
+Trước khi tích hợp, Đông pull/merge các nhánh của Dũng và Vinh hoặc merge PR theo thứ tự:
+
+1. `feature/auth-verification-dung`
+2. `feature/events-dong`
+3. `feature/finance-donation-vinh`
+
+Copy/bổ sung:
+
+- `BaseCore.APIService/`
+- `BaseCore.ApiGateway/`
+- `BaseCore.EventService/`
+- `BaseCore.FinanceService/`
+
+Kiểm tra DI/config cho auth, event, interview, finance, notification, SignalR channel notifier.
+
+Build:
+
+```powershell
+dotnet restore BaseCore.sln
+dotnet build BaseCore.sln
+```
+
+Commit:
+
+```powershell
+git add BaseCore.APIService BaseCore.ApiGateway BaseCore.EventService BaseCore.FinanceService BaseCore.sln
+git commit -m "feat: them gateway tach service va cau hinh backend"
+git push origin feature/events-dong
+```
+
+Nếu build lỗi do thiếu file:
 
 ```powershell
 git add .
-git commit -m "feat: create solution structure with entities and repository layer"
-git push origin main
+git commit -m "fix: sua loi build backend"
+git push origin feature/events-dong
 ```
 
-3. Copy `docs/3-thiet-ke-he-thong.md` và `docs/5-phan-cong-nhom.md` từ repo cũ.
+### Ngày 8 - Frontend foundation
+
+**Owner**: Tống Văn Đông + Phạm Tiến Dũng  
+**Nhánh**: Đông làm layout/app trên `feature/events-dong`, Dũng làm auth context nếu cần trên `feature/auth-verification-dung`.
+
+Copy:
+
+- `BaseCore.WebClient/package*.json`
+- `BaseCore.WebClient/vite.config.js`
+- `BaseCore.WebClient/tailwind.config.js`
+- `BaseCore.WebClient/postcss.config.js`
+- `BaseCore.WebClient/index.html`
+- `BaseCore.WebClient/src/main.jsx`
+- `BaseCore.WebClient/src/App.jsx`
+- `BaseCore.WebClient/src/contexts/AuthContext.jsx`
+- `BaseCore.WebClient/src/services/api.js`
+- `BaseCore.WebClient/src/components/layouts/`
+- `BaseCore.WebClient/src/components/ui/`
+- `BaseCore.WebClient/src/utils/roleNav.js`
+- `BaseCore.WebClient/src/utils/format.js`
+
+Commit gợi ý:
+
+```text
+feat(ui): them nen tang React Vite va layout dung chung
+feat(auth): noi AuthContext va dieu huong theo vai tro
+```
+
+### Ngày 9 - Public, auth, volunteer UI
+
+**Owner**: Tống Văn Đông + Phạm Tiến Dũng  
+**Nhánh**:
+
+- Đông: `feature/events-dong`
+- Dũng: `feature/auth-verification-dung`
+
+Copy:
+
+- Public pages: Đông.
+- Auth pages: Dũng.
+- Volunteer pages: Đông/Dũng theo phần profile/verification.
+- `PublicProfile.jsx`, `Channel.jsx` nếu có.
+
+Commit gợi ý:
+
+```text
+feat(ui): them luong public su kien va tinh nguyen vien
+feat(auth): them trang dang nhap dang ky ho so va xac minh
+```
+
+### Ngày 10 - Organizer, admin, sponsor UI
+
+**Owner**: Tống Văn Đông + Hồ Sỹ Vinh  
+**Nhánh**:
+
+- Đông: `feature/events-dong`
+- Vinh: `feature/finance-donation-vinh`
+
+Copy:
+
+- Organizer pages và `ManageEvent/`: Đông.
+- Admin event/users/catalog/verifications: Đông/Dũng nếu liên quan.
+- Admin finance watch, sponsor pages, `vietqr.js`: Vinh.
+- `BaseCore.WebClient/public/` nếu có ảnh/logo/asset cần thiết.
+
+Commit gợi ý:
+
+```text
+feat(ui): them quan ly su kien organizer va luong admin
+feat(finance): them giao dien tai tro ung ho va VietQR
+```
+
+### Ngày 11 - Test và kịch bản nghiệp vụ
+
+**Owner**: Cả nhóm  
+**Nhánh**: mỗi người commit test docs/bugfix liên quan trên nhánh của mình.
+
+Copy:
+
+- `BaseCore.WebClient/playwright.config.js`
+- `BaseCore.WebClient/tests/e2e/`
+- `docs/kich-ban-test-nghiep-vu.md`
+- `docs/kich-ban-nghiep-vu-thuc-te.md`
+- `TestResults/manual-critical/` nếu cần minh chứng nhẹ.
+- `artifacts/` nếu có ảnh/screenshot demo cần nộp.
+
+Build:
 
 ```powershell
-git add docs/
-git commit -m "docs: add system design and team assignment"
-git push origin main
+cd D:\FW\FW\volunteerhub2026_TTN\BaseCore.WebClient
+npm install
+npm run build
+
+cd D:\FW\FW\volunteerhub2026_TTN
+dotnet build BaseCore.sln
 ```
 
-### Người B commit:
+Commit gợi ý:
 
-1. Pull: `git pull origin main`
-2. Copy `docs/internal/event-registration-flow.md` từ repo cũ (`Context/VolunteerHub-event-registration-participation-flow-spec.md`).
-
-```powershell
-git add docs/internal/
-git commit -m "docs: add event registration flow spec"
-git push origin main
+```text
+test: them test e2e va tai lieu kiem thu thu cong
+fix(ui): sua loi build frontend
+fix(events): sua loi tich hop luong su kien
+fix(finance): sua loi tich hop luong ung ho
 ```
 
-### Người C commit:
+### Ngày 12 - Hoàn thiện tài liệu kỹ thuật
 
-1. Pull: `git pull origin main`
-2. Copy `docs/internal/real-world-scenarios.md` từ repo cũ (`Context/VolunteerHub-real-world-scenarios.md`).
+**Owner chính**: Tống Văn Đông  
+**Nhánh**: `feature/events-dong` hoặc nhánh riêng `docs/final-documentation`
 
-```powershell
-git add docs/internal/
-git commit -m "docs: add real-world business scenarios"
-git push origin main
-```
+Copy/cập nhật:
 
-### Biên bản tuần 2
-
-```powershell
-git add "Thực tập nhóm/Bien_ban_tuan_2.docx"
-git commit -m "docs: add meeting minutes week 2"
-git push origin main
-```
-
----
-
-## TUẦN 3 — Triển khai backend
-
-**Ai làm**: Mỗi người tạo branch riêng, code phần mình, rồi merge theo thứ tự.
-
-### Người A — branch `feature/identity`
-
-```powershell
-git pull origin main
-git checkout -b feature/identity
-```
-
-Copy vào repo mới (từ repo cũ):
-- `BaseCore.AuthService/` (toàn bộ, trừ `bin/`, `obj/`)
-- `BaseCore.APIService/Controllers/Identity/` (toàn bộ `.cs`)
-- `BaseCore.Services/Authen/` (toàn bộ)
-- Bổ sung migrations liên quan (KYC, Verification, VolunteerSkillVerification)
+- `docs/3-thiet-ke-he-thong.md`
+- `docs/4-huong-dan-cai-dat.md`
+- `docs/internal/interview-scheduling-plan.md`
+- `docs/internal/donation-improvements-plan.md`
+- `docs/internal/admin-restructure-plan.md`
+- `docs/internal/organizer-redesign-plan.md`
+- `docs/internal/volunteer-ui-redesign-plan.md`
+- `docs/internal/layout-consistency-plan.md`
+- `docs/internal/public-events-redesign-plan.md`
+- `docs/internal/landing-redesign-plan.md`
+- `docs/internal/channel-enhancement-plan.md`
+- `docs/internal/fix-blind-approval-plan.md`
+- `docs/internal/remove-milestone-plan.md`
+- `docs/sponsor-ui-improvement-plan.md`
+- `README.md`
 
 Commit:
 
 ```powershell
-git add BaseCore.AuthService/
-git commit -m "feat(auth): implement login, register, JWT and refresh token"
-
-git add BaseCore.APIService/Controllers/Identity/ BaseCore.Services/Authen/
-git commit -m "feat(identity): add profile, KYC, organizer verification, skill verification"
-
-git add BaseCore.Repository/Migrations/
-git commit -m "feat(db): add identity-related migrations"
-
-git push origin feature/identity
+git add README.md docs
+git commit -m "docs: hoan thien cai dat thiet ke va ghi chu trien khai"
+git push origin feature/events-dong
 ```
 
-Merge vào main:
-```powershell
-git checkout main
-git pull origin main
-git merge feature/identity
-git push origin main
-```
+### Ngày 13 - Báo cáo, biên bản, đánh giá chéo
 
-### Người B — branch `feature/events`
+**Owner**: Cả nhóm  
+**Nhánh**: nên dùng `docs/final-submission` để tránh đụng code.
+
+Tạo nhánh:
 
 ```powershell
-git pull origin main
-git checkout -b feature/events
+git switch master
+git pull origin master
+git switch -c docs/final-submission
+git push -u origin docs/final-submission
 ```
 
-Copy vào:
-- `BaseCore.APIService/` (`.csproj`, `Program.cs`, `appsettings.json`, `Properties/`)
-- `BaseCore.APIService/Controllers/Events/` (toàn bộ `.cs`)
-- `BaseCore.APIService/Controllers/Shared/` (ChannelsController, RatingsController, NotificationsController, UploadsController)
-- `BaseCore.APIService/Controllers/Admin/` (AdminController, BadgesController, CategoriesController, DashboardController, MonitoringController)
-- `BaseCore.Services/VolunteerHub/` (toàn bộ: Events/, Engagement/, Admin/)
-- Bổ sung migrations còn thiếu
+Tạo/cập nhật trong `Thực tập nhóm/`:
+
+- `Bao_cao_tong_hop_VolunteerHub.docx`
+- Biên bản theo mốc họp hoặc theo tuần/ngày.
+- `Danh_gia_cheo.xlsx` hoặc bảng đánh giá chéo trong báo cáo.
+- Các file markdown nền: kế hoạch, biên bản, Trello checklist, hướng dẫn repo.
 
 Commit:
 
 ```powershell
-git add BaseCore.APIService/
-git commit -m "feat(api): add APIService with event, admin and shared controllers"
-
-git add BaseCore.Services/VolunteerHub/
-git commit -m "feat(services): add event, registration, notification, certificate, badge services"
-
-git add BaseCore.Repository/Migrations/
-git commit -m "feat(db): add event and registration migrations"
-
-git push origin feature/events
+git add "Thực tập nhóm"
+git commit -m "docs: them bao cao bien ban va danh gia cheo"
+git push origin docs/final-submission
 ```
 
-Merge vào main (sau khi A đã merge):
-```powershell
-git checkout main
-git pull origin main
-git merge feature/events
-git push origin main
-```
+### Ngày 14 - Slide, demo cuối, nộp bài
 
-### Người C — branch `feature/finance`
+**Owner**: Cả nhóm  
+**Nhánh**: `docs/final-submission`, merge về `master` sau review cuối.
+
+Tạo/cập nhật:
+
+- `Thực tập nhóm/Slide_thuyet_trinh_VolunteerHub.pptx`
+- Screenshot demo nếu có.
+- README/checklist nộp bài.
+
+Kiểm tra cuối:
 
 ```powershell
-git pull origin main
-git checkout -b feature/finance
+dotnet build BaseCore.sln
+cd BaseCore.WebClient
+npm run build
 ```
-
-Copy vào:
-- `BaseCore.APIService/Controllers/Finance/` (toàn bộ `.cs`)
-- `BaseCore.APIService/Controllers/LegacySales/` (nếu muốn giữ)
-- Bổ sung migrations finance (SupportCampaigns, SponsorshipProposals, FinancialReports)
 
 Commit:
 
 ```powershell
-git add BaseCore.APIService/Controllers/Finance/
-git commit -m "feat(finance): add support campaign, donation and sponsorship controllers"
-
-git add BaseCore.APIService/Controllers/LegacySales/
-git commit -m "feat(legacy): add product and order controllers"
-
-git add BaseCore.Repository/Migrations/
-git commit -m "feat(db): add finance migrations"
-
-git push origin feature/finance
+git add .
+git commit -m "docs: them slide va chot bo nop bai"
+git push origin docs/final-submission
 ```
 
-Merge vào main (sau khi B đã merge):
-```powershell
-git checkout main
-git pull origin main
-git merge feature/finance
-git push origin main
-```
+Tạo PR `docs/final-submission` vào `master`. Sau khi merge, upload Drive và kéo toàn bộ Trello card sang `Done`.
 
-### Biên bản tuần 3
+## 6. Quy tắc tránh conflict
 
-```powershell
-git add "Thực tập nhóm/Bien_ban_tuan_3.docx"
-git commit -m "docs: add meeting minutes week 3"
-git push origin main
-```
+- Luôn `git pull origin master` và merge `master` vào nhánh cá nhân trước khi bắt đầu ngày mới.
+- Không sửa file ngoài phạm vi nếu không cần.
+- Các file dễ conflict cần báo trước trong nhóm:
+  - `BaseCore.sln`
+  - `BaseCore.APIService/Program.cs`
+  - `BaseCore.EventService/Program.cs`
+  - `BaseCore.FinanceService/Program.cs`
+  - `BaseCore.WebClient/src/App.jsx`
+  - `BaseCore.WebClient/src/services/api.js`
+  - `BaseCore.WebClient/package.json`
+  - `README.md`
+- Nếu một file có nhiều người cần sửa, ưu tiên Đông tích hợp sau khi Dũng/Vinh đã push phần riêng.
+- Không dùng `git reset --hard`, không force push lên `master`.
 
----
+## 7. Checklist cuối ngày
 
-## TUẦN 4 — Frontend + Service split + Tình huống nâng cao
+- [ ] Đang ở đúng nhánh cá nhân.
+- [ ] Đã merge `master` mới nhất vào nhánh cá nhân trước khi làm.
+- [ ] Đã copy file từ `D:\FW\FW\BaseCore` sang repo mới.
+- [ ] Đã kiểm tra build/test phù hợp với phần việc.
+- [ ] Đã commit với message rõ ràng.
+- [ ] Đã push nhánh cá nhân lên GitHub.
+- [ ] Đã tạo/cập nhật Pull Request nếu cần merge về `master`.
+- [ ] Nếu có tài liệu, đã upload/cập nhật Drive.
+- [ ] Nếu ngày đó có họp nhóm, đã cập nhật card họp, comment kết luận và biên bản.
+- [ ] Đã cập nhật checklist/comment trên Trello.
 
-### Người A commit (trên main hoặc branch riêng):
+## 8. Checklist họp nhóm
 
-Copy `BaseCore.WebClient/` vào (trừ `node_modules/`, `dist/`).
+Trello cần có 6 card họp nhóm:
 
-Chia nhỏ commit:
+1. `Họp tuần 1 - Kickoff và phân tích`
+2. `Họp tuần 2 - Thiết kế hệ thống`
+3. `Họp tuần 3 - Demo backend`
+4. `Họp tuần 4 - Demo frontend`
+5. `Họp tuần 5 - Test và fix bug`
+6. `Họp tuần 6 - Chốt báo cáo, slide và nộp bài`
 
-```powershell
-# Setup + public pages
-git add BaseCore.WebClient/package.json BaseCore.WebClient/vite.config.js BaseCore.WebClient/index.html BaseCore.WebClient/src/main.jsx BaseCore.WebClient/src/App.jsx BaseCore.WebClient/src/pages/public/ BaseCore.WebClient/src/contexts/ BaseCore.WebClient/src/services/ BaseCore.WebClient/src/components/
-git commit -m "feat(ui): add frontend setup, routing, public pages (landing, events)"
+Mỗi card họp cần tick:
 
-# Auth + volunteer pages
-git add BaseCore.WebClient/src/pages/auth/ BaseCore.WebClient/src/pages/volunteer/
-git commit -m "feat(ui): add auth pages and volunteer flow (profile, registrations, certificates)"
+- [ ] Có đủ thành viên tham gia hoặc ghi rõ người vắng.
+- [ ] Có nội dung họp.
+- [ ] Có kết luận.
+- [ ] Có phân công việc tiếp theo.
+- [ ] Đã cập nhật biên bản/nhật ký họp.
+- [ ] Đã upload Drive nếu có file minh chứng.
 
-# Organizer + sponsor + admin pages
-git add BaseCore.WebClient/
-git commit -m "feat(ui): add organizer, sponsor and admin pages"
+## 9. Checklist cuối cùng
 
-git push origin main
-```
-
-### Người B commit:
-
-Copy vào:
-- `BaseCore.EventService/` (trừ `bin/`, `obj/`, `*.log`)
-- `BaseCore.ApiGateway/` (trừ `bin/`, `obj/`)
-- Cập nhật `BaseCore.sln`
-
-```powershell
-git add BaseCore.EventService/ BaseCore.ApiGateway/ BaseCore.sln
-git commit -m "feat: add EventService (port 5003) and API Gateway with Ocelot routing"
-```
-
-Thêm endpoint tình huống A-G (cancel, resubmit, walk-in, manual-attend, uncomplete, rating moderation):
-
-```powershell
-git add BaseCore.APIService/Controllers/Events/ BaseCore.Services/VolunteerHub/Events/ BaseCore.Entities/ BaseCore.Repository/Migrations/
-git commit -m "feat: add event cancel, resubmit, walk-in, manual-attend, uncomplete, rating moderation"
-
-git push origin main
-```
-
-### Người C commit:
-
-Copy vào:
-- `BaseCore.FinanceService/` (trừ `bin/`, `obj/`, `*.log`)
-
-```powershell
-git add BaseCore.FinanceService/ BaseCore.sln
-git commit -m "feat: add FinanceService (port 5004) with donation and sponsorship"
-```
-
-Thêm hardening finance:
-
-```powershell
-git add BaseCore.APIService/Controllers/Finance/ BaseCore.APIService/Controllers/Admin/ BaseCore.Entities/SponsorshipProposal.cs BaseCore.Repository/Migrations/
-git commit -m "feat(finance): add ActualReceivedAmount, overspend guard, admin finance monitoring"
-
-git push origin main
-```
-
-### Biên bản tuần 4
-
-```powershell
-git add "Thực tập nhóm/Bien_ban_tuan_4.docx"
-git commit -m "docs: add meeting minutes week 4"
-git push origin main
-```
-
----
-
-## TUẦN 5 — Test & Fix bug
-
-### Cả nhóm:
-
-1. Chạy hệ thống theo `docs/4-huong-dan-cai-dat.md`.
-2. Test theo `docs/internal/demo-workflow.md`.
-3. Fix bug nếu có.
-
-### Commit gợi ý (ai fix bug đó commit):
-
-```powershell
-git commit -m "fix(events): correct registration status check on cancel-request"
-git commit -m "fix(ui): fix mobile layout overflow on event detail page"
-git commit -m "fix(finance): validate donation amount against campaign minimum"
-```
-
-### Thêm tài liệu:
-
-```powershell
-# Copy demo-workflow vào docs/internal/ nếu chưa có
-git add docs/internal/demo-workflow.md
-git commit -m "docs: add demo workflow guide"
-
-# Cập nhật docs/4-huong-dan-cai-dat.md với hướng dẫn chạy đầy đủ
-git add docs/4-huong-dan-cai-dat.md
-git commit -m "docs: update setup guide with full instructions"
-
-git push origin main
-```
-
-### Biên bản tuần 5
-
-```powershell
-git add "Thực tập nhóm/Bien_ban_tuan_5.docx"
-git commit -m "docs: add meeting minutes week 5"
-git push origin main
-```
-
----
-
-## TUẦN 6 — Báo cáo & Nộp bài
-
-### Cả nhóm:
-
-1. Hoàn thiện báo cáo theo mẫu `Mau_bao_cao_du_an_nhom.docx`.
-2. Làm slide thuyết trình (15-20 slide).
-3. Tổng hợp biên bản 6 tuần.
-4. Đánh giá chéo.
-5. Chụp screenshot demo / quay video ngắn.
-
-### Commit cuối:
-
-```powershell
-git add "Thực tập nhóm/"
-git commit -m "docs: add final report, slides, meeting minutes and peer evaluation"
-
-git add docs/ README.md
-git commit -m "docs: finalize all documentation"
-
-git push origin main
-```
-
----
-
-## Quy tắc chung
-
-1. **Luôn pull trước khi commit**: `git pull origin main`.
-2. **Không commit `bin/`, `obj/`, `node_modules/`, `*.log`** — đã có `.gitignore`.
-3. **Commit message format**:
-   - `docs:` cho tài liệu
-   - `feat:` cho tính năng mới
-   - `fix:` cho sửa bug
-   - `chore:` cho setup/config
-4. **Mỗi người dùng account GitHub của mình** — giảng viên xem ai đóng góp gì.
-5. **Nếu conflict khi merge**: người merge giải quyết, không xóa code người khác.
-6. **Trước khi push**: `dotnet build BaseCore.sln` phải pass.
-
-## Thứ tự merge tuần 3-4 (quan trọng)
-
-```
-1. A merge feature/identity vào main
-2. B pull main → merge feature/events vào main
-3. C pull main → merge feature/finance vào main
-4. A commit frontend (trên main)
-5. B commit EventService + Gateway + tình huống A-G
-6. C commit FinanceService + hardening
-```
-
-## Nguồn copy file
-
-| File đích (repo mới) | Nguồn (repo cũ `D:\FW\FW\BaseCore\`) |
-|---|---|
-| `docs/1-mo-ta-de-tai.md` | `docs/1-mo-ta-de-tai.md` |
-| `docs/2-yeu-cau-chuc-nang.md` | `docs/2-yeu-cau-chuc-nang.md` |
-| `docs/3-thiet-ke-he-thong.md` | `docs/3-thiet-ke-he-thong.md` |
-| `docs/4-huong-dan-cai-dat.md` | `docs/4-huong-dan-cai-dat.md` |
-| `docs/5-phan-cong-nhom.md` | `docs/5-phan-cong-nhom.md` |
-| `docs/internal/event-registration-flow.md` | `Context/VolunteerHub-event-registration-participation-flow-spec.md` |
-| `docs/internal/sponsorship-donation-flow.md` | `Context/VolunteerHub-sponsorship-donation-flow-spec.md` |
-| `docs/internal/real-world-scenarios.md` | `Context/VolunteerHub-real-world-scenarios.md` |
-| `docs/internal/demo-workflow.md` | `Context/VolunteerHub-demo-workflow.md` |
-| `.gitignore` | `.gitignore` |
-| `README.md` | `README.md` (sửa link repo) |
-| `seed_data.sql` | `seed_data.sql` |
-| `BaseCore.sln` | `BaseCore.sln` |
-| Tất cả project folder | Copy nguyên, trừ `bin/`, `obj/`, `node_modules/`, `*.log` |
-
-## Checklist cuối cùng trước khi nộp
-
-- [ ] Repo có commit từ cả 3 account GitHub
-- [ ] Commit trải đều 6 tuần (không dồn hết 1 ngày)
-- [ ] `docs/` có đủ 5 file + `internal/` có flow spec
-- [ ] `dotnet build BaseCore.sln` pass
-- [ ] `npm run build` (trong BaseCore.WebClient) pass
-- [ ] README có hướng dẫn chạy
-- [ ] Có 6 biên bản họp trong `Thực tập nhóm/`
-- [ ] Có báo cáo + slide
-- [ ] Trello board có card + assign + trạng thái Done
-- [ ] Mỗi người hiểu phần mình, demo được, giải thích được
+- [ ] Repo mới nằm ngang hàng `BaseCore`, không làm thay đổi source `BaseCore` khi dựng bài.
+- [ ] Đã inspect nhánh `master` và `dung` trước khi copy.
+- [ ] Mỗi thành viên có commit trên nhánh riêng.
+- [ ] 6 card họp nhóm đã hoàn tất trên Trello.
+- [ ] Các nhánh `feature/events-dong`, `feature/auth-verification-dung`, `feature/finance-donation-vinh` đã được merge/review hợp lý.
+- [ ] Trello có card theo 6 tuần, assign đúng Đông/Dũng/Vinh.
+- [ ] Drive có báo cáo, slide, biên bản, screenshot/video demo nếu có.
+- [ ] Backend build pass hoặc ghi rõ lỗi môi trường.
+- [ ] Frontend build pass hoặc ghi rõ lỗi môi trường.
+- [ ] README có hướng dẫn chạy, port, tài khoản demo.
+- [ ] Tài liệu phản ánh đúng source hiện tại: interview scheduling, donor stats, bank info/VietQR, organizer logo, UI restructure, layout auth-aware, test docs mới.
+- [ ] Không còn thông tin repo cũ trong tài liệu nộp.
+- [ ] Không ghi số nhóm trong tài liệu nộp.

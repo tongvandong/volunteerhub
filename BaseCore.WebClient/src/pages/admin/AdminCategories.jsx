@@ -3,7 +3,7 @@ import { eventCategoryApi } from '../../services/api';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import Modal from '../../components/ui/Modal';
 
-export default function AdminCategories() {
+export default function AdminCategories({ embedded = false }) {
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(false);
@@ -85,7 +85,7 @@ export default function AdminCategories() {
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-gray-900">Danh mục sự kiện</h1>
+        {embedded ? <span /> : <h1 className="text-xl font-bold text-warmink">Danh mục sự kiện</h1>}
         <button onClick={openCreate} className="btn-primary flex items-center gap-2">
           <i className="fa-solid fa-plus" /> Thêm danh mục
         </button>
@@ -93,8 +93,8 @@ export default function AdminCategories() {
 
       {categories.length === 0 ? (
         <div className="card p-12 text-center">
-          <i className="fa-solid fa-tags text-4xl text-gray-300 mb-3 block" />
-          <p className="text-gray-500">Chưa có danh mục nào</p>
+          <i className="fa-solid fa-tags text-4xl text-warmink-3 mb-3 block" />
+          <p className="text-warmink-2">Chưa có danh mục nào</p>
         </div>
       ) : (
         <div className="card overflow-hidden">
@@ -107,12 +107,12 @@ export default function AdminCategories() {
                 <th className="px-4 py-3 text-right">Hành động</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody className="divide-y divide-warmborder">
               {categories.map((c) => (
-                <tr key={c.id} className="odd:bg-gray-50/50 hover:bg-gray-50">
-                  <td className="px-4 py-3 text-gray-400 font-mono text-xs">#{c.id}</td>
-                  <td className="px-4 py-3 font-medium text-gray-900">{c.name}</td>
-                  <td className="px-4 py-3 text-gray-500 max-w-xs truncate">{c.description || '-'}</td>
+                <tr key={c.id} className="odd:bg-surface-2/50 hover:bg-surface-2">
+                  <td className="px-4 py-3 text-warmink-3 font-mono text-xs">#{c.id}</td>
+                  <td className="px-4 py-3 font-medium text-warmink">{c.name}</td>
+                  <td className="px-4 py-3 text-warmink-2 max-w-xs truncate">{c.description || '-'}</td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2 justify-end">
                       <button onClick={() => openEdit(c)} className="btn-secondary btn-sm text-xs flex items-center gap-1">
@@ -133,7 +133,7 @@ export default function AdminCategories() {
       <Modal isOpen={modal} onClose={() => setModal(false)} title={editItem ? 'Chỉnh sửa danh mục' : 'Thêm danh mục'} size="sm">
         <form onSubmit={handleSave} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Tên danh mục *</label>
+            <label className="block text-sm font-medium text-warmink-2 mb-1">Tên danh mục *</label>
             <input
               type="text"
               value={form.name}
@@ -146,7 +146,7 @@ export default function AdminCategories() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Mô tả</label>
+            <label className="block text-sm font-medium text-warmink-2 mb-1">Mô tả</label>
             <textarea
               rows={3}
               value={form.description}

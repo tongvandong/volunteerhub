@@ -62,6 +62,149 @@ namespace BaseCore.APIService.Controllers
             return Ok(new { items = users, totalCount = total, page, pageSize, totalPages = (int)Math.Ceiling((double)total / pageSize) });
         }
 
+        [HttpGet("users/{id}")]
+        public async Task<IActionResult> GetUserDetail(int id)
+        {
+            var user = await _context.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == id);
+            if (user == null) return NotFound(new { message = "User not found" });
+
+            var volunteerProfile = user.UserType == 0
+                ? await _context.VolunteerProfiles.AsNoTracking()
+                    .Where(p => p.UserId == id)
+                    .Select(p => new
+                    {
+                        p.Id,
+                        p.KycStatus,
+                        p.TotalVolunteerHours,
+                        p.BloodType,
+                        p.Interests,
+                        p.Bio,
+                        p.KycSubmittedAt,
+                        p.KycReviewedAt,
+                        skillCount = _context.VolunteerSkills.Count(vs => vs.UserId == id),
+                        verifiedSkillCount = _context.VolunteerSkills.Count(vs => vs.UserId == id && vs.VerificationStatus == "Verified")
+                    })
+                    .FirstOrDefaultAsync()
+                : null;
+
+            var organizerVerification = user.UserType == 1
+                ? await _context.OrganizerVerifications.AsNoTracking()
+                    .Where(v => v.OrganizerId == id)
+                    .OrderByDescending(v => v.UpdatedAt)
+                    .Select(v => new
+                    {
+                        v.Id,
+                        v.OrganizationName,
+                        v.Status,
+                        v.SubmittedAt,
+                        v.VerifiedAt,
+                        v.AdminNote,
+                        v.Address
+                    })
+                    .FirstOrDefaultAsync()
+                : null;
+
+            var sponsorProfile = user.UserType == 2
+                ? await _context.SponsorProfiles.AsNoTracking()
+                    .Where(p => p.UserId == id)
+                    .Select(p => new
+                    {
+                        p.Id,
+                        p.OrganizationName,
+                        p.RepresentativeName,
+                        p.ContactEmail,
+                        p.Phone,
+                        p.Website,
+                        p.Description,
+                        p.IsVerified
+                    })
+                    .FirstOrDefaultAsync()
+                : null;
+
+            var impact = await BuildUserImpactAsync(id);
+
+            return Ok(new
+            {
+                user.Id,
+                user.UserName,
+                user.Name,
+                user.Email,
+                user.Phone,
+                user.Contact,
+                user.UserType,
+                user.IsActive,
+                user.Created,
+                volunteerProfile,
+                organizerVerification,
+                sponsorProfile,
+                impact,
+                canDelete = !impact.HasBusinessData && user.UserType != 3
+            });
+        }
+
+        [HttpPut("users/{id}")]
+        [EnableRateLimiting("write-sensitive")]
+        public async Task<IActionResult> UpdateUser(int id, [FromBody] AdminUpdateUserDto dto)
+        {
+            var user = await _context.Users.FindAsync(id);
+            if (user == null) return NotFound(new { message = "User not found" });
+            if (user.UserType == 3)
+                return BadRequest(new { message = "Không thể sửa tài khoản Admin bằng chức năng này" });
+
+            var validation = ValidateAdminUpdateUser(dto);
+            if (validation != null) return BadRequest(new { message = validation });
+
+            var email = dto.Email.Trim().ToLowerInvariant();
+            var duplicate = await _context.Users.AnyAsync(u => u.Id != id && u.Email == email);
+            if (duplicate) return BadRequest(new { message = "Email đã được tài khoản khác sử dụng" });
+
+            user.Name = dto.Name.Trim();
+            user.Email = email;
+            user.Phone = dto.Phone?.Trim() ?? "";
+            user.Contact = user.Phone;
+            // Khóa/mở tài khoản đi qua ToggleUserStatus (có cascade). Form sửa chỉ đổi thông tin liên hệ,
+            // chỉ áp IsActive khi client gửi rõ ràng (nullable) để tránh ghi đè trạng thái bằng dữ liệu cũ.
+            if (dto.IsActive.HasValue) user.IsActive = dto.IsActive.Value;
+
+            await _context.SaveChangesAsync();
+            await RecordAuditAsync("Admin.User.Update", "User", user.Id, $"IsActive={user.IsActive}");
+
+            return Ok(new { user.Id, user.UserName, user.Name, user.Email, user.Phone, user.UserType, user.IsActive });
+        }
+
+        [HttpDelete("users/{id}")]
+        [EnableRateLimiting("write-sensitive")]
+        public async Task<IActionResult> DeleteUser(int id)
+        {
+            var currentUserId = GetCurrentUserId();
+            if (currentUserId == id)
+                return BadRequest(new { message = "Admin không thể tự xóa tài khoản của chính mình" });
+
+            var user = await _context.Users.FindAsync(id);
+            if (user == null) return NotFound(new { message = "User not found" });
+            if (user.UserType == 3)
+                return BadRequest(new { message = "Không thể xóa tài khoản Admin" });
+
+            var impact = await BuildUserImpactAsync(id);
+            if (impact.HasBusinessData)
+                return BadRequest(new { message = "Tài khoản đã có dữ liệu nghiệp vụ, chỉ có thể khóa.", impact });
+
+            var volunteerProfile = await _context.VolunteerProfiles.FirstOrDefaultAsync(p => p.UserId == id);
+            if (volunteerProfile != null) _context.VolunteerProfiles.Remove(volunteerProfile);
+            var organizerVerifications = await _context.OrganizerVerifications.Where(v => v.OrganizerId == id).ToListAsync();
+            if (organizerVerifications.Count > 0) _context.OrganizerVerifications.RemoveRange(organizerVerifications);
+            var sponsorProfile = await _context.SponsorProfiles.FirstOrDefaultAsync(p => p.UserId == id);
+            if (sponsorProfile != null) _context.SponsorProfiles.Remove(sponsorProfile);
+            var refreshTokens = await _context.AuthRefreshTokens.Where(t => t.UserId == id).ToListAsync();
+            if (refreshTokens.Count > 0) _context.AuthRefreshTokens.RemoveRange(refreshTokens);
+
+            _context.Users.Remove(user);
+            await _context.SaveChangesAsync();
+            await RecordAuditAsync("Admin.User.Delete", "User", id, $"UserName={user.UserName}");
+
+            return Ok(new { message = "Deleted" });
+        }
+
         [HttpPut("users/{id}/toggle-status")]
         [EnableRateLimiting("write-sensitive")]
         public async Task<IActionResult> ToggleUserStatus(int id)
@@ -367,6 +510,36 @@ namespace BaseCore.APIService.Controllers
             return Ok(profile);
         }
 
+        [HttpPut("volunteer-kyc/{profileId}/request-changes")]
+        [EnableRateLimiting("write-sensitive")]
+        public async Task<IActionResult> RequestVolunteerKycChanges(int profileId, [FromBody] AdminReviewDto? dto = null)
+        {
+            if (string.IsNullOrWhiteSpace(dto?.Note) || dto.Note.Trim().Length < 10)
+                return BadRequest(new { message = "Vui lòng nhập nội dung cần bổ sung tối thiểu 10 ký tự" });
+
+            var profile = await _context.VolunteerProfiles
+                .Include(p => p.User)
+                .FirstOrDefaultAsync(p => p.Id == profileId);
+            if (profile == null) return NotFound();
+            if (profile.KycStatus != "PendingVerification")
+                return BadRequest(new { message = "Chỉ có thể yêu cầu bổ sung với hồ sơ KYC đang chờ xác minh" });
+
+            profile.KycStatus = "ChangesRequested";
+            profile.KycReviewedAt = DateTime.UtcNow;
+            profile.KycReviewedBy = GetCurrentUserId();
+            profile.KycAdminNote = dto.Note.Trim();
+
+            await _context.SaveChangesAsync();
+            await RecordAuditAsync("Admin.VolunteerKyc.RequestChanges", "VolunteerProfile", profile.Id, dto.Note);
+            await _notificationService.SendAsync(
+                profile.UserId,
+                "KYC cần bổ sung",
+                $"Hồ sơ xác thực danh tính của bạn cần bổ sung thông tin. Nội dung: {dto.Note.Trim()}",
+                "VolunteerKycChangesRequested",
+                profile.Id);
+            return Ok(profile);
+        }
+
         [HttpGet("volunteer-skill-verifications")]
         public async Task<IActionResult> GetVolunteerSkillVerifications([FromQuery] string? status = "PendingVerification")
         {
@@ -459,6 +632,36 @@ namespace BaseCore.APIService.Controllers
             return Ok(volunteerSkill);
         }
 
+        [HttpPut("volunteer-skill-verifications/{id}/request-changes")]
+        [EnableRateLimiting("write-sensitive")]
+        public async Task<IActionResult> RequestVolunteerSkillChanges(int id, [FromBody] AdminReviewDto? dto = null)
+        {
+            if (string.IsNullOrWhiteSpace(dto?.Note) || dto.Note.Trim().Length < 10)
+                return BadRequest(new { message = "Vui lòng nhập nội dung cần bổ sung tối thiểu 10 ký tự" });
+
+            var volunteerSkill = await _context.VolunteerSkills
+                .Include(vs => vs.Skill)
+                .FirstOrDefaultAsync(vs => vs.Id == id);
+            if (volunteerSkill == null) return NotFound();
+            if (volunteerSkill.VerificationStatus != "PendingVerification")
+                return BadRequest(new { message = "Chỉ có thể yêu cầu bổ sung với kỹ năng đang chờ xác minh" });
+
+            volunteerSkill.VerificationStatus = "ChangesRequested";
+            volunteerSkill.VerificationReviewedAt = DateTime.UtcNow;
+            volunteerSkill.VerificationReviewedBy = GetCurrentUserId();
+            volunteerSkill.AdminNote = dto.Note.Trim();
+
+            await _context.SaveChangesAsync();
+            await RecordAuditAsync("Admin.VolunteerSkill.RequestChanges", "VolunteerSkill", volunteerSkill.Id, dto.Note);
+            await _notificationService.SendAsync(
+                volunteerSkill.UserId,
+                "Minh chứng kỹ năng cần bổ sung",
+                $"Minh chứng kỹ năng '{volunteerSkill.Skill?.Name ?? "của bạn"}' cần bổ sung. Nội dung: {dto.Note.Trim()}",
+                "VolunteerSkillChangesRequested",
+                volunteerSkill.Id);
+            return Ok(volunteerSkill);
+        }
+
         [HttpGet("export/events")]
         [EnableRateLimiting("read-sensitive")]
         public async Task<IActionResult> ExportEvents([FromQuery] string format = "json", [FromQuery] int maxRows = 5000)
@@ -509,7 +712,7 @@ namespace BaseCore.APIService.Controllers
             var users = await _context.Users
                 .OrderByDescending(u => u.Id)
                 .Take(maxRows)
-                .Select(u => new { u.Id, u.UserName, u.Name, u.Email, u.UserType, u.IsActive })
+                .Select(u => new { u.Id, u.UserName, u.Name, u.Email, u.Phone, u.UserType, u.IsActive })
                 .ToListAsync();
 
             if (format.ToLower() == "csv")
@@ -766,6 +969,43 @@ namespace BaseCore.APIService.Controllers
                 return "Password must contain at least one letter and one number";
             return null;
         }
+
+        private async Task<UserImpactSummary> BuildUserImpactAsync(int userId)
+        {
+            var registrations = await _context.Registrations.CountAsync(r => r.UserId == userId);
+            var organizedEvents = await _context.Events.CountAsync(e => e.OrganizerId == userId);
+            var donations = await _context.IndividualDonations.CountAsync(d => d.UserId == userId);
+            var sponsorLinks = await _context.EventSponsors.CountAsync(s => s.SponsorId == userId);
+            var sponsorshipProposals = await _context.SponsorshipProposals.CountAsync(p => p.OrganizerId == userId || p.SponsorId == userId);
+            var certificates = await _context.Certificates.CountAsync(c => c.UserId == userId);
+            var ratings = await _context.Ratings.CountAsync(r => r.RaterId == userId || r.RateeId == userId);
+            var posts = await _context.Posts.CountAsync(p => p.AuthorId == userId);
+            var comments = await _context.Comments.CountAsync(c => c.AuthorId == userId);
+            var channels = 0;
+
+            return new UserImpactSummary(
+                registrations,
+                organizedEvents,
+                donations,
+                sponsorLinks,
+                sponsorshipProposals,
+                certificates,
+                ratings,
+                posts,
+                comments,
+                channels);
+        }
+
+        private static string? ValidateAdminUpdateUser(AdminUpdateUserDto dto)
+        {
+            if (string.IsNullOrWhiteSpace(dto.Name) || dto.Name.Trim().Length is < 2 or > 120)
+                return "Tên người dùng phải từ 2 đến 120 ký tự";
+            if (string.IsNullOrWhiteSpace(dto.Email) || !Regex.IsMatch(dto.Email.Trim(), "^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$"))
+                return "Email không hợp lệ";
+            if (!string.IsNullOrWhiteSpace(dto.Phone) && !Regex.IsMatch(dto.Phone.Trim(), "^\\+?[0-9\\s.-]{8,20}$"))
+                return "Số điện thoại không hợp lệ";
+            return null;
+        }
     }
 
     public class AdminReviewDto
@@ -782,5 +1022,29 @@ namespace BaseCore.APIService.Controllers
         public string Password { get; set; } = "";
         public int UserType { get; set; }
         public bool? IsActive { get; set; }
+    }
+
+    public class AdminUpdateUserDto
+    {
+        public string Name { get; set; } = "";
+        public string Email { get; set; } = "";
+        public string? Phone { get; set; }
+        public bool? IsActive { get; set; }
+    }
+
+    public record UserImpactSummary(
+        int Registrations,
+        int OrganizedEvents,
+        int Donations,
+        int SponsorLinks,
+        int SponsorshipProposals,
+        int Certificates,
+        int Ratings,
+        int Posts,
+        int Comments,
+        int Channels)
+    {
+        public bool HasBusinessData =>
+            Registrations + OrganizedEvents + Donations + SponsorLinks + SponsorshipProposals + Certificates + Ratings + Posts + Comments + Channels > 0;
     }
 }

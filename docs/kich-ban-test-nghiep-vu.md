@@ -370,3 +370,60 @@ Tài liệu này liệt kê các kịch bản test thủ công (manual) bao gồ
 ---
 
 *Tổng: 17 nhóm, ~120 kịch bản.*
+## Cập nhật test case quản trị 2026-05-25
+
+Các test case dưới đây bổ sung cho nghiệp vụ đã sửa đổi gần nhất. Khi chạy demo, ưu tiên kiểm thử qua UI thật thay vì gọi trực tiếp API.
+
+### Admin badges
+
+| # | Bước | Kết quả mong đợi |
+|---|------|------------------|
+| 18.1 | Admin vào `/admin/badges`, tạo huy hiệu với tên, mô tả và điều kiện hợp lệ | Huy hiệu mới xuất hiện trong danh sách |
+| 18.2 | Admin sửa tên, mô tả, icon hoặc điều kiện huy hiệu | Lưu thành công, danh sách cập nhật đúng |
+| 18.3 | Admin xóa huy hiệu chưa từng cấp cho user | Xóa thành công |
+| 18.4 | Admin xóa huy hiệu đã cấp cho user | Bị chặn, hiển thị lý do không được xóa |
+| 18.5 | Admin nhập điều kiện âm hoặc bỏ trống cả `min_events` và `min_hours` | Bị chặn validation |
+
+### Admin finance watch
+
+| # | Bước | Kết quả mong đợi |
+|---|------|------------------|
+| 18.6 | Admin vào `/admin/finance` | Hiển thị tổng quan, donation pending lâu ngày, campaign chưa báo cáo và proposal còn mở nếu có |
+| 18.7 | Admin đổi số ngày lọc donation pending | Danh sách stale donations reload theo ngưỡng mới |
+| 18.8 | Admin tìm thao tác sửa/xóa tiền trực tiếp trong `/admin/finance` | Không có action sửa/xóa trực tiếp trên màn giám sát |
+| 18.9 | Có campaign đã có tiền confirmed nhưng event đã complete/cancel mà chưa report | Campaign xuất hiện trong nhóm chưa báo cáo |
+
+### Volunteer verification request changes
+
+| # | Bước | Kết quả mong đợi |
+|---|------|------------------|
+| 18.10 | Admin yêu cầu bổ sung KYC với lý do quá ngắn | Bị chặn validation |
+| 18.11 | Admin yêu cầu bổ sung KYC với lý do hợp lệ | KYC chuyển `ChangesRequested`, volunteer nhận thông báo |
+| 18.12 | Admin yêu cầu bổ sung minh chứng kỹ năng với lý do hợp lệ | Skill chuyển `ChangesRequested`, volunteer nhận thông báo |
+| 18.13 | Volunteer gửi lại minh chứng kỹ năng sau `ChangesRequested` | Skill chuyển lại `PendingVerification` |
+| 18.14 | Admin reject KYC hoặc skill hợp lệ | Trạng thái chuyển `Rejected`, lý do hiển thị cho volunteer |
+
+### Admin event hard delete
+
+| # | Bước | Kết quả mong đợi |
+|---|------|------------------|
+| 18.15 | Admin xóa event chưa có registration, campaign, sponsor, channel hoặc certificate | Xóa thành công |
+| 18.16 | Admin xóa event đã có dữ liệu nghiệp vụ | Bị chặn; hướng xử lý đúng là hủy event hoặc chuyển trạng thái nghiệp vụ |
+## Cập nhật test case nghiệp vụ lõi 2026-05-25
+
+| # | Bước | Kết quả mong đợi |
+|---|------|------------------|
+| 19.1 | Tạo event mới không chia ca | Form tạo event không bắt nhập ca; event tạo thành công |
+| 19.2 | Event chưa có registration, organizer bấm `Chia ca` và tạo ca hợp lệ | Tạo ca thành công, đăng ký sau đó bắt buộc chọn ca |
+| 19.3 | Event đã có ít nhất một registration, organizer tìm nút `Chia ca` | UI ẩn nút; nếu gọi API trực tiếp thì backend chặn |
+| 19.4 | Event có ca, volunteer đăng ký nhưng không chọn ca | Bị chặn validation |
+| 19.5 | Tạo ca ngoài thời gian event | Bị chặn validation |
+| 19.6 | Check-in trước cửa sổ event/shift | Bị chặn |
+| 19.7 | Check-in đúng cửa sổ, sau đó check-out | Giờ tình nguyện được tính theo thời gian thực |
+| 19.8 | Complete event còn registration `Pending` | Hiện cảnh báo; nếu xác nhận thì pending không được tính tham gia/chứng chỉ |
+| 19.9 | Complete event không có volunteer confirmed/check-in | Vẫn hoàn thành, không cấp chứng chỉ |
+| 19.10 | Organizer tạo campaign cho event đã kết thúc/hủy | Bị chặn |
+| 19.11 | Event không có campaign/donation/sponsor | Vẫn đăng ký, điểm danh, complete và cấp chứng chỉ bình thường |
+| 19.12 | Donation số tiền âm, bằng 0 hoặc vượt giới hạn | Bị chặn, tổng campaign không đổi |
+| 19.13 | Sponsor gửi proposal trùng khi đã có proposal active cùng event | Bị chặn |
+| 19.14 | Proposal `Received` xuất hiện trong impact report | Tổng tài trợ đã nhận cập nhật đúng, không cộng trùng legacy sponsor |

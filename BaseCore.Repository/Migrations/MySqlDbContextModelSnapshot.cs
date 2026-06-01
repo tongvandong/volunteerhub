@@ -481,6 +481,9 @@ namespace BaseCore.Repository.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
 
+                    b.Property<bool>("RequiresInterview")
+                        .HasColumnType("bit");
+
                     b.Property<bool>("RequiresKyc")
                         .HasColumnType("bit");
 
@@ -525,6 +528,7 @@ namespace BaseCore.Repository.Migrations
                             QrCode = "",
                             RejectReason = "",
                             RequiredSkillIds = "[4]",
+                            RequiresInterview = false,
                             RequiresKyc = false,
                             StartDate = new DateTime(2025, 8, 15, 7, 0, 0, 0, DateTimeKind.Unspecified),
                             Status = "Pending",
@@ -550,6 +554,7 @@ namespace BaseCore.Repository.Migrations
                             QrCode = "EVT-SEED-2-9f4c1b7d2e6a4c8ba5d0f3e1a2b7c6d5",
                             RejectReason = "",
                             RequiredSkillIds = "[]",
+                            RequiresInterview = false,
                             RequiresKyc = false,
                             StartDate = new DateTime(2025, 9, 5, 6, 0, 0, 0, DateTimeKind.Unspecified),
                             Status = "Approved",
@@ -575,6 +580,7 @@ namespace BaseCore.Repository.Migrations
                             QrCode = "EVT-SEED-3-6a1e5c9b0d4f43e8a7c2b5d9f1e0a3c4",
                             RejectReason = "",
                             RequiredSkillIds = "[3,6]",
+                            RequiresInterview = false,
                             RequiresKyc = false,
                             StartDate = new DateTime(2025, 6, 1, 8, 0, 0, 0, DateTimeKind.Unspecified),
                             Status = "Completed",
@@ -747,6 +753,61 @@ namespace BaseCore.Repository.Migrations
                     b.HasIndex("CampaignId", "Status");
 
                     b.ToTable("IndividualDonations");
+                });
+
+            modelBuilder.Entity("BaseCore.Entities.InterviewSlot", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("CreatedBy")
+                        .HasColumnType("int");
+
+                    b.Property<string>("DecisionNote")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<int>("DurationMinutes")
+                        .HasColumnType("int");
+
+                    b.Property<int>("EventId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("MeetingUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("Note")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<int>("RegistrationId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("ScheduledAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Status")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RegistrationId")
+                        .IsUnique();
+
+                    b.HasIndex("EventId", "Status");
+
+                    b.ToTable("InterviewSlots");
                 });
 
             modelBuilder.Entity("BaseCore.Entities.Like", b =>
@@ -948,6 +1009,10 @@ namespace BaseCore.Repository.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
 
+                    b.Property<string>("LogoUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
                     b.Property<string>("OrganizationName")
                         .IsRequired()
                         .HasMaxLength(200)
@@ -1016,6 +1081,7 @@ namespace BaseCore.Repository.Migrations
                             CreatedAt = new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
                             Description = "Demo organizer account used for VolunteerHub review flows.",
                             DocumentUrl = "",
+                            LogoUrl = "",
                             OrganizationName = "Volunteer Hub Demo Club",
                             OrganizerId = 2,
                             Phone = "",
@@ -1369,6 +1435,10 @@ namespace BaseCore.Repository.Migrations
                     b.Property<int>("EventId")
                         .HasColumnType("int");
 
+                    b.Property<string>("InterviewStatus")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
                     b.Property<bool>("IsAttended")
                         .HasColumnType("bit");
 
@@ -1497,6 +1567,79 @@ namespace BaseCore.Repository.Migrations
                             Id = 7,
                             Category = "Kỹ năng mềm",
                             Name = "Lái xe"
+                        });
+                });
+
+            modelBuilder.Entity("BaseCore.Entities.SponsorProfile", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("ContactEmail")
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<bool>("IsVerified")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("LogoUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("OrganizationName")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("Phone")
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<string>("RepresentativeName")
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Website")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId")
+                        .IsUnique();
+
+                    b.ToTable("SponsorProfiles");
+
+                    b.HasData(
+                        new
+                        {
+                            Id = 1,
+                            ContactEmail = "sponsor@demo.vn",
+                            CreatedAt = new DateTime(2025, 5, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                            Description = "Nhà tài trợ demo cho hệ thống VolunteerHub",
+                            IsVerified = true,
+                            LogoUrl = "",
+                            OrganizationName = "Công ty TNHH Tài trợ Demo",
+                            Phone = "0901234567",
+                            RepresentativeName = "Nguyễn Văn Sponsor",
+                            UpdatedAt = new DateTime(2025, 5, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                            UserId = 3,
+                            Website = "https://sponsor-demo.vn"
                         });
                 });
 
@@ -1641,6 +1784,18 @@ namespace BaseCore.Repository.Migrations
                         .HasColumnType("int");
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("BankAccountName")
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)");
+
+                    b.Property<string>("BankAccountNo")
+                        .HasMaxLength(40)
+                        .HasColumnType("nvarchar(40)");
+
+                    b.Property<string>("BankBin")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
@@ -1899,6 +2054,9 @@ namespace BaseCore.Repository.Migrations
                         .HasMaxLength(5)
                         .HasColumnType("nvarchar(5)");
 
+                    b.Property<int>("DonationCount")
+                        .HasColumnType("int");
+
                     b.Property<string>("IdentityBackImageUrl")
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
@@ -1928,13 +2086,13 @@ namespace BaseCore.Repository.Migrations
                     b.Property<DateTime?>("KycSubmittedAt")
                         .HasColumnType("datetime2");
 
-                    b.Property<string>("Languages")
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
-
                     b.Property<string>("PortraitImageUrl")
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
+
+                    b.Property<decimal>("TotalDonatedAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
 
                     b.Property<decimal>("TotalVolunteerHours")
                         .HasPrecision(10, 2)
@@ -1957,13 +2115,14 @@ namespace BaseCore.Repository.Migrations
                             AvatarUrl = "",
                             Bio = "Tình nguyện viên nhiệt huyết",
                             BloodType = "O",
+                            DonationCount = 0,
                             IdentityBackImageUrl = "",
                             IdentityFrontImageUrl = "",
                             Interests = "Môi trường, Giáo dục",
                             KycAdminNote = "Seed verified.",
                             KycStatus = "Verified",
-                            Languages = "Tiếng Việt, Tiếng Anh",
                             PortraitImageUrl = "",
+                            TotalDonatedAmount = 0m,
                             TotalVolunteerHours = 0m,
                             UserId = 4
                         });
@@ -2225,6 +2384,25 @@ namespace BaseCore.Repository.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("BaseCore.Entities.InterviewSlot", b =>
+                {
+                    b.HasOne("BaseCore.Entities.Event", "Event")
+                        .WithMany()
+                        .HasForeignKey("EventId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.HasOne("BaseCore.Entities.Registration", "Registration")
+                        .WithOne("InterviewSlot")
+                        .HasForeignKey("BaseCore.Entities.InterviewSlot", "RegistrationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Event");
+
+                    b.Navigation("Registration");
+                });
+
             modelBuilder.Entity("BaseCore.Entities.Like", b =>
                 {
                     b.HasOne("BaseCore.Entities.Post", "Post")
@@ -2443,6 +2621,17 @@ namespace BaseCore.Repository.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("BaseCore.Entities.SponsorProfile", b =>
+                {
+                    b.HasOne("BaseCore.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("BaseCore.Entities.SponsorshipProposal", b =>
                 {
                     b.HasOne("BaseCore.Entities.User", "Creator")
@@ -2620,6 +2809,11 @@ namespace BaseCore.Repository.Migrations
                     b.Navigation("Likes");
 
                     b.Navigation("Poll");
+                });
+
+            modelBuilder.Entity("BaseCore.Entities.Registration", b =>
+                {
+                    b.Navigation("InterviewSlot");
                 });
 
             modelBuilder.Entity("BaseCore.Entities.SupportCampaign", b =>

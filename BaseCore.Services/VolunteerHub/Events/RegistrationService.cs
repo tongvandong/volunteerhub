@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using BaseCore.Entities;
 using BaseCore.Repository;
+using System.Data;
 
 namespace BaseCore.Services.VolunteerHub
 {
@@ -19,13 +20,18 @@ namespace BaseCore.Services.VolunteerHub
 
         public async Task<Registration> RegisterAsync(int eventId, int userId, int? shiftId, string? note)
         {
-            var ev = await _context.Events.FindAsync(eventId)
-                ?? throw new Exception("Event not found");
-            if (ev.Status != "Approved") throw new Exception("Event is not open for registration");
+            await using var transaction = await _context.Database.BeginTransactionAsync(IsolationLevel.Serializable);
+
+            var ev = await _context.Events
+                .FromSqlInterpolated($"SELECT * FROM [Events] WITH (UPDLOCK, ROWLOCK) WHERE [Id] = {eventId}")
+                .FirstOrDefaultAsync()
+                ?? throw new Exception("Không tìm thấy sự kiện");
+            if (ev.Status != "Approved") throw new Exception("Sự kiện chưa mở đăng ký");
             var now = DateTime.UtcNow;
-            if (now >= ev.StartDate) throw new Exception("Registration is closed because the event has already started");
-            if (now >= ev.EndDate) throw new Exception("Registration is closed because the event has ended");
-            if (ev.CurrentParticipants >= ev.MaxParticipants) throw new Exception("Event is full");
+            if (now >= ev.StartDate) throw new Exception("Đã đóng đăng ký vì sự kiện đã bắt đầu");
+            if (now >= ev.EndDate) throw new Exception("Đã đóng đăng ký vì sự kiện đã kết thúc");
+            var confirmedCount = await _context.Registrations.CountAsync(r => r.EventId == eventId && r.Status == "Confirmed");
+            if (confirmedCount >= ev.MaxParticipants) throw new Exception("Sự kiện đã đủ người");
             if (ev.RequiresKyc)
             {
                 var kycStatus = await _context.VolunteerProfiles
@@ -33,18 +39,24 @@ namespace BaseCore.Services.VolunteerHub
                     .Select(p => p.KycStatus)
                     .FirstOrDefaultAsync();
                 if (kycStatus != "Verified")
-                    throw new Exception("This event requires verified volunteer identity (KYC). Please verify your profile before registering.");
+                    throw new Exception("Sự kiện này yêu cầu xác minh danh tính (KYC). Vui lòng hoàn tất xác minh hồ sơ trước khi đăng ký.");
             }
+
+            var hasShifts = await _context.WorkShifts.AnyAsync(s => s.EventId == eventId);
+            if (hasShifts && !shiftId.HasValue)
+                throw new Exception("Vui lòng chọn ca làm việc cho sự kiện này.");
 
             if (shiftId.HasValue)
             {
-                var shift = await _context.WorkShifts.FindAsync(shiftId.Value)
-                    ?? throw new Exception("Shift not found");
-                if (shift.EventId != eventId) throw new Exception("Shift does not belong to this event");
+                var shift = await _context.WorkShifts
+                    .FromSqlInterpolated($"SELECT * FROM [WorkShifts] WITH (UPDLOCK, ROWLOCK) WHERE [Id] = {shiftId.Value}")
+                    .FirstOrDefaultAsync()
+                    ?? throw new Exception("Không tìm thấy ca làm việc");
+                if (shift.EventId != eventId) throw new Exception("Ca làm việc không thuộc sự kiện này");
 
                 var shiftRegistrations = await _context.Registrations.CountAsync(r =>
                     r.ShiftId == shiftId.Value && (r.Status == "Pending" || r.Status == "Confirmed"));
-                if (shiftRegistrations >= shift.MaxVolunteers) throw new Exception("Shift is full");
+                if (shiftRegistrations >= shift.MaxVolunteers) throw new Exception("Ca làm việc đã đủ người");
 
                 if (shift.RequiredSkillId.HasValue)
                 {
@@ -58,7 +70,7 @@ namespace BaseCore.Services.VolunteerHub
                 .FirstOrDefaultAsync(r => r.EventId == eventId && r.UserId == userId);
             if (existing != null)
             {
-                if (existing.Status != "Cancelled") throw new Exception("Already registered");
+                if (existing.Status != "Cancelled") throw new Exception("Bạn đã đăng ký sự kiện này");
 
                 existing.ShiftId = shiftId;
                 existing.Status = "Pending";
@@ -70,12 +82,12 @@ namespace BaseCore.Services.VolunteerHub
                 existing.AttendedAt = null;
                 existing.CheckedOutAt = null;
                 existing.VolunteerHours = 0;
-                ev.CurrentParticipants++;
                 await _context.SaveChangesAsync();
+                await transaction.CommitAsync();
 
                 var existingVolunteer = await _context.Users.FindAsync(userId);
                 await _notificationService.SendAsync(ev.OrganizerId,
-                    "ÄÄƒng kÃ½ má»›i", $"{existingVolunteer?.Name} Ä‘Ã£ Ä‘Äƒng kÃ½ sá»± kiá»‡n '{ev.Title}'.",
+                    "Đăng ký mới", $"{existingVolunteer?.Name} đã đăng ký sự kiện '{ev.Title}'.",
                     "RegistrationConfirmed", eventId);
 
                 return existing;
@@ -91,8 +103,8 @@ namespace BaseCore.Services.VolunteerHub
                 RegisteredAt = DateTime.UtcNow
             };
             _context.Registrations.Add(reg);
-            ev.CurrentParticipants++;
             await _context.SaveChangesAsync();
+            await transaction.CommitAsync();
 
             // Notify organizer
             var volunteer = await _context.Users.FindAsync(userId);
@@ -108,8 +120,8 @@ namespace BaseCore.Services.VolunteerHub
             var reg = await _context.Registrations
                 .Include(r => r.Event)
                 .FirstOrDefaultAsync(r => r.EventId == eventId && r.UserId == userId)
-                ?? throw new Exception("Registration not found");
-            if (reg.Status == "Confirmed") throw new Exception("Cannot withdraw a confirmed registration");
+                ?? throw new Exception("Không tìm thấy đăng ký");
+            if (reg.Status == "Confirmed") throw new Exception("Không thể rút khỏi sự kiện sau khi đã được xác nhận");
             if (reg.Status == "Cancelled") return;
 
             var ev = reg.Event ?? await _context.Events.FindAsync(eventId);
@@ -137,11 +149,11 @@ namespace BaseCore.Services.VolunteerHub
             var reg = await _context.Registrations
                 .Include(r => r.Event)
                 .FirstOrDefaultAsync(r => r.EventId == eventId && r.UserId == userId)
-                ?? throw new Exception("Registration not found");
-            if (reg.Status != "Confirmed") throw new Exception("Only confirmed registrations can request cancellation");
-            if (reg.IsAttended) throw new Exception("Cannot request cancellation after check-in");
-            if (reg.Event.Status == "Completed" || reg.Event.Status == "Cancelled") throw new Exception("Event is no longer active");
-            if (reg.CancelRequested) throw new Exception("A cancellation request is already pending");
+                ?? throw new Exception("Không tìm thấy đăng ký");
+            if (reg.Status != "Confirmed") throw new Exception("Chỉ đăng ký đã xác nhận mới có thể xin hủy");
+            if (reg.IsAttended) throw new Exception("Không thể xin hủy sau khi đã điểm danh");
+            if (reg.Event.Status == "Completed" || reg.Event.Status == "Cancelled") throw new Exception("Sự kiện không còn hoạt động");
+            if (reg.CancelRequested) throw new Exception("Đã có yêu cầu hủy đang chờ xử lý");
 
             reg.CancelRequested = true;
             reg.CancelRequestedAt = DateTime.UtcNow;
@@ -157,16 +169,22 @@ namespace BaseCore.Services.VolunteerHub
             return reg;
         }
 
-        public async Task<Registration> ConfirmAsync(int eventId, int registrationId, int organizerId)
+        public async Task<Registration> ConfirmAsync(int eventId, int registrationId, int organizerId, bool bypassInterviewGate = false)
         {
             var reg = await _context.Registrations.Include(r => r.Event)
                 .FirstOrDefaultAsync(r => r.Id == registrationId)
-                ?? throw new Exception("Registration not found");
-            if (reg.EventId != eventId) throw new Exception("Registration not found in this event");
-            if (reg.Event.OrganizerId != organizerId) throw new Exception("Not authorized");
+                ?? throw new Exception("Không tìm thấy đăng ký");
+            if (reg.EventId != eventId) throw new Exception("Đăng ký không thuộc sự kiện này");
+            if (reg.Event.OrganizerId != organizerId) throw new Exception("Bạn không có quyền thực hiện thao tác này");
+            if (reg.Status != "Pending") throw new Exception("Chỉ có thể xác nhận đăng ký đang chờ duyệt");
+            if (!bypassInterviewGate && reg.Event.RequiresInterview && reg.InterviewStatus != "Passed")
+                throw new Exception("Sự kiện này yêu cầu phỏng vấn. Hãy hẹn phỏng vấn và chấm 'Đạt' trước khi xác nhận.");
+            var confirmedCount = await _context.Registrations.CountAsync(r => r.EventId == eventId && r.Status == "Confirmed");
+            if (confirmedCount >= reg.Event.MaxParticipants) throw new Exception("Sự kiện đã đủ người");
 
             reg.Status = "Confirmed";
             reg.ConfirmedAt = DateTime.UtcNow;
+            reg.Event.CurrentParticipants = confirmedCount + 1;
             await _context.SaveChangesAsync();
 
             await _notificationService.SendAsync(reg.UserId,
@@ -181,16 +199,17 @@ namespace BaseCore.Services.VolunteerHub
         {
             var reg = await _context.Registrations.Include(r => r.Event)
                 .FirstOrDefaultAsync(r => r.Id == registrationId)
-                ?? throw new Exception("Registration not found");
-            if (reg.EventId != eventId) throw new Exception("Registration not found in this event");
-            if (reg.Event.OrganizerId != organizerId) throw new Exception("Not authorized");
+                ?? throw new Exception("Không tìm thấy đăng ký");
+            if (reg.EventId != eventId) throw new Exception("Đăng ký không thuộc sự kiện này");
+            if (reg.Event.OrganizerId != organizerId) throw new Exception("Bạn không có quyền thực hiện thao tác này");
 
+            var wasConfirmed = reg.Status == "Confirmed";
             var wasCancelRequest = reg.CancelRequested;
             reg.Status = "Cancelled";
             reg.CancelledAt = DateTime.UtcNow;
             reg.CancelRequested = false;
             var ev = await _context.Events.FindAsync(reg.EventId);
-            if (ev != null && ev.CurrentParticipants > 0) ev.CurrentParticipants--;
+            if (wasConfirmed && ev != null && ev.CurrentParticipants > 0) ev.CurrentParticipants--;
             await _context.SaveChangesAsync();
 
             if (wasCancelRequest)
@@ -208,12 +227,12 @@ namespace BaseCore.Services.VolunteerHub
         {
             var reg = await _context.Registrations.Include(r => r.Event).Include(r => r.Shift)
                 .FirstOrDefaultAsync(r => r.Id == registrationId)
-                ?? throw new Exception("Registration not found");
-            if (reg.EventId != eventId) throw new Exception("Registration not found in this event");
-            if (reg.Event.OrganizerId != organizerId) throw new Exception("Not authorized");
-            if (reg.Event.Status != "Approved") throw new Exception("Event is not open for check-in");
-            if (reg.Status != "Confirmed") throw new Exception("Registration is not confirmed");
-            if (reg.IsAttended) throw new Exception("Already checked in");
+                ?? throw new Exception("Không tìm thấy đăng ký");
+            if (reg.EventId != eventId) throw new Exception("Đăng ký không thuộc sự kiện này");
+            if (reg.Event.OrganizerId != organizerId) throw new Exception("Bạn không có quyền thực hiện thao tác này");
+            if (reg.Event.Status != "Approved") throw new Exception("Sự kiện chưa mở điểm danh");
+            if (reg.Status != "Confirmed") throw new Exception("Đăng ký chưa được xác nhận");
+            if (reg.IsAttended) throw new Exception("Đã điểm danh rồi");
 
             ValidateCheckInWindow(reg);
             ValidateCheckInProof(reg.Event, qrCode, latitude, longitude);
@@ -229,8 +248,8 @@ namespace BaseCore.Services.VolunteerHub
             await _context.SaveChangesAsync();
             await RefreshVolunteerProgressAsync(reg.UserId, evaluateBadges: false);
             await _notificationService.SendAsync(reg.UserId,
-                "ÄÃ£ ghi nháº­n check-in",
-                $"Ban tá»• chá»©c Ä‘Ã£ ghi nháº­n báº¡n check-in cho sá»± kiá»‡n '{reg.Event.Title}'.",
+                "Đã ghi nhận check-in",
+                $"Ban tổ chức đã ghi nhận bạn check-in cho sự kiện '{reg.Event.Title}'.",
                 "RegistrationCheckIn", reg.Id);
             return reg;
         }
@@ -239,11 +258,11 @@ namespace BaseCore.Services.VolunteerHub
         {
             var reg = await _context.Registrations.Include(r => r.Event).Include(r => r.Shift)
                 .FirstOrDefaultAsync(r => r.EventId == eventId && r.UserId == userId)
-                ?? throw new Exception("Registration not found");
+                ?? throw new Exception("Không tìm thấy đăng ký");
 
-            if (reg.Event.Status != "Approved") throw new Exception("Event is not open for check-in");
-            if (reg.Status != "Confirmed") throw new Exception("Registration is not confirmed");
-            if (reg.IsAttended) throw new Exception("Already checked in");
+            if (reg.Event.Status != "Approved") throw new Exception("Sự kiện chưa mở điểm danh");
+            if (reg.Status != "Confirmed") throw new Exception("Đăng ký chưa được xác nhận");
+            if (reg.IsAttended) throw new Exception("Đã điểm danh rồi");
 
             ValidateCheckInWindow(reg);
             ValidateCheckInProof(reg.Event, qrCode, latitude, longitude);
@@ -287,19 +306,30 @@ namespace BaseCore.Services.VolunteerHub
             return (decimal)(effectiveEnd - effectiveStart).TotalHours;
         }
 
+        // Format thời gian UTC sang giờ Việt Nam (UTC+7) cho thông báo người dùng
+        private static string FmtCheckInTime(DateTime utc) => utc.AddHours(7).ToString("HH:mm dd/MM/yyyy");
+
         private static void ValidateCheckInWindow(Registration reg)
         {
             var now = DateTime.UtcNow;
             if (reg.Shift != null)
             {
-                if (now < reg.Shift.StartTime.AddMinutes(-15) || now > reg.Shift.EndTime.AddMinutes(30))
-                    throw new Exception("Check-in is outside the registered shift window");
+                var open = reg.Shift.StartTime.AddMinutes(-15);
+                var close = reg.Shift.EndTime.AddMinutes(30);
+                if (now < open)
+                    throw new Exception($"Còn quá sớm. Ca '{reg.Shift.Name}' bắt đầu lúc {FmtCheckInTime(reg.Shift.StartTime)} — điểm danh mở từ {FmtCheckInTime(open)} (15 phút trước ca).");
+                if (now > close)
+                    throw new Exception($"Đã quá hạn điểm danh. Ca '{reg.Shift.Name}' kết thúc lúc {FmtCheckInTime(reg.Shift.EndTime)} — cửa sổ điểm danh đóng lúc {FmtCheckInTime(close)} (30 phút sau ca).");
                 return;
             }
 
-            if (reg.Event == null) throw new Exception("Event not found");
-            if (now < reg.Event.StartDate.AddMinutes(-30) || now > reg.Event.EndDate.AddHours(2))
-                throw new Exception("Check-in is outside the event attendance window");
+            if (reg.Event == null) throw new Exception("Không tìm thấy sự kiện");
+            var evOpen = reg.Event.StartDate.AddMinutes(-30);
+            var evClose = reg.Event.EndDate.AddHours(2);
+            if (now < evOpen)
+                throw new Exception($"Còn quá sớm. Sự kiện bắt đầu lúc {FmtCheckInTime(reg.Event.StartDate)} — điểm danh mở từ {FmtCheckInTime(evOpen)} (30 phút trước sự kiện).");
+            if (now > evClose)
+                throw new Exception($"Đã quá hạn điểm danh. Sự kiện kết thúc lúc {FmtCheckInTime(reg.Event.EndDate)} — cửa sổ điểm danh đóng lúc {FmtCheckInTime(evClose)} (2 giờ sau sự kiện).");
         }
 
         private static void ValidateCheckInProof(Entities.Event ev, string? qrCode, decimal? latitude, decimal? longitude)
@@ -307,12 +337,12 @@ namespace BaseCore.Services.VolunteerHub
             if (!string.IsNullOrWhiteSpace(ev.QrCode))
             {
                 var qrValid = !string.IsNullOrWhiteSpace(qrCode) && string.Equals(ev.QrCode, qrCode.Trim(), StringComparison.Ordinal);
-                if (!qrValid) throw new Exception("Invalid QR code");
+                if (!qrValid) throw new Exception("Mã QR không đúng");
                 return;
             }
 
             if (!IsWithinEventRadius(ev, latitude, longitude))
-                throw new Exception("Invalid GPS location");
+                throw new Exception("Vị trí GPS không hợp lệ (bạn đang ở quá xa địa điểm sự kiện hoặc chưa bật định vị)");
         }
 
         private static decimal MaxAllowedVolunteerHours(Registration reg)
@@ -325,7 +355,7 @@ namespace BaseCore.Services.VolunteerHub
         {
             var max = MaxAllowedVolunteerHours(reg);
             if (hours < 0 || hours > max)
-                throw new Exception($"Hours must be between 0 and {max:0.##} for this event/shift");
+                throw new Exception($"Số giờ phải trong khoảng 0 đến {max:0.##} cho sự kiện/ca này");
         }
 
         private async Task RefreshVolunteerProgressAsync(int userId, bool evaluateBadges = true)
@@ -387,18 +417,18 @@ namespace BaseCore.Services.VolunteerHub
         {
             var reg = await _context.Registrations.Include(r => r.Event).Include(r => r.Shift)
                 .FirstOrDefaultAsync(r => r.Id == registrationId)
-                ?? throw new Exception("Registration not found");
-            if (reg.EventId != eventId) throw new Exception("Registration not found in this event");
-            if (reg.Event.OrganizerId != organizerId) throw new Exception("Not authorized");
+                ?? throw new Exception("Không tìm thấy đăng ký");
+            if (reg.EventId != eventId) throw new Exception("Đăng ký không thuộc sự kiện này");
+            if (reg.Event.OrganizerId != organizerId) throw new Exception("Bạn không có quyền thực hiện thao tác này");
             if (reg.Event.Status != "Approved" && reg.Event.Status != "Completed")
-                throw new Exception("Event must be approved or completed to check out");
-            if (reg.Status != "Confirmed") throw new Exception("Registration is not confirmed");
-            if (!reg.IsAttended || !reg.AttendedAt.HasValue) throw new Exception("Volunteer has not checked in");
-            if (reg.CheckedOutAt.HasValue) throw new Exception("Volunteer has already checked out");
+                throw new Exception("Sự kiện phải ở trạng thái đã duyệt hoặc hoàn thành để check-out");
+            if (reg.Status != "Confirmed") throw new Exception("Đăng ký chưa được xác nhận");
+            if (!reg.IsAttended || !reg.AttendedAt.HasValue) throw new Exception("Tình nguyện viên chưa điểm danh");
+            if (reg.CheckedOutAt.HasValue) throw new Exception("Tình nguyện viên đã check-out");
 
             var checkedOutAt = DateTime.UtcNow;
             if (checkedOutAt < reg.AttendedAt.Value)
-                throw new Exception("Check-out cannot be before check-in");
+                throw new Exception("Không thể check-out trước thời điểm check-in");
 
             reg.CheckedOutAt = checkedOutAt;
             reg.VolunteerHours = CalculateActualVolunteerHours(reg, checkedOutAt);
@@ -407,8 +437,8 @@ namespace BaseCore.Services.VolunteerHub
             await SyncCertificateHoursAsync(reg);
             await RefreshVolunteerProgressAsync(reg.UserId);
             await _notificationService.SendAsync(reg.UserId,
-                "ÄÃ£ ghi nháº­n check-out",
-                $"Ban tá»• chá»©c Ä‘Ã£ ghi nháº­n check-out cho sá»± kiá»‡n '{reg.Event.Title}' vá»›i {reg.VolunteerHours:0.##} giá» tÃ¬nh nguyá»‡n.",
+                "Đã ghi nhận check-out",
+                $"Ban tổ chức đã ghi nhận check-out cho sự kiện '{reg.Event.Title}' với {reg.VolunteerHours:0.##} giờ tình nguyện.",
                 "RegistrationCheckOut", reg.Id);
             return reg;
         }
@@ -416,24 +446,24 @@ namespace BaseCore.Services.VolunteerHub
         public async Task<Registration> WalkInAsync(int eventId, int volunteerUserId, int organizerId, int? shiftId, string? note)
         {
             var ev = await _context.Events.Include(e => e.WorkShifts).FirstOrDefaultAsync(e => e.Id == eventId)
-                ?? throw new Exception("Event not found");
-            if (ev.OrganizerId != organizerId) throw new Exception("Not authorized");
-            if (ev.Status != "Approved") throw new Exception("Event is not open for walk-in check-in");
+                ?? throw new Exception("Không tìm thấy sự kiện");
+            if (ev.OrganizerId != organizerId) throw new Exception("Bạn không có quyền thực hiện thao tác này");
+            if (ev.Status != "Approved") throw new Exception("Sự kiện không mở đăng ký tại chỗ");
 
             var volunteer = await _context.Users.FindAsync(volunteerUserId)
-                ?? throw new Exception("Volunteer account not found");
-            if (!volunteer.IsActive) throw new Exception("Volunteer account is not active");
-            if (volunteer.UserType != 0) throw new Exception("Target user is not a volunteer");
+                ?? throw new Exception("Không tìm thấy tài khoản tình nguyện viên");
+            if (!volunteer.IsActive) throw new Exception("Tài khoản tình nguyện viên đang bị khóa");
+            if (volunteer.UserType != 0) throw new Exception("Tài khoản này không phải tình nguyện viên");
 
             WorkShift? shift = null;
             if (shiftId.HasValue)
             {
                 shift = ev.WorkShifts.FirstOrDefault(s => s.Id == shiftId.Value)
-                    ?? throw new Exception("Shift not found");
+                    ?? throw new Exception("Không tìm thấy ca làm việc");
             }
             else if (ev.WorkShifts.Count > 0)
             {
-                throw new Exception("Walk-in must choose a shift for events that have shifts");
+                throw new Exception("Đăng ký tại chỗ phải chọn ca cụ thể với sự kiện có chia ca");
             }
 
             var existing = await _context.Registrations
@@ -466,8 +496,8 @@ namespace BaseCore.Services.VolunteerHub
                 await _context.SaveChangesAsync();
                 await RefreshVolunteerProgressAsync(existing.UserId, evaluateBadges: false);
                 await _notificationService.SendAsync(existing.UserId,
-                    "ÄÄƒng kÃ½ táº¡i chá»— Ä‘Ã£ Ä‘Æ°á»£c ghi nháº­n",
-                    $"Ban tá»• chá»©c Ä‘Ã£ ghi nháº­n báº¡n tham gia táº¡i chá»— cho sá»± kiá»‡n '{ev.Title}'.",
+                    "Đăng ký tại chỗ đã được ghi nhận",
+                    $"Ban tổ chức đã ghi nhận bạn tham gia tại chỗ cho sự kiện '{ev.Title}'.",
                     "RegistrationWalkIn", existing.Id);
                 return existing;
             }
@@ -494,8 +524,8 @@ namespace BaseCore.Services.VolunteerHub
             await _context.SaveChangesAsync();
             await RefreshVolunteerProgressAsync(reg.UserId, evaluateBadges: false);
             await _notificationService.SendAsync(reg.UserId,
-                "ÄÄƒng kÃ½ táº¡i chá»— Ä‘Ã£ Ä‘Æ°á»£c ghi nháº­n",
-                $"Ban tá»• chá»©c Ä‘Ã£ táº¡o Ä‘Äƒng kÃ½ táº¡i chá»— cho báº¡n á»Ÿ sá»± kiá»‡n '{ev.Title}'.",
+                "Đăng ký tại chỗ đã được ghi nhận",
+                $"Ban tổ chức đã tạo đăng ký tại chỗ cho bạn ở sự kiện '{ev.Title}'.",
                 "RegistrationWalkIn", reg.Id);
             return reg;
         }
@@ -504,18 +534,18 @@ namespace BaseCore.Services.VolunteerHub
         {
             var reg = await _context.Registrations.Include(r => r.Event).Include(r => r.Shift)
                 .FirstOrDefaultAsync(r => r.Id == registrationId)
-                ?? throw new Exception("Registration not found");
-            if (reg.EventId != eventId) throw new Exception("Registration not found in this event");
-            if (reg.Event.OrganizerId != organizerId) throw new Exception("Not authorized");
-            if (reg.Status != "Confirmed") throw new Exception("Registration is not confirmed");
+                ?? throw new Exception("Không tìm thấy đăng ký");
+            if (reg.EventId != eventId) throw new Exception("Đăng ký không thuộc sự kiện này");
+            if (reg.Event.OrganizerId != organizerId) throw new Exception("Bạn không có quyền thực hiện thao tác này");
+            if (reg.Status != "Confirmed") throw new Exception("Đăng ký chưa được xác nhận");
             if (reg.Event.Status != "Approved" && reg.Event.Status != "Completed")
-                throw new Exception("Event must be approved or completed to record attendance");
+                throw new Exception("Sự kiện phải ở trạng thái đã duyệt hoặc hoàn thành để ghi nhận tham gia");
 
             // Grace window: allow manual attend up to 7 days after EndDate
             if (DateTime.UtcNow < reg.Event.EndDate)
-                throw new Exception("Manual attendance can only be recorded after the event ends");
+                throw new Exception("Chỉ có thể ghi nhận tham gia thủ công sau khi sự kiện kết thúc");
             if (DateTime.UtcNow > reg.Event.EndDate.AddDays(7))
-                throw new Exception("Manual attendance window (7 days after event) has closed");
+                throw new Exception("Đã quá hạn ghi nhận tham gia thủ công (7 ngày sau sự kiện)");
 
             if (reg.IsAttended && !hoursOverride.HasValue) return reg;
             if (hoursOverride.HasValue) ValidateVolunteerHours(reg, hoursOverride.Value);
@@ -532,8 +562,8 @@ namespace BaseCore.Services.VolunteerHub
             await SyncCertificateHoursAsync(reg);
             await RefreshVolunteerProgressAsync(reg.UserId);
             await _notificationService.SendAsync(reg.UserId,
-                "ÄÃ£ bá»• sung Ä‘iá»ƒm danh",
-                $"Ban tá»• chá»©c Ä‘Ã£ bá»• sung Ä‘iá»ƒm danh cho sá»± kiá»‡n '{reg.Event.Title}' vá»›i {reg.VolunteerHours:0.##} giá» tÃ¬nh nguyá»‡n.",
+                "Đã bổ sung điểm danh",
+                $"Ban tổ chức đã bổ sung điểm danh cho sự kiện '{reg.Event.Title}' với {reg.VolunteerHours:0.##} giờ tình nguyện.",
                 "RegistrationManualAttend", reg.Id);
             return reg;
         }
@@ -542,10 +572,10 @@ namespace BaseCore.Services.VolunteerHub
         {
             var reg = await _context.Registrations.Include(r => r.Event).Include(r => r.Shift)
                 .FirstOrDefaultAsync(r => r.Id == registrationId)
-                ?? throw new Exception("Registration not found");
-            if (reg.EventId != eventId) throw new Exception("Registration not found in this event");
-            if (reg.Event.OrganizerId != organizerId) throw new Exception("Not authorized");
-            if (!reg.IsAttended) throw new Exception("Cannot adjust hours for a volunteer who did not check in");
+                ?? throw new Exception("Không tìm thấy đăng ký");
+            if (reg.EventId != eventId) throw new Exception("Đăng ký không thuộc sự kiện này");
+            if (reg.Event.OrganizerId != organizerId) throw new Exception("Bạn không có quyền thực hiện thao tác này");
+            if (!reg.IsAttended) throw new Exception("Không thể điều chỉnh giờ cho tình nguyện viên chưa điểm danh");
             ValidateVolunteerHours(reg, hours);
 
             reg.VolunteerHours = hours;
@@ -553,39 +583,124 @@ namespace BaseCore.Services.VolunteerHub
             await SyncCertificateHoursAsync(reg);
             await RefreshVolunteerProgressAsync(reg.UserId);
             await _notificationService.SendAsync(reg.UserId,
-                "Giá» tÃ¬nh nguyá»‡n Ä‘Ã£ Ä‘Æ°á»£c cáº­p nháº­t",
-                $"Ban tá»• chá»©c Ä‘Ã£ cáº­p nháº­t giá» tÃ¬nh nguyá»‡n cá»§a báº¡n á»Ÿ sá»± kiá»‡n '{reg.Event.Title}' thÃ nh {reg.VolunteerHours:0.##} giá».",
+                "Giờ tình nguyện đã được cập nhật",
+                $"Ban tổ chức đã cập nhật giờ tình nguyện của bạn ở sự kiện '{reg.Event.Title}' thành {reg.VolunteerHours:0.##} giờ.",
                 "RegistrationHoursAdjusted", reg.Id);
+            return reg;
+        }
+
+        public async Task<Registration> ChangeShiftAsync(int eventId, int registrationId, int organizerId, int? newShiftId)
+        {
+            var reg = await _context.Registrations.Include(r => r.Event).Include(r => r.Shift)
+                .FirstOrDefaultAsync(r => r.Id == registrationId)
+                ?? throw new Exception("Không tìm thấy đăng ký");
+            if (reg.EventId != eventId) throw new Exception("Đăng ký không thuộc sự kiện này");
+            if (reg.Event.OrganizerId != organizerId) throw new Exception("Bạn không có quyền thực hiện thao tác này");
+            if (reg.Status == "Cancelled") throw new Exception("Không thể chuyển ca cho đăng ký đã hủy");
+            if (reg.IsAttended) throw new Exception("Không thể chuyển ca sau khi đã điểm danh");
+
+            if (newShiftId.HasValue)
+            {
+                var shift = await _context.WorkShifts
+                    .FirstOrDefaultAsync(s => s.Id == newShiftId.Value)
+                    ?? throw new Exception("Không tìm thấy ca làm việc");
+                if (shift.EventId != eventId) throw new Exception("Ca làm việc không thuộc sự kiện này");
+
+                var occupiedCount = await _context.Registrations.CountAsync(r =>
+                    r.ShiftId == newShiftId.Value && (r.Status == "Pending" || r.Status == "Confirmed") && r.Id != registrationId);
+                if (occupiedCount >= shift.MaxVolunteers) throw new Exception("Ca đã đầy, không thể chuyển sang ca này");
+            }
+
+            reg.ShiftId = newShiftId;
+            await _context.SaveChangesAsync();
             return reg;
         }
 
         public async Task<List<Registration>> GetByEventAsync(int eventId)
         {
-            return await _context.Registrations
+            var registrations = await _context.Registrations
                 .Include(r => r.User)
                 .Include(r => r.Shift)
+                .Include(r => r.InterviewSlot)
                 .Where(r => r.EventId == eventId)
                 .OrderByDescending(r => r.RegisteredAt)
                 .ToListAsync();
+
+            // Lấy organizerId để biết "rater" khi organizer chấm điểm TNV.
+            var organizerId = await _context.Events
+                .Where(e => e.Id == eventId)
+                .Select(e => (int?)e.OrganizerId)
+                .FirstOrDefaultAsync();
+            if (organizerId.HasValue && registrations.Count > 0)
+            {
+                var rateeIds = registrations.Select(r => r.UserId).Distinct().ToList();
+                var ratings = await _context.Ratings
+                    .Where(r => r.EventId == eventId && r.RaterId == organizerId.Value && rateeIds.Contains(r.RateeId))
+                    .Select(r => new { r.Id, r.RateeId, r.Score, r.Comment })
+                    .ToListAsync();
+                foreach (var reg in registrations)
+                {
+                    var rating = ratings.FirstOrDefault(r => r.RateeId == reg.UserId);
+                    reg.HasRated = rating != null;
+                    reg.RatingId = rating?.Id;
+                    reg.RatingScore = rating?.Score;
+                    reg.RatingComment = rating?.Comment ?? "";
+                }
+            }
+            return registrations;
         }
 
         public async Task<List<Registration>> GetByUserAsync(int userId)
         {
-            return await _context.Registrations
+            var registrations = await _context.Registrations
                 .Include(r => r.Event).ThenInclude(e => e.Category)
                 .Include(r => r.Event).ThenInclude(e => e.Organizer)
                 .Include(r => r.Shift)
+                .Include(r => r.InterviewSlot)
                 .Where(r => r.UserId == userId)
                 .OrderByDescending(r => r.RegisteredAt)
                 .ToListAsync();
+
+            var eventIds = registrations.Select(r => r.EventId).Distinct().ToList();
+            if (eventIds.Count == 0) return registrations;
+
+            var ratings = await _context.Ratings
+                .Where(r => r.RaterId == userId && eventIds.Contains(r.EventId))
+                .Select(r => new { r.Id, r.EventId, r.RateeId, r.Score, r.Comment })
+                .ToListAsync();
+            foreach (var registration in registrations)
+            {
+                var rating = ratings.FirstOrDefault(r =>
+                    r.EventId == registration.EventId &&
+                    registration.Event != null &&
+                    r.RateeId == registration.Event.OrganizerId);
+                registration.HasRated = rating != null;
+                registration.RatingId = rating?.Id;
+                registration.RatingScore = rating?.Score;
+                registration.RatingComment = rating?.Comment ?? "";
+            }
+
+            return registrations;
         }
 
         public async Task<Registration?> GetByEventAndUserAsync(int eventId, int userId)
         {
-            return await _context.Registrations
+            var reg = await _context.Registrations
                 .Include(r => r.Event)
                 .Include(r => r.Shift)
                 .FirstOrDefaultAsync(r => r.EventId == eventId && r.UserId == userId);
+            if (reg == null || reg.Event == null) return reg;
+
+            // Đánh giá TNV → BTC (volunteer rates organizer)
+            var rating = await _context.Ratings
+                .Where(r => r.EventId == eventId && r.RaterId == userId && r.RateeId == reg.Event.OrganizerId)
+                .Select(r => new { r.Id, r.Score, r.Comment })
+                .FirstOrDefaultAsync();
+            reg.HasRated = rating != null;
+            reg.RatingId = rating?.Id;
+            reg.RatingScore = rating?.Score;
+            reg.RatingComment = rating?.Comment ?? "";
+            return reg;
         }
     }
 }

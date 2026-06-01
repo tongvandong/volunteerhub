@@ -68,10 +68,38 @@ namespace BaseCore.APIService.Controllers
                 _context.OrganizerVerifications.Add(verification);
             }
 
+            var wasVerified = verification.Status == "Verified";
+            var oldOrgName = verification.OrganizationName;
+            var oldRepName = verification.RepresentativeName;
+            var oldDocUrl = verification.DocumentUrl;
+
             ApplySubmission(verification, dto);
+
+            // Chỉ thông tin định danh/bằng chứng (tên tổ chức, người đại diện, tài liệu minh chứng)
+            // mới cần admin xác minh lại. Đổi logo/website/mô tả/liên hệ giữ nguyên trạng thái Verified.
+            var identityChanged =
+                !string.Equals(verification.OrganizationName ?? "", oldOrgName ?? "", StringComparison.Ordinal) ||
+                !string.Equals(verification.RepresentativeName ?? "", oldRepName ?? "", StringComparison.Ordinal) ||
+                !string.Equals(verification.DocumentUrl ?? "", oldDocUrl ?? "", StringComparison.Ordinal);
+
+            // Tài liệu minh chứng chỉ bắt buộc khi hồ sơ sẽ vào luồng duyệt (lần đầu hoặc đổi định danh),
+            // không yêu cầu khi tổ chức đã Verified chỉ cập nhật thông tin hiển thị.
+            var willGoPending = !wasVerified || identityChanged;
+            if (willGoPending && string.IsNullOrWhiteSpace(verification.DocumentUrl))
+                return BadRequest(new { message = "Vui lòng tải lên ảnh tài liệu minh chứng." });
+
+            verification.UpdatedAt = DateTime.UtcNow;
+
+            if (wasVerified && !identityChanged)
+            {
+                // Giữ nguyên Verified — chỉ cập nhật thông tin hiển thị.
+                await _context.SaveChangesAsync();
+                await RecordAuditAsync(userId, "OrganizerVerification.Update", "OrganizerVerification", verification.Id, "Cosmetic update, status kept Verified");
+                return Ok(ToResponse(verification));
+            }
+
             verification.Status = "PendingVerification";
             verification.SubmittedAt = DateTime.UtcNow;
-            verification.UpdatedAt = DateTime.UtcNow;
             verification.AdminNote = "";
             verification.RejectReason = "";
             verification.VerifiedAt = null;
@@ -209,6 +237,7 @@ namespace BaseCore.APIService.Controllers
         private static void ApplySubmission(OrganizerVerification verification, OrganizerVerificationSubmitDto dto)
         {
             verification.OrganizationName = dto.OrganizationName.Trim();
+            verification.LogoUrl = dto.LogoUrl?.Trim() ?? "";
             verification.RepresentativeName = dto.RepresentativeName.Trim();
             verification.ContactEmail = dto.ContactEmail.Trim();
             verification.Phone = dto.Phone?.Trim() ?? "";
@@ -229,6 +258,7 @@ namespace BaseCore.APIService.Controllers
                 OrganizerName = v.Organizer?.Name ?? "",
                 OrganizerUserName = v.Organizer?.UserName ?? "",
                 OrganizationName = v.OrganizationName,
+                LogoUrl = v.LogoUrl,
                 RepresentativeName = v.RepresentativeName,
                 ContactEmail = v.ContactEmail,
                 Phone = v.Phone,
@@ -266,6 +296,7 @@ namespace BaseCore.APIService.Controllers
     public class OrganizerVerificationSubmitDto
     {
         public string OrganizationName { get; set; } = "";
+        public string? LogoUrl { get; set; }
         public string RepresentativeName { get; set; } = "";
         public string ContactEmail { get; set; } = "";
         public string? Phone { get; set; }
@@ -289,6 +320,7 @@ namespace BaseCore.APIService.Controllers
         public string OrganizerName { get; set; } = "";
         public string OrganizerUserName { get; set; } = "";
         public string OrganizationName { get; set; } = "";
+        public string LogoUrl { get; set; } = "";
         public string RepresentativeName { get; set; } = "";
         public string ContactEmail { get; set; } = "";
         public string Phone { get; set; } = "";

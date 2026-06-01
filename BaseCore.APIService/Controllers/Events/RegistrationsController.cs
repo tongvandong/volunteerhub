@@ -10,11 +10,13 @@ namespace BaseCore.APIService.Controllers
     public class RegistrationsController : ControllerBase
     {
         private readonly IRegistrationService _registrationService;
+        private readonly IInterviewService _interviewService;
         private readonly IAuditLogService _auditLogService;
 
-        public RegistrationsController(IRegistrationService registrationService, IAuditLogService auditLogService)
+        public RegistrationsController(IRegistrationService registrationService, IInterviewService interviewService, IAuditLogService auditLogService)
         {
             _registrationService = registrationService;
+            _interviewService = interviewService;
             _auditLogService = auditLogService;
         }
 
@@ -108,6 +110,21 @@ namespace BaseCore.APIService.Controllers
             catch (Exception ex) { return BadRequest(new { message = ex.Message }); }
         }
 
+        [HttpPut("api/events/{eventId}/registrations/{regId}/shift"), Authorize(Roles = "Organizer")]
+        [EnableRateLimiting("write-sensitive")]
+        public async Task<IActionResult> ChangeShift(int eventId, int regId, [FromBody] ChangeShiftDto dto)
+        {
+            if (!int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var userId))
+                return Unauthorized();
+            try
+            {
+                var reg = await _registrationService.ChangeShiftAsync(eventId, regId, userId, dto.ShiftId);
+                await RecordAuditAsync(userId, "Registration.ChangeShift", "Registration", reg.Id, $"EventId={eventId};NewShiftId={dto.ShiftId}");
+                return Ok(reg);
+            }
+            catch (Exception ex) { return BadRequest(new { message = ex.Message }); }
+        }
+
         [HttpPut("api/events/{eventId}/registrations/{regId}/hours"), Authorize(Roles = "Organizer")]
         [EnableRateLimiting("write-sensitive")]
         public async Task<IActionResult> AdjustHours(int eventId, int regId, [FromBody] AdjustHoursDto dto)
@@ -149,6 +166,66 @@ namespace BaseCore.APIService.Controllers
                 var reg = await _registrationService.CancelAsync(eventId, regId, userId);
                 await RecordAuditAsync(userId, "Registration.Cancel", "Registration", reg.Id, $"EventId={eventId}");
                 return Ok(reg);
+            }
+            catch (Exception ex) { return BadRequest(new { message = ex.Message }); }
+        }
+
+        [HttpPost("api/events/{eventId}/registrations/{regId}/interview"), Authorize(Roles = "Organizer")]
+        [EnableRateLimiting("write-sensitive")]
+        public async Task<IActionResult> ScheduleInterview(int eventId, int regId, [FromBody] ScheduleInterviewDto dto)
+        {
+            if (!int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var userId))
+                return Unauthorized();
+            try
+            {
+                var slot = await _interviewService.ScheduleAsync(eventId, regId, userId, dto.ScheduledAt, dto.DurationMinutes ?? 30, dto.MeetingUrl, dto.Note);
+                await RecordAuditAsync(userId, "Interview.Schedule", "InterviewSlot", slot.Id, $"EventId={eventId};RegId={regId};At={dto.ScheduledAt:o}");
+                return Ok(slot);
+            }
+            catch (Exception ex) { return BadRequest(new { message = ex.Message }); }
+        }
+
+        [HttpPut("api/events/{eventId}/registrations/{regId}/interview"), Authorize(Roles = "Organizer")]
+        [EnableRateLimiting("write-sensitive")]
+        public async Task<IActionResult> UpdateInterview(int eventId, int regId, [FromBody] ScheduleInterviewDto dto)
+        {
+            if (!int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var userId))
+                return Unauthorized();
+            try
+            {
+                var slot = await _interviewService.UpdateAsync(eventId, regId, userId, dto.ScheduledAt, dto.DurationMinutes ?? 30, dto.MeetingUrl, dto.Note);
+                await RecordAuditAsync(userId, "Interview.Update", "InterviewSlot", slot.Id, $"EventId={eventId};RegId={regId};At={dto.ScheduledAt:o}");
+                return Ok(slot);
+            }
+            catch (Exception ex) { return BadRequest(new { message = ex.Message }); }
+        }
+
+        [HttpPut("api/events/{eventId}/registrations/{regId}/interview/outcome"), Authorize(Roles = "Organizer")]
+        [EnableRateLimiting("write-sensitive")]
+        public async Task<IActionResult> DecideInterview(int eventId, int regId, [FromBody] InterviewOutcomeDto dto)
+        {
+            if (!int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var userId))
+                return Unauthorized();
+            try
+            {
+                var slot = await _interviewService.DecideAsync(eventId, regId, userId, dto.Outcome, dto.Note);
+                await RecordAuditAsync(userId, "Interview.Decide", "InterviewSlot", slot.Id, $"EventId={eventId};RegId={regId};Outcome={dto.Outcome}");
+                return Ok(slot);
+            }
+            catch (Exception ex) { return BadRequest(new { message = ex.Message }); }
+        }
+
+        [HttpDelete("api/events/{eventId}/registrations/{regId}/interview"), Authorize(Roles = "Organizer")]
+        [EnableRateLimiting("write-sensitive")]
+        public async Task<IActionResult> CancelInterview(int eventId, int regId)
+        {
+            if (!int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var userId))
+                return Unauthorized();
+            try
+            {
+                await _interviewService.CancelAsync(eventId, regId, userId);
+                await RecordAuditAsync(userId, "Interview.Cancel", "Registration", regId, $"EventId={eventId}");
+                return Ok(new { message = "Interview cancelled" });
             }
             catch (Exception ex) { return BadRequest(new { message = ex.Message }); }
         }
@@ -254,5 +331,24 @@ namespace BaseCore.APIService.Controllers
     public class AdjustHoursDto
     {
         public decimal Hours { get; set; }
+    }
+
+    public class ChangeShiftDto
+    {
+        public int? ShiftId { get; set; }
+    }
+
+    public class ScheduleInterviewDto
+    {
+        public DateTime ScheduledAt { get; set; }
+        public string MeetingUrl { get; set; } = "";
+        public int? DurationMinutes { get; set; }
+        public string Note { get; set; } = "";
+    }
+
+    public class InterviewOutcomeDto
+    {
+        public string Outcome { get; set; } = ""; // Passed | Failed | NoShow
+        public string Note { get; set; } = "";
     }
 }

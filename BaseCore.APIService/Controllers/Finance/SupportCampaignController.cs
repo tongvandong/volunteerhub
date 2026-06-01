@@ -16,15 +16,18 @@ namespace BaseCore.APIService.Controllers
         private readonly MySqlDbContext _context;
         private readonly IAuditLogService _auditLogService;
         private readonly INotificationService _notificationService;
+        private readonly IBadgeService _badgeService;
 
         public SupportCampaignController(
             MySqlDbContext context,
             IAuditLogService auditLogService,
-            INotificationService notificationService)
+            INotificationService notificationService,
+            IBadgeService badgeService)
         {
             _context = context;
             _auditLogService = auditLogService;
             _notificationService = notificationService;
+            _badgeService = badgeService;
         }
 
         [HttpGet("api/events/{eventId}/support-campaigns")]
@@ -58,6 +61,9 @@ namespace BaseCore.APIService.Controllers
                     c.StartDate,
                     c.EndDate,
                     c.ReceiveInfo,
+                    c.BankBin,
+                    c.BankAccountNo,
+                    c.BankAccountName,
                     c.TransparencyNote,
                     c.Status,
                     c.CreatedAt,
@@ -116,6 +122,9 @@ namespace BaseCore.APIService.Controllers
                 campaign.StartDate,
                 campaign.EndDate,
                 campaign.ReceiveInfo,
+                campaign.BankBin,
+                campaign.BankAccountNo,
+                campaign.BankAccountName,
                 campaign.TransparencyNote,
                 campaign.Status,
                 campaign.CreatedAt,
@@ -139,8 +148,10 @@ namespace BaseCore.APIService.Controllers
             var ev = await _context.Events.FirstOrDefaultAsync(e => e.Id == eventId);
             if (ev == null) return NotFound(new { message = "Event not found" });
             if (!CanManageEvent(ev, userId)) return Forbid();
-            if (ev.Status is "Rejected" or "Cancelled")
-                return BadRequest(new { message = "Cannot create campaign for rejected or cancelled event" });
+            if (ev.Status != "Approved")
+                return BadRequest(new { message = "Only approved active events can create support campaigns" });
+            if (NormalizeToUtc(ev.EndDate) < DateTime.UtcNow)
+                return BadRequest(new { message = "Cannot create support campaign after event end date" });
 
             var validation = ValidateCampaign(dto, requireReceiveInfo: false);
             if (validation != null) return BadRequest(new { message = validation });
@@ -155,6 +166,9 @@ namespace BaseCore.APIService.Controllers
                 StartDate = NormalizeToUtc(dto.StartDate),
                 EndDate = NormalizeToUtc(dto.EndDate),
                 ReceiveInfo = dto.ReceiveInfo?.Trim() ?? "",
+                BankBin = dto.BankBin?.Trim() ?? "",
+                BankAccountNo = dto.BankAccountNo?.Trim() ?? "",
+                BankAccountName = dto.BankAccountName?.Trim() ?? "",
                 TransparencyNote = dto.TransparencyNote?.Trim() ?? "",
                 Status = NormalizeCampaignStatus(dto.Status, fallback: "Draft"),
                 CreatedBy = userId,
@@ -186,8 +200,10 @@ namespace BaseCore.APIService.Controllers
             if (!CanManageEvent(campaign.Event, userId)) return Forbid();
             if (campaign.Status == "Cancelled" || campaign.Status == "Reported")
                 return BadRequest(new { message = "Cannot edit cancelled or reported campaign" });
-            if (campaign.Event.Status is "Rejected" or "Cancelled")
-                return BadRequest(new { message = "Cannot edit campaign for rejected or cancelled event" });
+            if (campaign.Event.Status != "Approved")
+                return BadRequest(new { message = "Only approved active events can edit support campaigns" });
+            if (NormalizeToUtc(campaign.Event.EndDate) < DateTime.UtcNow)
+                return BadRequest(new { message = "Cannot edit support campaign after event end date" });
 
             var validation = ValidateCampaign(dto, requireReceiveInfo: campaign.Status == "Open");
             if (validation != null) return BadRequest(new { message = validation });
@@ -199,6 +215,9 @@ namespace BaseCore.APIService.Controllers
             campaign.StartDate = NormalizeToUtc(dto.StartDate);
             campaign.EndDate = NormalizeToUtc(dto.EndDate);
             campaign.ReceiveInfo = dto.ReceiveInfo?.Trim() ?? "";
+            campaign.BankBin = dto.BankBin?.Trim() ?? "";
+            campaign.BankAccountNo = dto.BankAccountNo?.Trim() ?? "";
+            campaign.BankAccountName = dto.BankAccountName?.Trim() ?? "";
             campaign.TransparencyNote = dto.TransparencyNote?.Trim() ?? "";
             campaign.UpdatedAt = DateTime.UtcNow;
 
@@ -363,6 +382,16 @@ namespace BaseCore.APIService.Controllers
             await _context.SaveChangesAsync();
             await RecordAuditAsync(userId, "IndividualDonation.Create", "IndividualDonation", donation.Id, $"CampaignId={campaignId};Amount={donation.Amount:0.##}");
 
+            // Báo cho người tạo đợt biết có khoản ủng hộ mới đang chờ xác nhận
+            try
+            {
+                await _notificationService.SendAsync(campaign.CreatedBy,
+                    "Có khoản ủng hộ mới chờ xác nhận",
+                    $"Một khoản ủng hộ {donation.Amount:0.##}đ cho đợt '{campaign.Title}' đang chờ bạn đối chiếu và xác nhận.",
+                    "DonationPending", campaign.EventId);
+            }
+            catch { }
+
             return Ok(donation);
         }
 
@@ -514,6 +543,25 @@ namespace BaseCore.APIService.Controllers
             }
 
             await _context.SaveChangesAsync();
+
+            if (status == "Confirmed")
+            {
+                // Ghi nhận đóng góp vào hồ sơ người ủng hộ + xét huy hiệu
+                var profile = await _context.VolunteerProfiles.FirstOrDefaultAsync(p => p.UserId == donation.UserId);
+                if (profile != null)
+                {
+                    var agg = await _context.IndividualDonations
+                        .Where(d => d.UserId == donation.UserId && d.Status == "Confirmed")
+                        .GroupBy(d => 1)
+                        .Select(g => new { Sum = g.Sum(x => (decimal?)x.Amount) ?? 0, Cnt = g.Count() })
+                        .FirstOrDefaultAsync();
+                    profile.TotalDonatedAmount = agg?.Sum ?? 0;
+                    profile.DonationCount = agg?.Cnt ?? 0;
+                    await _context.SaveChangesAsync();
+                    try { await _badgeService.CheckAndAwardAsync(donation.UserId); } catch { }
+                }
+            }
+
             await RecordAuditAsync(userId, $"IndividualDonation.{status}", "IndividualDonation", donation.Id, $"CampaignId={donation.CampaignId};Amount={donation.Amount:0.##}");
             await NotifyDonationStatusChangedAsync(donation, status);
 
@@ -736,6 +784,9 @@ namespace BaseCore.APIService.Controllers
         public DateTime StartDate { get; set; }
         public DateTime EndDate { get; set; }
         public string? ReceiveInfo { get; set; }
+        public string? BankBin { get; set; }
+        public string? BankAccountNo { get; set; }
+        public string? BankAccountName { get; set; }
         public string? TransparencyNote { get; set; }
         public string? Status { get; set; }
     }

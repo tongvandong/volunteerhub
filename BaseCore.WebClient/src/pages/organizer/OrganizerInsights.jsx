@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { dashboardApi } from '../../services/api';
+import EmptyState from '../../components/ui/EmptyState';
 
 const initialFilters = {
   from: '',
@@ -22,65 +23,59 @@ const statusLabel = {
   Cancelled: 'Đã hủy',
 };
 
-const statusClass = {
-  Pending: 'bg-amber-50 text-amber-700 ring-amber-200',
-  Approved: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
-  Rejected: 'bg-rose-50 text-rose-700 ring-rose-200',
-  Completed: 'bg-blue-50 text-blue-700 ring-blue-200',
-  Cancelled: 'bg-slate-100 text-slate-600 ring-slate-200',
+const STATUS_STYLE = {
+  Pending: { color: '#b45309', bg: 'rgba(180,83,9,0.08)', border: 'rgba(180,83,9,0.20)' },
+  Approved: { color: '#15803d', bg: 'rgba(21,128,61,0.08)', border: 'rgba(21,128,61,0.20)' },
+  Rejected: { color: '#b91c1c', bg: 'rgba(185,28,28,0.07)', border: 'rgba(185,28,28,0.18)' },
+  Completed: { color: '#1b61c9', bg: 'rgba(27,97,201,0.08)', border: 'rgba(27,97,201,0.20)' },
+  Cancelled: { color: 'rgba(15,15,15,0.55)', bg: 'rgba(15,15,15,0.05)', border: 'rgba(15,15,15,0.12)' },
 };
 
-function StatCard({ icon, label, value, sub, tone = 'blue' }) {
-  const tones = {
-    blue: 'linear-gradient(135deg, #2563eb, #4f46e5)',
-    green: 'linear-gradient(135deg, #059669, #0f766e)',
-    amber: 'linear-gradient(135deg, #f59e0b, #ea580c)',
-    violet: 'linear-gradient(135deg, #7c3aed, #c026d3)',
-  };
-
+function StatusPill({ status }) {
+  const s = STATUS_STYLE[status] || STATUS_STYLE.Cancelled;
   return (
-    <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <p className="text-sm font-medium text-slate-500">{label}</p>
-          <p className="mt-2 text-2xl font-bold text-slate-950">{value}</p>
-          {sub && <p className="mt-1 text-xs text-slate-500">{sub}</p>}
+    <span
+      className="shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold"
+      style={{ color: s.color, background: s.bg, border: `1px solid ${s.border}` }}
+    >
+      {statusLabel[status] || status}
+    </span>
+  );
+}
+
+function StatCard({ icon, label, value, sub, accentColor = '#1b61c9' }) {
+  return (
+    <div style={{ background: '#fff', borderRadius: 12, padding: '18px 20px', border: '1px solid var(--c-border)' }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+        <div style={{
+          width: 36, height: 36, borderRadius: 10, flexShrink: 0,
+          background: `${accentColor}1f`,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}>
+          <i className={`fa-solid ${icon}`} style={{ color: accentColor, fontSize: 14 }} />
         </div>
-        <div
-          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl text-white shadow-sm"
-          style={{ background: tones[tone] || tones.blue }}
-        >
-          <i className={`fa-solid ${icon}`} />
+        <div>
+          <p style={{ fontSize: 12, color: 'rgba(15,15,15,0.50)', marginBottom: 4 }}>{label}</p>
+          <p style={{ fontSize: 24, fontWeight: 700, color: 'var(--c-ink)', lineHeight: 1.1 }}>{value}</p>
+          {sub && <p style={{ fontSize: 11, color: 'rgba(15,15,15,0.40)', marginTop: 3 }}>{sub}</p>}
         </div>
       </div>
     </div>
   );
 }
 
-function ProgressRow({ label, value, max, color = '#2563eb' }) {
+function ProgressRow({ label, value, max, color = '#1b61c9' }) {
   const percent = max > 0 ? Math.min(100, Math.round((value * 100) / max)) : 0;
 
   return (
     <div>
-      <div className="mb-2 flex items-center justify-between gap-3 text-sm">
-        <span className="font-medium text-slate-700">{label}</span>
-        <span className="font-semibold text-slate-950">{formatNumber(value)}</span>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6, fontSize: 13 }}>
+        <span style={{ fontWeight: 500, color: 'var(--c-ink)' }}>{label}</span>
+        <span style={{ fontWeight: 600, color: 'var(--c-ink)' }}>{formatNumber(value)}</span>
       </div>
-      <div className="h-2.5 overflow-hidden rounded-full bg-slate-100">
-        <div className="h-full rounded-full" style={{ width: `${percent}%`, backgroundColor: color }} />
+      <div style={{ height: 6, borderRadius: 99, background: 'var(--c-surface-2)', overflow: 'hidden' }}>
+        <div style={{ width: `${percent}%`, height: '100%', background: color, borderRadius: 99, transition: 'width 0.4s' }} />
       </div>
-    </div>
-  );
-}
-
-function EmptyPanel({ title, message }) {
-  return (
-    <div className="rounded-2xl bg-white p-8 text-center shadow-sm ring-1 ring-slate-200">
-      <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-100 text-slate-500">
-        <i className="fa-solid fa-chart-simple" />
-      </div>
-      <h3 className="mt-4 text-base font-semibold text-slate-950">{title}</h3>
-      <p className="mt-1 text-sm text-slate-500">{message}</p>
     </div>
   );
 }
@@ -169,9 +164,9 @@ export default function OrganizerInsights() {
     <div className="mx-auto max-w-7xl space-y-6">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <p className="text-sm font-semibold uppercase tracking-wide text-blue-700">Organizer Insights</p>
-          <h1 className="mt-1 text-2xl font-bold text-slate-950 sm:text-3xl">Báo cáo tác động sự kiện</h1>
-          <p className="mt-2 max-w-3xl text-sm text-slate-500">
+          <p style={{ fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#1b61c9' }}>Organizer Insights</p>
+          <h1 style={{ fontSize: 24, fontWeight: 600, color: 'var(--c-ink)', marginTop: 4 }}>Báo cáo tác động sự kiện</h1>
+          <p style={{ fontSize: 13, color: 'rgba(15,15,15,0.50)', marginTop: 8, maxWidth: '48rem' }}>
             Theo dõi hiệu quả tuyển volunteer, điểm danh, chứng chỉ và nguồn lực tài chính theo từng sự kiện.
           </p>
         </div>
@@ -179,8 +174,8 @@ export default function OrganizerInsights() {
           <button
             type="button"
             onClick={exportCsv}
-            className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition"
-            style={{ background: '#0f172a' }}
+            className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-white transition"
+            style={{ background: 'var(--c-ink)' }}
           >
             <i className="fa-solid fa-file-export" />
             Xuất CSV
@@ -188,32 +183,35 @@ export default function OrganizerInsights() {
         </div>
       </div>
 
-      <section className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200 sm:p-5">
+      <section className="rounded-xl bg-white p-4 sm:p-5" style={{ border: '1px solid var(--c-border)' }}>
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-6">
           <label className="space-y-1.5">
-            <span className="text-xs font-semibold uppercase text-slate-500">Từ ngày</span>
+            <span style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'rgba(15,15,15,0.55)' }}>Từ ngày</span>
             <input
               type="date"
               value={filters.from}
               onChange={(e) => handleChange('from', e.target.value)}
-              className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+              className="w-full rounded-lg px-3 py-2 text-sm outline-none transition"
+              style={{ border: '1px solid rgba(15,15,15,0.12)', color: 'var(--c-ink)' }}
             />
           </label>
           <label className="space-y-1.5">
-            <span className="text-xs font-semibold uppercase text-slate-500">Đến ngày</span>
+            <span style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'rgba(15,15,15,0.55)' }}>Đến ngày</span>
             <input
               type="date"
               value={filters.to}
               onChange={(e) => handleChange('to', e.target.value)}
-              className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+              className="w-full rounded-lg px-3 py-2 text-sm outline-none transition"
+              style={{ border: '1px solid rgba(15,15,15,0.12)', color: 'var(--c-ink)' }}
             />
           </label>
           <label className="space-y-1.5 xl:col-span-2">
-            <span className="text-xs font-semibold uppercase text-slate-500">Sự kiện</span>
+            <span style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'rgba(15,15,15,0.55)' }}>Sự kiện</span>
             <select
               value={filters.eventId}
               onChange={(e) => handleChange('eventId', e.target.value)}
-              className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+              className="w-full rounded-lg px-3 py-2 text-sm outline-none transition"
+              style={{ border: '1px solid rgba(15,15,15,0.12)', color: 'var(--c-ink)' }}
             >
               <option value="">Tất cả sự kiện</option>
               {(data?.filters?.events || []).map((event) => (
@@ -222,11 +220,12 @@ export default function OrganizerInsights() {
             </select>
           </label>
           <label className="space-y-1.5">
-            <span className="text-xs font-semibold uppercase text-slate-500">Danh mục</span>
+            <span style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'rgba(15,15,15,0.55)' }}>Danh mục</span>
             <select
               value={filters.categoryId}
               onChange={(e) => handleChange('categoryId', e.target.value)}
-              className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+              className="w-full rounded-lg px-3 py-2 text-sm outline-none transition"
+              style={{ border: '1px solid rgba(15,15,15,0.12)', color: 'var(--c-ink)' }}
             >
               <option value="">Tất cả</option>
               {(data?.filters?.categories || []).map((category) => (
@@ -235,11 +234,12 @@ export default function OrganizerInsights() {
             </select>
           </label>
           <label className="space-y-1.5">
-            <span className="text-xs font-semibold uppercase text-slate-500">Trạng thái</span>
+            <span style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'rgba(15,15,15,0.55)' }}>Trạng thái</span>
             <select
               value={filters.status}
               onChange={(e) => handleChange('status', e.target.value)}
-              className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+              className="w-full rounded-lg px-3 py-2 text-sm outline-none transition"
+              style={{ border: '1px solid rgba(15,15,15,0.12)', color: 'var(--c-ink)' }}
             >
               <option value="">Tất cả</option>
               {(data?.filters?.statuses || []).map((item) => (
@@ -252,8 +252,8 @@ export default function OrganizerInsights() {
           <button
             type="button"
             onClick={() => setAppliedFilters(filters)}
-            className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition"
-            style={{ background: '#2563eb' }}
+            className="inline-flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold text-white transition"
+            style={{ background: 'var(--c-ink)' }}
           >
             <i className="fa-solid fa-filter" />
             Áp dụng
@@ -261,13 +261,14 @@ export default function OrganizerInsights() {
           <button
             type="button"
             onClick={resetFilters}
-            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+            className="inline-flex items-center gap-2 rounded-lg bg-white px-4 py-2.5 text-sm font-semibold transition"
+            style={{ border: '1px solid rgba(15,15,15,0.12)', color: 'rgba(15,15,15,0.70)' }}
           >
             <i className="fa-solid fa-rotate-left" />
             Xóa lọc
           </button>
           {activeFilterCount > 0 && (
-            <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
+            <span className="rounded-full px-3 py-1 text-xs font-semibold" style={{ background: 'rgba(27,97,201,0.08)', color: '#1b61c9' }}>
               {activeFilterCount} bộ lọc đang áp dụng
             </span>
           )}
@@ -275,65 +276,65 @@ export default function OrganizerInsights() {
       </section>
 
       {error && (
-        <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm font-medium text-rose-700">
+        <div className="rounded-xl p-4 text-sm font-medium" style={{ background: 'rgba(185,28,28,0.07)', border: '1px solid rgba(185,28,28,0.18)', color: '#b91c1c' }}>
           {error}
         </div>
       )}
 
       {loading ? (
-        <div className="flex min-h-[360px] items-center justify-center rounded-2xl bg-white shadow-sm ring-1 ring-slate-200">
-          <div className="h-10 w-10 animate-spin rounded-full border-4 border-blue-600 border-t-transparent" />
+        <div className="flex min-h-[360px] items-center justify-center rounded-xl bg-white" style={{ border: '1px solid var(--c-border)' }}>
+          <div className="h-10 w-10 animate-spin rounded-full" style={{ border: '4px solid rgba(27,97,201,0.20)', borderTopColor: '#1b61c9' }} />
         </div>
       ) : totals.events === 0 ? (
-        <EmptyPanel title="Chưa có dữ liệu phù hợp" message="Thử đổi bộ lọc hoặc tạo thêm sự kiện để xem báo cáo tác động." />
+        <EmptyState icon="fa-chart-simple" title="Chưa có dữ liệu phù hợp" description="Thử đổi bộ lọc hoặc tạo thêm sự kiện để xem báo cáo tác động." />
       ) : (
         <>
           <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            <StatCard icon="fa-calendar-check" label="Sự kiện theo bộ lọc" value={formatNumber(totals.events)} sub={`${formatNumber(totals.approvedEvents)} đã duyệt, ${formatNumber(totals.completedEvents)} hoàn thành`} />
-            <StatCard icon="fa-users" label="Volunteer đã xác nhận" value={formatNumber(totals.confirmedRegistrations)} sub={`${formatNumber(totals.attendedVolunteers)} đã điểm danh`} tone="green" />
-            <StatCard icon="fa-clock" label="Giờ tình nguyện" value={formatNumber(totals.volunteerHours)} sub={`${formatNumber(totals.certificatesIssued)} chứng chỉ đã cấp`} tone="violet" />
-            <StatCard icon="fa-hand-holding-dollar" label="Nguồn lực đã xác nhận" value={formatMoney(totals.financialConfirmedAmount)} sub={`${formatMoney(totals.donationConfirmedAmount)} ủng hộ, ${formatMoney(totals.sponsorshipReceivedAmount)} tài trợ`} tone="amber" />
+            <StatCard icon="fa-calendar-check" label="Sự kiện theo bộ lọc" value={formatNumber(totals.events)} sub={`${formatNumber(totals.approvedEvents)} đã duyệt, ${formatNumber(totals.completedEvents)} hoàn thành`} accentColor="#1b61c9" />
+            <StatCard icon="fa-users" label="Volunteer đã xác nhận" value={formatNumber(totals.confirmedRegistrations)} sub={`${formatNumber(totals.attendedVolunteers)} đã điểm danh`} accentColor="#15803d" />
+            <StatCard icon="fa-clock" label="Giờ tình nguyện" value={formatNumber(totals.volunteerHours)} sub={`${formatNumber(totals.certificatesIssued)} chứng chỉ đã cấp`} accentColor="#f0612f" />
+            <StatCard icon="fa-hand-holding-dollar" label="Nguồn lực đã xác nhận" value={formatMoney(totals.financialConfirmedAmount)} sub={`${formatMoney(totals.donationConfirmedAmount)} ủng hộ, ${formatMoney(totals.sponsorshipReceivedAmount)} tài trợ`} accentColor="#b45309" />
           </section>
 
           <section className="grid gap-5 xl:grid-cols-[0.9fr_1.1fr]">
-            <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
+            <div className="rounded-xl bg-white p-5" style={{ border: '1px solid var(--c-border)' }}>
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <h2 className="text-lg font-bold text-slate-950">Phễu tham gia</h2>
-                  <p className="mt-1 text-sm text-slate-500">Từ đăng ký đến chứng chỉ</p>
+                  <h2 style={{ fontSize: 16, fontWeight: 600, color: 'var(--c-ink)' }}>Phễu tham gia</h2>
+                  <p style={{ fontSize: 13, color: 'rgba(15,15,15,0.50)', marginTop: 2 }}>Từ đăng ký đến chứng chỉ</p>
                 </div>
-                <div className="rounded-xl bg-slate-50 px-3 py-2 text-right">
-                  <p className="text-xs font-medium text-slate-500">Tỷ lệ điểm danh</p>
-                  <p className="text-lg font-bold text-slate-950">{totals.attendanceRate || 0}%</p>
+                <div className="rounded-lg px-3 py-2 text-right" style={{ background: 'rgba(15,15,15,0.03)' }}>
+                  <p style={{ fontSize: 11, color: 'rgba(15,15,15,0.50)' }}>Điểm danh / Đã xác nhận</p>
+                  <p style={{ fontSize: 18, fontWeight: 700, color: 'var(--c-ink)' }}>{totals.attendanceRate || 0}%</p>
                 </div>
               </div>
               <div className="mt-6 space-y-5">
-                <ProgressRow label="Đăng ký" value={funnel.registrations || 0} max={maxFunnel} color="#334155" />
-                <ProgressRow label="Được xác nhận" value={funnel.confirmed || 0} max={maxFunnel} color="#2563eb" />
-                <ProgressRow label="Đã điểm danh" value={funnel.attended || 0} max={maxFunnel} color="#059669" />
-                <ProgressRow label="Đã cấp chứng chỉ" value={funnel.certificates || 0} max={maxFunnel} color="#7c3aed" />
+                <ProgressRow label="Đăng ký" value={funnel.registrations || 0} max={maxFunnel} color="rgba(15,15,15,0.45)" />
+                <ProgressRow label="Được xác nhận" value={funnel.confirmed || 0} max={maxFunnel} color="#1b61c9" />
+                <ProgressRow label="Đã điểm danh" value={funnel.attended || 0} max={maxFunnel} color="#15803d" />
+                <ProgressRow label="Đã cấp chứng chỉ" value={funnel.certificates || 0} max={maxFunnel} color="#f0612f" />
               </div>
             </div>
 
-            <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
-              <h2 className="text-lg font-bold text-slate-950">Nguồn lực theo sự kiện</h2>
+            <div className="rounded-xl bg-white p-5" style={{ border: '1px solid var(--c-border)' }}>
+              <h2 style={{ fontSize: 16, fontWeight: 600, color: 'var(--c-ink)' }}>Nguồn lực theo sự kiện</h2>
               <div className="mt-4 overflow-x-auto">
                 <table className="min-w-full text-left text-sm">
                   <thead>
-                    <tr className="border-b border-slate-100 text-xs uppercase text-slate-500">
-                      <th className="py-3 pr-4 font-semibold">Sự kiện</th>
-                      <th className="py-3 pr-4 font-semibold">Ủng hộ</th>
-                      <th className="py-3 pr-4 font-semibold">Tài trợ</th>
-                      <th className="py-3 text-right font-semibold">Tổng</th>
+                    <tr style={{ borderBottom: '1px solid var(--c-border)' }}>
+                      <th className="py-3 pr-4" style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'rgba(15,15,15,0.55)' }}>Sự kiện</th>
+                      <th className="py-3 pr-4" style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'rgba(15,15,15,0.55)' }}>Ủng hộ</th>
+                      <th className="py-3 pr-4" style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'rgba(15,15,15,0.55)' }}>Tài trợ</th>
+                      <th className="py-3 text-right" style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'rgba(15,15,15,0.55)' }}>Tổng</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100">
+                  <tbody>
                     {(data?.financialByEvent || []).map((event) => (
-                      <tr key={event.id}>
-                        <td className="max-w-[260px] py-3 pr-4 font-medium text-slate-900">{event.title}</td>
-                        <td className="py-3 pr-4 text-slate-600">{formatMoney(event.donationAmount)}</td>
-                        <td className="py-3 pr-4 text-slate-600">{formatMoney(event.sponsorshipAmount)}</td>
-                        <td className="py-3 text-right font-semibold text-slate-950">{formatMoney(event.totalAmount)}</td>
+                      <tr key={event.id} style={{ borderBottom: '1px solid rgba(15,15,15,0.05)' }}>
+                        <td className="max-w-[260px] py-3 pr-4" style={{ fontWeight: 500, color: 'var(--c-ink)' }}>{event.title}</td>
+                        <td className="py-3 pr-4" style={{ color: 'rgba(15,15,15,0.60)' }}>{formatMoney(event.donationAmount)}</td>
+                        <td className="py-3 pr-4" style={{ color: 'rgba(15,15,15,0.60)' }}>{formatMoney(event.sponsorshipAmount)}</td>
+                        <td className="py-3 text-right" style={{ fontWeight: 600, color: 'var(--c-ink)' }}>{formatMoney(event.totalAmount)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -343,32 +344,30 @@ export default function OrganizerInsights() {
           </section>
 
           <section className="grid gap-5 xl:grid-cols-2">
-            <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
-              <h2 className="text-lg font-bold text-slate-950">Sự kiện nổi bật theo điểm danh</h2>
+            <div className="rounded-xl bg-white p-5" style={{ border: '1px solid var(--c-border)' }}>
+              <h2 style={{ fontSize: 16, fontWeight: 600, color: 'var(--c-ink)' }}>Sự kiện nổi bật theo điểm danh</h2>
               <div className="mt-4 space-y-3">
                 {(data?.topEventsByVolunteers || []).map((event) => (
-                  <div key={event.id} className="rounded-xl border border-slate-100 p-4">
+                  <div key={event.id} className="rounded-lg p-4" style={{ border: '1px solid var(--c-border)' }}>
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <div>
-                        <p className="font-semibold text-slate-950">{event.title}</p>
-                        <p className="mt-1 text-xs text-slate-500">{formatDate(event.startDate)}</p>
+                        <p style={{ fontWeight: 600, color: 'var(--c-ink)' }}>{event.title}</p>
+                        <p style={{ fontSize: 11, color: 'rgba(15,15,15,0.50)', marginTop: 4 }}>{formatDate(event.startDate)}</p>
                       </div>
-                      <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ${statusClass[event.status] || 'bg-slate-100 text-slate-600 ring-slate-200'}`}>
-                        {statusLabel[event.status] || event.status}
-                      </span>
+                      <StatusPill status={event.status} />
                     </div>
                     <div className="mt-4 grid grid-cols-3 gap-3 text-sm">
                       <div>
-                        <p className="text-xs text-slate-500">Xác nhận</p>
-                        <p className="font-bold text-slate-950">{formatNumber(event.confirmed)}</p>
+                        <p style={{ fontSize: 11, color: 'rgba(15,15,15,0.50)' }}>Xác nhận</p>
+                        <p style={{ fontWeight: 700, color: 'var(--c-ink)' }}>{formatNumber(event.confirmed)}</p>
                       </div>
                       <div>
-                        <p className="text-xs text-slate-500">Điểm danh</p>
-                        <p className="font-bold text-slate-950">{formatNumber(event.attended)}</p>
+                        <p style={{ fontSize: 11, color: 'rgba(15,15,15,0.50)' }}>Điểm danh</p>
+                        <p style={{ fontWeight: 700, color: 'var(--c-ink)' }}>{formatNumber(event.attended)}</p>
                       </div>
                       <div>
-                        <p className="text-xs text-slate-500">Tỷ lệ</p>
-                        <p className="font-bold text-slate-950">{event.attendanceRate || 0}%</p>
+                        <p style={{ fontSize: 11, color: 'rgba(15,15,15,0.50)' }}>Tỷ lệ</p>
+                        <p style={{ fontWeight: 700, color: 'var(--c-ink)' }}>{event.attendanceRate || 0}%</p>
                       </div>
                     </div>
                   </div>
@@ -376,44 +375,42 @@ export default function OrganizerInsights() {
               </div>
             </div>
 
-            <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
-              <h2 className="text-lg font-bold text-slate-950">Tổng quan vận hành</h2>
+            <div className="rounded-xl bg-white p-5" style={{ border: '1px solid var(--c-border)' }}>
+              <h2 style={{ fontSize: 16, fontWeight: 600, color: 'var(--c-ink)' }}>Tổng quan vận hành</h2>
               <div className="mt-4 grid gap-4 md:grid-cols-2">
-                <div className="rounded-xl bg-slate-50 p-4">
-                  <p className="text-sm font-semibold text-slate-700">Theo trạng thái</p>
+                <div className="rounded-lg p-4" style={{ background: 'rgba(15,15,15,0.03)' }}>
+                  <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--c-ink)' }}>Theo trạng thái</p>
                   <div className="mt-4 space-y-3">
                     {(data?.statusBreakdown || []).map((item) => (
                       <div key={item.status} className="flex items-center justify-between gap-3">
-                        <span className="text-sm text-slate-600">{statusLabel[item.status] || item.status}</span>
-                        <span className="font-bold text-slate-950">{formatNumber(item.count)}</span>
+                        <span style={{ fontSize: 13, color: 'rgba(15,15,15,0.60)' }}>{statusLabel[item.status] || item.status}</span>
+                        <span style={{ fontWeight: 700, color: 'var(--c-ink)' }}>{formatNumber(item.count)}</span>
                       </div>
                     ))}
                   </div>
                 </div>
-                <div className="rounded-xl bg-slate-50 p-4">
-                  <p className="text-sm font-semibold text-slate-700">Theo danh mục</p>
+                <div className="rounded-lg p-4" style={{ background: 'rgba(15,15,15,0.03)' }}>
+                  <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--c-ink)' }}>Theo danh mục</p>
                   <div className="mt-4 space-y-3">
                     {(data?.categoryBreakdown || []).map((item) => (
                       <div key={item.category} className="flex items-center justify-between gap-3">
-                        <span className="text-sm text-slate-600">{item.category}</span>
-                        <span className="font-bold text-slate-950">{formatNumber(item.count)}</span>
+                        <span style={{ fontSize: 13, color: 'rgba(15,15,15,0.60)' }}>{item.category}</span>
+                        <span style={{ fontWeight: 700, color: 'var(--c-ink)' }}>{formatNumber(item.count)}</span>
                       </div>
                     ))}
                   </div>
                 </div>
               </div>
               <div className="mt-5">
-                <p className="text-sm font-semibold text-slate-700">Sự kiện tạo gần đây</p>
-                <div className="mt-3 divide-y divide-slate-100 rounded-xl border border-slate-100">
-                  {(data?.recentEvents || []).map((event) => (
-                    <div key={event.id} className="flex items-center justify-between gap-3 p-3">
+                <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--c-ink)' }}>Sự kiện tạo gần đây</p>
+                <div className="mt-3 rounded-lg" style={{ border: '1px solid var(--c-border)' }}>
+                  {(data?.recentEvents || []).map((event, idx) => (
+                    <div key={event.id} className="flex items-center justify-between gap-3 p-3" style={idx > 0 ? { borderTop: '1px solid rgba(15,15,15,0.05)' } : undefined}>
                       <div className="min-w-0">
-                        <p className="truncate text-sm font-semibold text-slate-950">{event.title}</p>
-                        <p className="text-xs text-slate-500">{event.category} · {formatDate(event.createdAt)}</p>
+                        <p className="truncate" style={{ fontSize: 13, fontWeight: 600, color: 'var(--c-ink)' }}>{event.title}</p>
+                        <p style={{ fontSize: 11, color: 'rgba(15,15,15,0.50)' }}>{event.category} · {formatDate(event.createdAt)}</p>
                       </div>
-                      <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ${statusClass[event.status] || 'bg-slate-100 text-slate-600 ring-slate-200'}`}>
-                        {statusLabel[event.status] || event.status}
-                      </span>
+                      <StatusPill status={event.status} />
                     </div>
                   ))}
                 </div>

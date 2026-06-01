@@ -245,3 +245,77 @@ Pending → Accepted → Received → Reported
 16. Transfer event: new organizer phải Verified + active.
 17. Khóa organizer → cascade hủy event active + campaign + proposal.
 18. Campaign chỉ chuyển trạng thái theo thứ tự hợp lệ (Draft→Open→Closed).
+
+## Cập nhật nghiệp vụ quản trị 2026-05-25
+
+### FR-29. Quản lý huy hiệu bởi Admin
+- Admin xem danh sách huy hiệu hiện có tại `/admin/badges`.
+- Admin thêm/sửa huy hiệu gồm: tên, mô tả, icon URL, điều kiện `min_events` và/hoặc `min_hours`.
+- Admin được xóa huy hiệu chỉ khi huy hiệu chưa từng được cấp cho user.
+- Nếu huy hiệu đã được cấp, hệ thống chặn xóa để bảo toàn lịch sử; admin chỉ nên sửa tên/mô tả/icon trong phạm vi không làm sai ý nghĩa huy hiệu đã trao.
+- Huy hiệu vẫn được cấp tự động khi volunteer đạt điều kiện qua tổng số sự kiện đã tham gia hoặc tổng giờ tình nguyện.
+
+### FR-30. Giám sát tài chính bởi Admin
+- Admin có màn `/admin/finance` để xem các khoản cần đối soát:
+  - Donation `PendingConfirmation` quá số ngày cấu hình.
+  - Campaign đã có tiền confirmed nhưng event đã kết thúc/hủy mà chưa `Reported`.
+  - Sponsorship proposal còn `Pending`/`Accepted` sau khi event đã `Completed`/`Cancelled`.
+- Màn giám sát tài chính chỉ đọc dữ liệu, hỗ trợ admin phát hiện và nhắc các bên liên quan.
+- Admin không sửa/xóa trực tiếp donation, campaign hoặc proposal tại màn này; mọi thay đổi vẫn đi qua flow nghiệp vụ chính của organizer/sponsor/admin revert.
+
+### Verification request changes
+- KYC volunteer và skill verification có thêm trạng thái `ChangesRequested`.
+- Admin có thể `approve`, `request changes`, hoặc `reject`.
+- `request changes` và `reject` phải có lý do rõ ràng tối thiểu 10 ký tự.
+- Volunteer có thể gửi lại minh chứng kỹ năng khi trạng thái là `SelfDeclared`, `Rejected` hoặc `ChangesRequested`.
+
+### Quy tắc xóa cứng
+- Event: chỉ xóa nếu chưa có registration, work shift, channel, campaign, sponsor/proposal, certificate, rating.
+- User: chỉ xóa nếu chưa có dữ liệu nghiệp vụ liên quan.
+- Badge: chỉ xóa nếu chưa cấp cho user.
+- Rating: admin được xóa nếu vi phạm; thông thường ưu tiên ẩn/hiện.
+- Audit log, monitoring, export: không sửa/xóa qua UI demo.
+## Cập nhật nghiệp vụ lõi 2026-05-25
+
+### Đăng ký sự kiện
+- Volunteer chỉ đăng ký event `Approved`, chưa bắt đầu, chưa kết thúc và chưa full capacity.
+- Event yêu cầu KYC thì volunteer phải có KYC `Verified`.
+- Nếu event không chia ca, registration không có `ShiftId`.
+- Nếu event đã chia ca, registration bắt buộc có `ShiftId` hợp lệ thuộc event và ca chưa đầy.
+- Volunteer rút trực tiếp chỉ khi registration còn `Pending`; sau `Confirmed` phải gửi yêu cầu hủy để organizer xử lý.
+
+### Ca làm việc
+- Ca làm việc là tùy chọn nâng cao, không nằm trong flow tạo event mặc định.
+- Organizer chỉ được bật/tạo ca khi event chưa có registration nào.
+- Sau khi event có ca, mọi đăng ký mới phải chọn ca.
+- Ca phải nằm trong khoảng thời gian event; không được tạo ca ngoài `StartDate`/`EndDate`.
+- Xóa ca chỉ được phép khi ca chưa có registration; nếu đã có registration thì phải giữ lịch sử.
+
+### Điểm danh và tính giờ
+- Check-in chỉ cho registration `Confirmed` và event `Approved`.
+- Nếu registration có ca, cửa sổ check-in theo ca; nếu không có ca, cửa sổ check-in theo event.
+- QR là phương thức chính khi event có QR; GPS chỉ là fallback khi event không có QR.
+- Check-in không cộng giờ ngay; giờ tình nguyện được tính khi check-out hoặc khi organizer điều chỉnh/bổ sung điểm danh hợp lệ.
+- Check-out tính giờ thực tế từ `AttendedAt` đến `CheckedOutAt`, không vượt quá khung event/shift.
+- Manual attend chỉ thực hiện sau khi event kết thúc và trong cửa sổ bổ sung cho phép.
+
+### Hoàn thành event
+- Organizer/admin được hoàn thành event `Approved` kể cả khi còn registration `Pending`.
+- Hệ thống phải cảnh báo số registration chưa xử lý trước khi hoàn thành.
+- Khi vẫn quyết tâm hoàn thành, các registration chưa xử lý không được tính tham gia, không cộng giờ và không cấp chứng chỉ.
+- Không dùng số người tối thiểu như điều kiện cứng; chỉ dùng cảnh báo/ngữ cảnh vận hành nếu cần.
+
+### Ủng hộ cá nhân
+- Organizer có thể tạo support campaign sau khi event được duyệt và chưa kết thúc/hủy.
+- Campaign đi theo state machine `Draft -> Open -> Closed -> Reported`, có nhánh `Cancelled`.
+- Volunteer gửi donation vào campaign `Open`; số tiền phải lớn hơn 0 và không vượt giới hạn cấu hình.
+- Donation chỉ cộng vào tổng public khi `Confirmed`.
+- Donation ẩn danh không hiển thị thông tin liên hệ trên public; organizer chỉ dùng thông tin xác nhận trong phạm vi cần thiết.
+- Event không có campaign hoặc campaign không có donation vẫn hoàn thành bình thường.
+
+### Tài trợ doanh nghiệp
+- Sponsorship proposal là luồng chính thức cho sponsor doanh nghiệp.
+- Organizer có thể mời sponsor; sponsor cũng có thể đề nghị tài trợ event.
+- Mỗi sponsor chỉ có một proposal active cho một event tại một thời điểm.
+- Chỉ proposal `Received` mới tính vào tổng tài trợ đã nhận.
+- Proposal đã `Received`/`Reported` không xóa cứng; mọi điều chỉnh phải có lý do/audit.

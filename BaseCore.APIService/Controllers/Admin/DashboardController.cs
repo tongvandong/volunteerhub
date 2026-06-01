@@ -71,8 +71,12 @@ namespace BaseCore.APIService.Controllers
                     .ToListAsync();
                 var pendingRegistrations = await _context.Registrations
                     .CountAsync(r => eventIds.Contains(r.EventId) && r.Status == "Pending");
+                // Đếm số tình nguyện viên DISTINCT (1 người tham gia nhiều sự kiện chỉ tính 1), không phải số lượt đăng ký.
                 var totalVolunteers = await _context.Registrations
-                    .CountAsync(r => eventIds.Contains(r.EventId) && r.Status == "Confirmed");
+                    .Where(r => eventIds.Contains(r.EventId) && r.Status == "Confirmed")
+                    .Select(r => r.UserId)
+                    .Distinct()
+                    .CountAsync();
                 var recentEvents = await _context.Events
                     .Where(e => e.OrganizerId == userId)
                     .OrderByDescending(e => e.CreatedAt)

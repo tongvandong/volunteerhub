@@ -116,7 +116,7 @@ namespace BaseCore.APIService.Controllers
                 "Lời mời tài trợ mới",
                 $"Bạn nhận được lời mời tài trợ '{proposal.Title}' cho sự kiện '{ev.Title}'.",
                 "SponsorshipProposalCreated",
-                proposal.Id);
+                proposal.EventId);
 
             return Ok(await GetProposalDto(proposal.Id));
         }
@@ -165,7 +165,7 @@ namespace BaseCore.APIService.Controllers
                 "Đề nghị tài trợ mới",
                 $"Sponsor '{sponsor?.Name ?? sponsor?.UserName ?? "Sponsor"}' đã gửi đề nghị tài trợ '{proposal.Title}' cho sự kiện '{ev.Title}'.",
                 "SponsorshipProposalCreated",
-                proposal.Id);
+                proposal.EventId);
 
             return Ok(await GetProposalDto(proposal.Id));
         }
@@ -251,7 +251,7 @@ namespace BaseCore.APIService.Controllers
                 "Tài trợ đã được ghi nhận",
                 $"Ban tổ chức đã ghi nhận {actual:0.##}đ cho đề nghị '{proposal.Title}' của sự kiện '{proposal.Event.Title}'. Số cam kết ban đầu: {pledged:0.##}đ.",
                 "SponsorshipReceived",
-                proposal.Id);
+                proposal.EventId);
             return Ok(await GetProposalDto(proposal.Id));
         }
 
@@ -307,7 +307,7 @@ namespace BaseCore.APIService.Controllers
                 "Báo cáo sử dụng tài trợ",
                 $"Ban tổ chức đã gửi báo cáo sử dụng tài trợ cho đề nghị '{proposal.Title}' của sự kiện '{proposal.Event.Title}'. Số tiền đã sử dụng: {proposal.UsedAmount:0.##}đ.",
                 "SponsorshipProposalReported",
-                proposal.Id);
+                proposal.EventId);
             return Ok(await GetProposalDto(proposal.Id));
         }
 
@@ -477,7 +477,7 @@ namespace BaseCore.APIService.Controllers
 
             foreach (var recipientId in recipients)
             {
-                await _notificationService.SendAsync(recipientId, title, message, type, proposal.Id);
+                await _notificationService.SendAsync(recipientId, title, message, type, proposal.EventId);
             }
         }
 
@@ -485,7 +485,7 @@ namespace BaseCore.APIService.Controllers
         {
             foreach (var recipientId in new[] { proposal.SponsorId, proposal.OrganizerId }.Distinct())
             {
-                await _notificationService.SendAsync(recipientId, title, message, type, proposal.Id);
+                await _notificationService.SendAsync(recipientId, title, message, type, proposal.EventId);
             }
         }
 

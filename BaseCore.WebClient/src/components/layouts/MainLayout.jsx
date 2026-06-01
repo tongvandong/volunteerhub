@@ -1,63 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { profileApi } from '../../services/api';
-
-const NAV = {
-  Volunteer: [
-    { to: '/dashboard', icon: 'fa-gauge', label: 'Tổng quan' },
-    { to: '/events', icon: 'fa-calendar-days', label: 'Sự kiện' },
-    { to: '/my-registrations', icon: 'fa-clipboard-list', label: 'Đăng ký của tôi' },
-    { to: '/my-donations', icon: 'fa-hand-holding-heart', label: 'Ủng hộ của tôi' },
-    { to: '/profile', icon: 'fa-user', label: 'Hồ sơ' },
-    { to: '/profile/passport', icon: 'fa-id-card', label: 'Hộ chiếu tình nguyện' },
-    { to: '/my-badges', icon: 'fa-medal', label: 'Huy hiệu' },
-    { to: '/my-certificates', icon: 'fa-certificate', label: 'Chứng chỉ' },
-    { to: '/notifications', icon: 'fa-bell', label: 'Thông báo' },
-  ],
-  Organizer: [
-    { to: '/dashboard', icon: 'fa-gauge', label: 'Tổng quan' },
-    { to: '/events', icon: 'fa-calendar-days', label: 'Sự kiện công khai' },
-    { to: '/my-events', icon: 'fa-list-check', label: 'Sự kiện của tôi' },
-    { to: '/events/create', icon: 'fa-circle-plus', label: 'Tạo sự kiện' },
-    { to: '/organizer/insights', icon: 'fa-chart-line', label: 'Báo cáo tác động' },
-    { to: '/organizer/verification', icon: 'fa-building-shield', label: 'Xác minh tổ chức' },
-    { to: '/notifications', icon: 'fa-bell', label: 'Thông báo' },
-  ],
-  Sponsor: [
-    { to: '/dashboard', icon: 'fa-gauge', label: 'Tổng quan' },
-    { to: '/events', icon: 'fa-calendar-days', label: 'Sự kiện công khai' },
-    { to: '/my-sponsorships', icon: 'fa-hand-holding-dollar', label: 'Tài trợ của tôi' },
-    { to: '/notifications', icon: 'fa-bell', label: 'Thông báo' },
-  ],
-  Admin: [
-    { to: '/dashboard', icon: 'fa-gauge', label: 'Tổng quan' },
-    { to: '/admin/events', icon: 'fa-calendar-check', label: 'Duyệt sự kiện' },
-    { to: '/admin/organizer-verifications', icon: 'fa-building-shield', label: 'Duyệt tổ chức' },
-    { to: '/admin/volunteer-verifications', icon: 'fa-id-card', label: 'Duyệt volunteer' },
-    { to: '/admin/users', icon: 'fa-users', label: 'Quản lý người dùng' },
-    { to: '/admin/categories', icon: 'fa-tags', label: 'Danh mục' },
-    { to: '/admin/skills', icon: 'fa-star', label: 'Kỹ năng' },
-    { to: '/admin/ratings', icon: 'fa-star-half-stroke', label: 'Kiểm duyệt đánh giá' },
-    { to: '/admin/monitoring', icon: 'fa-shield-halved', label: 'Giám sát' },
-    { to: '/admin/export', icon: 'fa-file-export', label: 'Xuất dữ liệu' },
-    { to: '/notifications', icon: 'fa-bell', label: 'Thông báo' },
-  ],
-};
-
-const ROLE_LABEL = {
-  Volunteer: 'Tình nguyện viên',
-  Organizer: 'Nhà tổ chức',
-  Sponsor: 'Nhà tài trợ',
-  Admin: 'Quản trị viên',
-};
-
-const ROLE_BADGE = {
-  Volunteer: { bg: 'rgba(27,97,201,0.18)', color: '#7aaaf5' },
-  Organizer: { bg: 'rgba(124,58,237,0.18)', color: '#a78bfa' },
-  Sponsor: { bg: 'rgba(245,158,11,0.18)', color: '#fbbf24' },
-  Admin: { bg: 'rgba(239,68,68,0.18)', color: '#f87171' },
-};
+import { profileApi, notificationApi } from '../../services/api';
+import { ROLE_NAV, ROLE_LABEL, ROLE_BADGE } from '../../utils/roleNav';
 
 export default function MainLayout({ children }) {
   const { user, logout } = useAuth();
@@ -65,13 +10,14 @@ export default function MainLayout({ children }) {
   const navigate = useNavigate();
   const [isMobile, setIsMobile] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState('');
+  const [unreadCount, setUnreadCount] = useState(0);
   const [sidebarOpen, setSidebarOpen] = useState(() => (
     typeof window === 'undefined' ? true : window.innerWidth >= 768
   ));
   const mobileModeRef = useRef(null);
 
-  const navItems = NAV[user?.role] || [];
-  const isActive = (path) => location.pathname === path || (path !== '/' && location.pathname.startsWith(path));
+  const navItems = ROLE_NAV[user?.role] || [];
+  const isActive = (path) => location.pathname === path || (path !== '/' && location.pathname.startsWith(path + '/'));
 
   useEffect(() => {
     const syncLayout = () => {
@@ -118,6 +64,27 @@ export default function MainLayout({ children }) {
     };
   }, [user?.role, user?.id]);
 
+  // Notification badge — refetch khi pathname đổi (badge tự clear sau khi vào /notifications)
+  useEffect(() => {
+    let alive = true;
+    const fetchUnread = () => {
+      notificationApi
+        .getAll({ pageSize: 50, page: 1 })
+        .then((r) => {
+          if (!alive) return;
+          const items = r.data?.items || [];
+          setUnreadCount(items.filter((n) => !n.isRead).length);
+        })
+        .catch(() => {});
+    };
+    fetchUnread();
+    window.addEventListener('volunteerhub:notifications-updated', fetchUnread);
+    return () => {
+      alive = false;
+      window.removeEventListener('volunteerhub:notifications-updated', fetchUnread);
+    };
+  }, [location.pathname]);
+
   const closeSidebarOnMobile = () => {
     if (isMobile) {
       setSidebarOpen(false);
@@ -151,7 +118,7 @@ export default function MainLayout({ children }) {
   );
 
   return (
-    <div className="relative flex h-screen overflow-hidden" style={{ background: '#f8fafc' }}>
+    <div className="relative flex h-screen overflow-hidden" style={{ background: 'var(--c-canvas)' }}>
       {isMobile && sidebarOpen && (
         <button
           type="button"
@@ -167,20 +134,25 @@ export default function MainLayout({ children }) {
             ? `${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} fixed inset-y-0 left-0 z-40 w-60 flex-shrink-0 flex flex-col transition-transform duration-300`
             : `${sidebarOpen ? 'w-60' : 'w-0 overflow-hidden'} flex-shrink-0 flex flex-col transition-all duration-300`
         }
-        style={{ background: '#181d26', borderRight: '1px solid rgba(255,255,255,0.06)' }}
+        style={{ background: 'var(--c-surface)', borderRight: '1px solid var(--c-border)' }}
       >
-        <div className="flex items-center gap-2.5 px-5 py-4" style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
-          <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: '#1b61c9' }}>
+        <div className="flex items-center gap-2.5 px-5 py-4" style={{ borderBottom: '1px solid var(--c-border)' }}>
+          <div
+            className="w-8 h-8 rounded-[11px] flex items-center justify-center flex-shrink-0"
+            style={{ background: 'linear-gradient(135deg, #1b61c9 0%, #1552b0 100%)', boxShadow: '0 3px 8px -2px rgba(27,97,201,0.5)' }}
+          >
             <i className="fa-solid fa-leaf text-white text-xs" />
           </div>
-          <span className="font-semibold text-white text-[15px] tracking-[0.12px]">VolunteerHub</span>
+          <span className="font-bold text-[16px] tracking-[-0.02em]" style={{ color: 'var(--c-ink)' }}>
+            Volunteer<b style={{ color: 'var(--c-primary)' }}>Hub</b>
+          </span>
         </div>
 
-        <div className="px-4 py-3.5" style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
+        <div className="px-4 py-3.5" style={{ borderBottom: '1px solid var(--c-border)' }}>
           <div className="flex items-center gap-3">
             {renderAvatar('w-8 h-8 text-sm')}
             <div className="min-w-0">
-              <p className="text-white text-[13px] font-medium truncate leading-tight">{user?.name}</p>
+              <p className="text-[13px] font-medium truncate leading-tight" style={{ color: 'var(--c-ink)' }}>{user?.name}</p>
               <span
                 className="text-[11px] px-2 py-0.5 rounded-full font-medium mt-0.5 inline-block"
                 style={{ background: roleBadge.bg, color: roleBadge.color }}
@@ -205,12 +177,12 @@ export default function MainLayout({ children }) {
           ))}
         </nav>
 
-        <div className="px-3 py-3" style={{ borderTop: '1px solid rgba(255,255,255,0.07)' }}>
+        <div className="px-3 py-3" style={{ borderTop: '1px solid var(--c-border)' }}>
           <button
             onClick={handleLogout}
             className="sidebar-link w-full"
-            style={{ color: 'rgba(248,113,113,0.80)' }}
-            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(239,68,68,0.15)')}
+            style={{ color: 'var(--c-danger)' }}
+            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(220,38,38,0.08)')}
             onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
           >
             <i className="fa-solid fa-right-from-bracket w-4 text-center" style={{ fontSize: 13 }} />
@@ -223,17 +195,18 @@ export default function MainLayout({ children }) {
         <header
           className="flex items-center gap-4 px-5 flex-shrink-0"
           style={{
-            background: '#ffffff',
-            borderBottom: '1px solid #e0e2e6',
-            height: 52,
-            boxShadow: 'rgba(15,48,106,0.04) 0px 1px 0px',
+            background: 'rgba(251,247,241,0.85)',
+            backdropFilter: 'blur(10px)',
+            WebkitBackdropFilter: 'blur(10px)',
+            borderBottom: '1px solid var(--c-border)',
+            height: 56,
           }}
         >
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
             className="flex items-center justify-center w-8 h-8 rounded-lg transition-colors"
-            style={{ color: 'rgba(4,14,32,0.55)' }}
-            onMouseEnter={(e) => (e.currentTarget.style.background = '#f0f5ff')}
+            style={{ color: 'var(--c-ink-2)' }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--c-surface-2)')}
             onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
           >
             <i className="fa-solid fa-bars" style={{ fontSize: 15 }} />
@@ -242,9 +215,9 @@ export default function MainLayout({ children }) {
           <Link
             to="/events"
             className="flex items-center gap-1.5 text-[13px] font-medium transition-colors"
-            style={{ color: 'rgba(4,14,32,0.55)', letterSpacing: '0.07px', textDecoration: 'none' }}
+            style={{ color: 'var(--c-ink-2)', letterSpacing: '0.07px', textDecoration: 'none' }}
             onMouseEnter={(e) => (e.currentTarget.style.color = '#1b61c9')}
-            onMouseLeave={(e) => (e.currentTarget.style.color = 'rgba(4,14,32,0.55)')}
+            onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--c-ink-2)')}
           >
             <i className="fa-solid fa-calendar-days" />
             Sự kiện công khai
@@ -254,17 +227,25 @@ export default function MainLayout({ children }) {
 
           <Link
             to="/notifications"
-            className="flex items-center justify-center w-8 h-8 rounded-lg transition-colors"
-            style={{ color: 'rgba(4,14,32,0.55)', textDecoration: 'none' }}
-            onMouseEnter={(e) => (e.currentTarget.style.background = '#f0f5ff')}
-            onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+            className="relative flex items-center justify-center w-8 h-8 rounded-lg transition-colors"
+            style={{ color: 'var(--c-ink-2)', textDecoration: 'none' }}
+            onMouseEnter={(e) => (e.currentTarget.style.color = '#1b61c9')}
+            onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--c-ink-2)')}
           >
             <i className="fa-solid fa-bell" style={{ fontSize: 15 }} />
+            {unreadCount > 0 && (
+              <span
+                className="absolute -top-1 -right-1 min-w-[16px] h-4 rounded-full bg-red-500 text-white font-bold flex items-center justify-center pointer-events-none"
+                style={{ fontSize: 9, lineHeight: 1, padding: '0 3px' }}
+              >
+                {unreadCount > 9 ? '9+' : unreadCount}
+              </span>
+            )}
           </Link>
 
           <div className="flex items-center gap-2.5">
             {renderAvatar('w-7 h-7 text-xs')}
-            <span className="text-[13px] font-medium hidden sm:block" style={{ color: '#181d26', letterSpacing: '0.07px' }}>
+            <span className="text-[13px] font-medium hidden sm:block" style={{ color: 'var(--c-ink)', letterSpacing: '0.07px' }}>
               {user?.name}
             </span>
           </div>

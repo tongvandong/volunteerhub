@@ -47,13 +47,36 @@ namespace BaseCore.APIService.Controllers
             return Ok(new { profile, skills });
         }
 
-        [HttpGet("api/profile/{userId}")]
+        [HttpGet("api/profile/{userId:int}")]
         [AllowAnonymous]
         public async Task<IActionResult> GetProfile(int userId)
         {
             var profile = await _profileRepo.GetByUserIdAsync(userId);
             var skills = await _profileRepo.GetSkillsByUserIdAsync(userId);
             if (profile == null) return NotFound(new { message = "Profile not found" });
+
+            // Lấy thêm certificates + sự kiện đã tham gia (passport công khai)
+            var certificates = await _certificateRepo.GetByUserAsync(userId);
+            var registrations = await _registrationRepo.GetByUserAsync(userId);
+            var publicRegs = registrations
+                .Where(r => r.IsAttended && !string.Equals(r.Event?.Status, "Cancelled", StringComparison.OrdinalIgnoreCase))
+                .OrderByDescending(r => r.Event?.StartDate ?? r.RegisteredAt)
+                .Select(r => new
+                {
+                    r.Id,
+                    r.EventId,
+                    r.IsAttended,
+                    r.VolunteerHours,
+                    @event = r.Event == null ? null : new
+                    {
+                        r.Event.Id,
+                        r.Event.Title,
+                        r.Event.StartDate,
+                        r.Event.EndDate,
+                        r.Event.Status,
+                    }
+                })
+                .ToList();
 
             return Ok(new
             {
@@ -62,16 +85,20 @@ namespace BaseCore.APIService.Controllers
                     profile.Id,
                     profile.UserId,
                     profile.TotalVolunteerHours,
+                    profile.TotalDonatedAmount,
+                    profile.DonationCount,
                     profile.Bio,
                     profile.AvatarUrl,
+                    profile.BloodType,
+                    profile.Interests,
                     profile.KycStatus,
-                    user = profile.User == null ? null : new
-                    {
-                        profile.User.Id,
-                        profile.User.Name,
-                        profile.User.UserName,
-                        profile.User.UserType
-                    }
+                },
+                user = profile.User == null ? null : new
+                {
+                    profile.User.Id,
+                    profile.User.Name,
+                    profile.User.UserName,
+                    profile.User.UserType,
                 },
                 skills = skills.Select(s => new
                 {
@@ -80,7 +107,23 @@ namespace BaseCore.APIService.Controllers
                     s.Level,
                     s.VerificationStatus,
                     skill = s.Skill == null ? null : new { s.Skill.Id, s.Skill.Name, s.Skill.Category }
-                })
+                }),
+                certificates = certificates.Select(c => new
+                {
+                    c.Id,
+                    c.EventId,
+                    c.CertificateCode,
+                    c.IssuedAt,
+                    c.VolunteerHours,
+                    c.PdfUrl,
+                    @event = c.Event == null ? null : new
+                    {
+                        c.Event.Id, c.Event.Title, c.Event.StartDate
+                    }
+                }),
+                registrations = publicRegs,
+                totalEvents = publicRegs.Count,
+                totalHours = profile.TotalVolunteerHours,
             });
         }
 
@@ -99,7 +142,6 @@ namespace BaseCore.APIService.Controllers
             {
                 profile = new VolunteerProfile { UserId = userId };
                 profile.BloodType = dto.BloodType?.Trim() ?? "";
-                profile.Languages = dto.Languages?.Trim() ?? "";
                 profile.Interests = dto.Interests?.Trim() ?? "";
                 profile.Bio = dto.Bio?.Trim() ?? "";
                 profile.AvatarUrl = dto.AvatarUrl?.Trim() ?? "";
@@ -109,12 +151,25 @@ namespace BaseCore.APIService.Controllers
             else
             {
                 profile.BloodType = dto.BloodType?.Trim() ?? profile.BloodType;
-                profile.Languages = dto.Languages?.Trim() ?? profile.Languages;
                 profile.Interests = dto.Interests?.Trim() ?? profile.Interests;
                 profile.Bio = dto.Bio?.Trim() ?? profile.Bio;
                 profile.AvatarUrl = dto.AvatarUrl?.Trim() ?? profile.AvatarUrl;
                 await _profileRepo.UpdateAsync(profile);
             }
+
+            // Cho phép user tự đổi tên hiển thị + số điện thoại (User entity).
+            if (dto.Name != null || dto.Phone != null)
+            {
+                var account = await _context.Users.FirstOrDefaultAsync(u => u.Id == userId);
+                if (account != null)
+                {
+                    if (dto.Name != null) account.Name = dto.Name.Trim();
+                    if (dto.Phone != null) account.Phone = dto.Phone.Trim();
+                    await _context.SaveChangesAsync();
+                    profile.User = account;
+                }
+            }
+
             await RecordAuditAsync(userId, "Profile.Update", "VolunteerProfile", profile.Id);
             return Ok(profile);
         }
@@ -133,7 +188,7 @@ namespace BaseCore.APIService.Controllers
             var profile = await _profileRepo.GetByUserIdAsync(userId);
             if (profile == null)
             {
-                profile = new VolunteerProfile { UserId = userId, BloodType = "", Languages = "", Interests = "", Bio = "", AvatarUrl = "" };
+                profile = new VolunteerProfile { UserId = userId, BloodType = "", Interests = "", Bio = "", AvatarUrl = "" };
                 await _profileRepo.AddAsync(profile);
             }
             if (!IsInternalUploadUrl(dto.IdentityFrontImageUrl) ||
@@ -364,11 +419,13 @@ namespace BaseCore.APIService.Controllers
 
         private static string? ValidateProfileUpdate(ProfileUpdateDto dto)
         {
+            if (dto.Name != null && (string.IsNullOrWhiteSpace(dto.Name) || dto.Name.Trim().Length > 100))
+                return "Họ và tên không được để trống và tối đa 100 ký tự.";
+            if ((dto.Phone?.Trim().Length ?? 0) > 30)
+                return "Số điện thoại tối đa 30 ký tự.";
             if (!string.IsNullOrWhiteSpace(dto.BloodType) &&
                 !new[] { "A", "B", "AB", "O", "A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-" }.Contains(dto.BloodType.Trim(), StringComparer.OrdinalIgnoreCase))
                 return "Blood type is invalid";
-            if ((dto.Languages?.Trim().Length ?? 0) > 300)
-                return "Languages must be 300 characters or less";
             if ((dto.Interests?.Trim().Length ?? 0) > 300)
                 return "Interests must be 300 characters or less";
             if ((dto.Bio?.Trim().Length ?? 0) > 1000)
@@ -401,8 +458,9 @@ namespace BaseCore.APIService.Controllers
 
     public class ProfileUpdateDto
     {
+        public string? Name { get; set; }
+        public string? Phone { get; set; }
         public string? BloodType { get; set; }
-        public string? Languages { get; set; }
         public string? Interests { get; set; }
         public string? Bio { get; set; }
         public string? AvatarUrl { get; set; }

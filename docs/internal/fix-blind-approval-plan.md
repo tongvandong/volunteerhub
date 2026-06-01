@@ -578,3 +578,8 @@ $history = Invoke-RestMethod -Uri "http://localhost:5000/api/events/$($ev.id)/hi
 9. **F** (docs) — 15 phút
 
 Mỗi bước build + test ngay. Không cần làm hết 1 lần — có thể chia 2-3 session.
+## Cập nhật nghiệp vụ 2026-05-25
+
+Ngoài approve/reject, các luồng xác minh volunteer hiện có thêm trạng thái `ChangesRequested` để admin yêu cầu bổ sung hồ sơ. Trạng thái này áp dụng cho KYC và minh chứng kỹ năng, có ghi chú bắt buộc đủ rõ ràng và gửi thông báo cho volunteer.
+
+Admin event hiện có thêm xem chi tiết, hủy có lý do, transfer organizer và xóa có điều kiện. Khi đọc plan này, xem đây là nền tảng lịch sử cho việc chống duyệt mù, không phải trạng thái cuối cùng đầy đủ của toàn bộ module admin.

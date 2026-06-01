@@ -23,10 +23,10 @@ if (-not (Test-Path -LiteralPath $seedSql)) {
 }
 
 Write-Host "Resetting demo data on $Server / $Database"
-sqlcmd -b -S $Server -d $Database -E -i $resetSql
+sqlcmd -b -I -f 65001 -S $Server -d $Database -E -i $resetSql
 
 Write-Host 'Applying extended seed_data.sql'
-sqlcmd -b -S $Server -d $Database -E -i $seedSql
+sqlcmd -b -I -f 65001 -S $Server -d $Database -E -i $seedSql
 
 $verifyQuery = @"
 SET NOCOUNT ON;

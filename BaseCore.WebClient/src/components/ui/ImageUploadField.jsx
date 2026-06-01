@@ -26,15 +26,15 @@ export default function ImageUploadField({ label, value, onChange, helper, compa
 
   if (variant === 'card') {
     return (
-      <div className="rounded-2xl border border-gray-200 bg-white p-3 shadow-sm transition-shadow hover:shadow-md">
-        {label && <label className="block text-sm font-semibold text-gray-800 mb-2">{label}</label>}
-        <div className="aspect-[4/3] rounded-xl border border-dashed border-gray-200 bg-gray-50 overflow-hidden flex items-center justify-center">
+      <div className="rounded-2xl border border-warmborder bg-white p-3 shadow-sm transition-shadow hover:shadow-md">
+        {label && <label className="block text-sm font-semibold text-warmink mb-2">{label}</label>}
+        <div className="aspect-[4/3] rounded-xl border border-dashed border-warmborder bg-surface-2 overflow-hidden flex items-center justify-center">
           {value ? (
             <img src={value} alt="" className="w-full h-full object-cover" />
           ) : (
             <div className="text-center">
-              <i className="fa-solid fa-image text-gray-300 text-3xl" />
-              <p className="mt-2 text-xs text-gray-400">Chưa có ảnh</p>
+              <i className="fa-solid fa-image text-warmink-3 text-3xl" />
+              <p className="mt-2 text-xs text-warmink-3">Chưa có ảnh</p>
             </div>
           )}
         </div>
@@ -59,7 +59,7 @@ export default function ImageUploadField({ label, value, onChange, helper, compa
             </button>
           )}
         </div>
-        {helper && <p className="mt-2 text-xs text-gray-400">{helper}</p>}
+        {helper && <p className="mt-2 text-xs text-warmink-3">{helper}</p>}
         {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
       </div>
     );
@@ -67,13 +67,13 @@ export default function ImageUploadField({ label, value, onChange, helper, compa
 
   return (
     <div className={compact ? 'space-y-2' : 'space-y-3'}>
-      {label && <label className="block text-sm font-medium text-gray-700">{label}</label>}
+      {label && <label className="block text-sm font-medium text-warmink-2">{label}</label>}
       <div className="flex flex-col sm:flex-row gap-3">
-        <div className="w-full sm:w-32 h-24 rounded-lg border border-gray-200 bg-gray-50 overflow-hidden flex items-center justify-center">
+        <div className="w-full sm:w-32 h-24 rounded-lg border border-warmborder bg-surface-2 overflow-hidden flex items-center justify-center">
           {value ? (
             <img src={value} alt="" className="w-full h-full object-cover" />
           ) : (
-            <i className="fa-solid fa-image text-gray-300 text-2xl" />
+            <i className="fa-solid fa-image text-warmink-3 text-2xl" />
           )}
         </div>
         <div className="flex-1 space-y-2">
@@ -98,8 +98,8 @@ export default function ImageUploadField({ label, value, onChange, helper, compa
               </button>
             )}
           </div>
-          {helper && <p className="text-xs text-gray-400">{helper}</p>}
-          {value && <p className="text-xs text-gray-400 break-all">{value}</p>}
+          {helper && <p className="text-xs text-warmink-3">{helper}</p>}
+          {value && <p className="text-xs text-warmink-3 break-all">{value}</p>}
           {error && <p className="text-xs text-red-600">{error}</p>}
         </div>
       </div>

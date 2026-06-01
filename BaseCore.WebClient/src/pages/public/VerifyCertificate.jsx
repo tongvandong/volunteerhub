@@ -31,8 +31,8 @@ export default function VerifyCertificate() {
         <div className="inline-flex items-center justify-center w-14 h-14 bg-primary-100 rounded-2xl mb-4">
           <i className="fa-solid fa-certificate text-primary-600 text-2xl" />
         </div>
-        <h1 className="text-2xl font-bold text-gray-900">Tra cứu chứng chỉ</h1>
-        <p className="text-gray-500 text-sm mt-1">Nhập mã chứng chỉ để xác thực</p>
+        <h1 className="text-2xl font-bold text-warmink">Tra cứu chứng chỉ</h1>
+        <p className="text-warmink-2 text-sm mt-1">Nhập mã chứng chỉ để xác thực</p>
       </div>
 
       {/* Search */}
@@ -58,7 +58,7 @@ export default function VerifyCertificate() {
         <div className="card p-6 text-center">
           <i className="fa-solid fa-circle-xmark text-red-400 text-4xl mb-3 block" />
           <p className="text-red-600 font-medium">{error}</p>
-          <p className="text-gray-400 text-sm mt-1">Vui lòng kiểm tra lại mã chứng chỉ</p>
+          <p className="text-warmink-3 text-sm mt-1">Vui lòng kiểm tra lại mã chứng chỉ</p>
         </div>
       )}
 
@@ -75,20 +75,20 @@ export default function VerifyCertificate() {
           <div className="p-6 space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <p className="text-xs text-gray-400 uppercase tracking-wider mb-1">Tình nguyện viên</p>
-                <p className="font-semibold text-gray-900">{cert.volunteerName || cert.user?.name || 'N/A'}</p>
+                <p className="text-xs text-warmink-3 uppercase tracking-wider mb-1">Tình nguyện viên</p>
+                <p className="font-semibold text-warmink">{cert.volunteerName || cert.user?.name || 'N/A'}</p>
               </div>
               <div>
-                <p className="text-xs text-gray-400 uppercase tracking-wider mb-1">Sự kiện</p>
-                <p className="font-semibold text-gray-900">{cert.eventTitle || cert.event?.title || 'N/A'}</p>
+                <p className="text-xs text-warmink-3 uppercase tracking-wider mb-1">Sự kiện</p>
+                <p className="font-semibold text-warmink">{cert.eventTitle || cert.event?.title || 'N/A'}</p>
               </div>
               <div>
-                <p className="text-xs text-gray-400 uppercase tracking-wider mb-1">Giờ tình nguyện</p>
+                <p className="text-xs text-warmink-3 uppercase tracking-wider mb-1">Giờ tình nguyện</p>
                 <p className="font-semibold text-primary-600">{cert.volunteerHours} giờ</p>
               </div>
               <div>
-                <p className="text-xs text-gray-400 uppercase tracking-wider mb-1">Ngày cấp</p>
-                <p className="font-semibold text-gray-900">{new Date(cert.issuedAt).toLocaleDateString('vi-VN')}</p>
+                <p className="text-xs text-warmink-3 uppercase tracking-wider mb-1">Ngày cấp</p>
+                <p className="font-semibold text-warmink">{new Date(cert.issuedAt).toLocaleDateString('vi-VN')}</p>
               </div>
             </div>
 

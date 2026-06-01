@@ -20,6 +20,8 @@ namespace BaseCore.Services.VolunteerHub
         {
             var profile = await _context.VolunteerProfiles.FirstOrDefaultAsync(p => p.UserId == userId);
             var totalHours = profile?.TotalVolunteerHours ?? 0;
+            var totalDonated = profile?.TotalDonatedAmount ?? 0;
+            var donationCount = profile?.DonationCount ?? 0;
             var totalEvents = await _context.Registrations
                 .CountAsync(r => r.UserId == userId && r.IsAttended);
 
@@ -30,7 +32,7 @@ namespace BaseCore.Services.VolunteerHub
             foreach (var badge in allBadges)
             {
                 if (ownedBadgeIds.Contains(badge.Id)) continue;
-                if (MeetsCondition(badge.Condition, totalEvents, totalHours))
+                if (MeetsCondition(badge.Condition, totalEvents, totalHours, totalDonated, donationCount))
                 {
                     _context.UserBadges.Add(new UserBadge
                     {
@@ -47,15 +49,17 @@ namespace BaseCore.Services.VolunteerHub
             }
         }
 
-        private bool MeetsCondition(string condition, int totalEvents, decimal totalHours)
+        private bool MeetsCondition(string condition, int totalEvents, decimal totalHours, decimal totalDonated, int donationCount)
         {
             if (string.IsNullOrEmpty(condition)) return false;
             try
             {
                 var dict = JsonSerializer.Deserialize<Dictionary<string, decimal>>(condition);
-                if (dict == null) return false;
+                if (dict == null || dict.Count == 0) return false;
                 if (dict.TryGetValue("min_events", out var minEvents) && totalEvents < (int)minEvents) return false;
                 if (dict.TryGetValue("min_hours", out var minHours) && totalHours < minHours) return false;
+                if (dict.TryGetValue("min_donated", out var minDonated) && totalDonated < minDonated) return false;
+                if (dict.TryGetValue("min_donations", out var minDonations) && donationCount < (int)minDonations) return false;
                 return true;
             }
             catch { return false; }

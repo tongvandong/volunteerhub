@@ -200,13 +200,13 @@ namespace BaseCore.APIService.Controllers
             }
 
             if (string.IsNullOrWhiteSpace(dto.Title))
-                return BadRequest(new { message = "Event title is required" });
+                return BadRequest(new { message = "Vui lòng nhập tên sự kiện." });
             if (string.IsNullOrWhiteSpace(dto.Location))
-                return BadRequest(new { message = "Event location is required" });
+                return BadRequest(new { message = "Vui lòng nhập địa điểm sự kiện." });
             var coordinateError = ValidateCoordinates(dto.Latitude, dto.Longitude);
             if (coordinateError != null)
                 return BadRequest(new { message = coordinateError });
-            var participantError = ValidateParticipants(dto.MinParticipants, dto.MaxParticipants);
+            var participantError = ValidateParticipants(dto.MaxParticipants);
             if (participantError != null)
                 return BadRequest(new { message = participantError });
             var dateError = ValidateEventDates(dto.StartDate, dto.EndDate, requireFutureStart: true);
@@ -222,7 +222,7 @@ namespace BaseCore.APIService.Controllers
                 Latitude = dto.Latitude, Longitude = dto.Longitude,
                 CheckInRadiusKm = dto.CheckInRadiusKm ?? 0.5m,
                 StartDate = dto.StartDate, EndDate = dto.EndDate,
-                MinParticipants = dto.MinParticipants, MaxParticipants = dto.MaxParticipants, RequiresKyc = dto.RequiresKyc, CategoryId = dto.CategoryId,
+                MinParticipants = 1, MaxParticipants = dto.MaxParticipants, RequiresKyc = dto.RequiresKyc, RequiresInterview = dto.RequiresInterview, CategoryId = dto.CategoryId,
                 OrganizerId = userId, ImageUrl = dto.ImageUrl ?? "",
                 RequiredSkillIds = dto.RequiredSkillIds ?? "[]"
             };
@@ -239,26 +239,25 @@ namespace BaseCore.APIService.Controllers
                 return Unauthorized();
 
             var ev = await _eventService.GetByIdAsync(id);
-            if (ev == null) return NotFound(new { message = "Event not found" });
+            if (ev == null) return NotFound(new { message = "Không tìm thấy sự kiện." });
             if (ev.OrganizerId != userId) return Forbid();
             if (ev.Status == "Cancelled" || ev.Status == "Completed")
-                return BadRequest(new { message = "Cannot edit cancelled or completed events" });
+                return BadRequest(new { message = "Không thể chỉnh sửa sự kiện đã hủy hoặc đã hoàn thành." });
             if (dto.Title != null && string.IsNullOrWhiteSpace(dto.Title))
-                return BadRequest(new { message = "Event title cannot be empty" });
+                return BadRequest(new { message = "Tên sự kiện không được để trống." });
             var nextLatitude = dto.Latitude ?? ev.Latitude;
             var nextLongitude = dto.Longitude ?? ev.Longitude;
             var coordinateError = ValidateCoordinates(nextLatitude, nextLongitude);
             if (coordinateError != null)
                 return BadRequest(new { message = coordinateError });
-            var nextMinParticipants = dto.MinParticipants ?? ev.MinParticipants;
             var nextMaxParticipants = dto.MaxParticipants ?? ev.MaxParticipants;
-            var participantError = ValidateParticipants(nextMinParticipants, nextMaxParticipants);
+            var participantError = ValidateParticipants(nextMaxParticipants);
             if (participantError != null)
                 return BadRequest(new { message = participantError });
             var nextStartDate = dto.StartDate ?? ev.StartDate;
             var nextEndDate = dto.EndDate ?? ev.EndDate;
             if (dto.StartDate.HasValue && dto.StartDate.Value < DateTime.UtcNow.AddMinutes(-5))
-                return BadRequest(new { message = "Event start time cannot be in the past." });
+                return BadRequest(new { message = "Thời gian bắt đầu sự kiện không thể nằm trong quá khứ." });
             var dateError = ValidateEventDates(nextStartDate, nextEndDate);
             if (dateError != null)
                 return BadRequest(new { message = dateError });
@@ -274,13 +273,16 @@ namespace BaseCore.APIService.Controllers
                 .Select(s => s.Name)
                 .FirstOrDefaultAsync();
             if (outsideShift != null)
-                return BadRequest(new { message = $"Cannot change event time because shift \"{outsideShift}\" would be outside the new event time window." });
+                return BadRequest(new { message = $"Không thể đổi thời gian sự kiện vì ca \"{outsideShift}\" sẽ nằm ngoài khung giờ mới." });
 
             var oldStart = ev.StartDate;
             var oldEnd = ev.EndDate;
             var oldLocation = ev.Location;
             var oldLatitude = ev.Latitude;
             var oldLongitude = ev.Longitude;
+            var oldTitle = ev.Title;
+            var oldDescription = ev.Description;
+            var wasApproved = ev.Status == "Approved";
 
             ev.Title = dto.Title?.Trim() ?? ev.Title;
             ev.Description = dto.Description ?? ev.Description;
@@ -290,19 +292,43 @@ namespace BaseCore.APIService.Controllers
             ev.CheckInRadiusKm = nextCheckInRadiusKm;
             ev.StartDate = nextStartDate;
             ev.EndDate = nextEndDate;
-            ev.MinParticipants = nextMinParticipants;
+            ev.MinParticipants = 1;
             ev.MaxParticipants = nextMaxParticipants;
             ev.RequiresKyc = dto.RequiresKyc ?? ev.RequiresKyc;
+            ev.RequiresInterview = dto.RequiresInterview ?? ev.RequiresInterview;
             ev.CategoryId = dto.CategoryId ?? ev.CategoryId;
             ev.ImageUrl = dto.ImageUrl ?? ev.ImageUrl;
             ev.RequiredSkillIds = dto.RequiredSkillIds ?? ev.RequiredSkillIds;
 
-            await _eventService.UpdateAsync(ev);
-            await RecordAuditAsync(userId, "Event.Update", "Event", ev.Id, $"Status={ev.Status}");
-
-            // Notify confirmed volunteers and active sponsors if the event is Approved and key fields changed
-            if (ev.Status == "Approved")
+            // Chỉ tiêu đề/mô tả thay đổi trên sự kiện đã duyệt ⇒ đưa về Pending để admin
+            // duyệt lại, tránh "bait-and-switch". Ảnh bìa, danh mục, kỹ năng là cosmetic/metadata
+            // (rủi ro thấp) nên không cần duyệt lại.
+            var contentChanged =
+                !string.Equals(ev.Title ?? "", oldTitle ?? "", StringComparison.Ordinal) ||
+                !string.Equals(ev.Description ?? "", oldDescription ?? "", StringComparison.Ordinal);
+            var revertedToPending = wasApproved && contentChanged;
+            if (revertedToPending)
             {
+                ev.Status = "Pending";
+            }
+
+            await _eventService.UpdateAsync(ev);
+            await RecordAuditAsync(userId, "Event.Update", "Event", ev.Id,
+                revertedToPending ? "Status=Pending (content changed, re-moderation)" : $"Status={ev.Status}");
+
+            if (revertedToPending)
+            {
+                // Sự kiện đã rút khỏi danh sách công khai cho tới khi admin duyệt lại.
+                await _notificationService.SendAsync(
+                    ev.OrganizerId,
+                    "Sự kiện cần được duyệt lại",
+                    $"Bạn vừa chỉnh sửa nội dung của sự kiện \"{ev.Title}\". Sự kiện đã chuyển về trạng thái chờ admin duyệt và tạm ẩn khỏi danh sách công khai cho tới khi được duyệt lại.",
+                    "EventReverted",
+                    ev.Id);
+            }
+            else if (ev.Status == "Approved")
+            {
+                // Sự kiện vẫn Approved nhưng đổi thông tin hậu cần ⇒ báo cho TNV/nhà tài trợ đang tham gia.
                 var changes = new List<string>();
                 if (ev.StartDate != oldStart || ev.EndDate != oldEnd)
                     changes.Add($"thời gian ({ev.StartDate:dd/MM/yyyy HH:mm} - {ev.EndDate:dd/MM/yyyy HH:mm})");
@@ -331,9 +357,13 @@ namespace BaseCore.APIService.Controllers
             if (ev == null) return NotFound(new { message = "Event not found" });
             if (role != "Admin" && ev.OrganizerId != userId) return Forbid();
 
-            await _eventService.DeleteAsync(id);
-            await RecordAuditAsync(userId, "Event.Delete", "Event", id);
-            return Ok(new { message = "Deleted" });
+            try
+            {
+                await _eventService.DeleteAsync(id);
+                await RecordAuditAsync(userId, "Event.Delete", "Event", id);
+                return Ok(new { message = "Deleted" });
+            }
+            catch (Exception ex) { return BadRequest(new { message = ex.Message }); }
         }
 
         [HttpPut("{id}/approve"), Authorize(Roles = "Admin")]
@@ -388,15 +418,22 @@ namespace BaseCore.APIService.Controllers
 
         [HttpPut("{id}/complete"), Authorize(Roles = "Organizer,Admin")]
         [EnableRateLimiting("write-sensitive")]
-        public async Task<IActionResult> Complete(int id)
+        public async Task<IActionResult> Complete(int id, [FromBody] EventCompleteDto? dto = null)
         {
             if (!int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var userId))
                 return Unauthorized();
             var role = User.FindFirst(ClaimTypes.Role)?.Value;
             try
             {
-                var ev = await _eventService.CompleteAsync(id, role == "Admin" ? null : userId);
-                await RecordAuditAsync(userId, "Event.Complete", "Event", ev.Id);
+                var manualAttendances = dto?.ManualAttendances?
+                    .Select(x => new ManualCompletionAttendance
+                    {
+                        RegistrationId = x.RegistrationId,
+                        Hours = x.Hours
+                    })
+                    .ToList();
+                var ev = await _eventService.CompleteAsync(id, role == "Admin" ? null : userId, manualAttendances);
+                await RecordAuditAsync(userId, "Event.Complete", "Event", ev.Id, $"ManualAttendances={manualAttendances?.Count ?? 0}");
                 return Ok(ev);
             }
             catch (Exception ex) { return BadRequest(new { message = ex.Message }); }
@@ -455,8 +492,10 @@ namespace BaseCore.APIService.Controllers
             if (!int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var userId))
                 return Unauthorized();
             var completed = await _eventService.AutoCompleteOverdueAsync();
-            await RecordAuditAsync(userId, "Event.AutoCompleteOverdue", "Event", null, $"Completed={completed}");
-            return Ok(new { completed });
+            var campaignsClosed = await _eventService.AutoCloseOverdueCampaignsAsync();
+            var reminders = await _eventService.SendCampaignRemindersAsync();
+            await RecordAuditAsync(userId, "Event.AutoCompleteOverdue", "Event", null, $"Completed={completed};CampaignsClosed={campaignsClosed};Reminders={reminders}");
+            return Ok(new { completed, campaignsClosed, reminders });
         }
 
         [HttpGet("overdue-preview"), Authorize(Roles = "Admin")]
@@ -559,6 +598,7 @@ namespace BaseCore.APIService.Controllers
                 r.UserId,
                 r.Status,
                 r.RegisteredAt,
+                r.ConfirmedAt,
                 r.AttendedAt,
                 r.CheckedOutAt,
                 r.VolunteerHours,
@@ -571,6 +611,8 @@ namespace BaseCore.APIService.Controllers
                 r.Note,
                 r.User,
                 r.Shift,
+                r.InterviewStatus,
+                r.InterviewSlot,
                 volunteerSkills = volunteerSkills.Where(vs => vs.UserId == r.UserId).ToList()
             });
 
@@ -618,28 +660,27 @@ namespace BaseCore.APIService.Controllers
                 HttpContext.Connection.RemoteIpAddress?.ToString());
         }
 
+        private const int MaxEventDurationDays = 30;
+        private static readonly TimeSpan MinEventLeadTime = TimeSpan.FromHours(1);
+
         private static string? ValidateCoordinates(decimal? latitude, decimal? longitude)
         {
             if (!latitude.HasValue || !longitude.HasValue)
-                return "Event coordinates are required. Please choose a location on the map.";
+                return "Thiếu tọa độ sự kiện. Vui lòng chọn vị trí trên bản đồ.";
             if (latitude.Value < -90 || latitude.Value > 90)
-                return "Latitude must be between -90 and 90.";
+                return "Vĩ độ phải nằm trong khoảng -90 đến 90.";
             if (longitude.Value < -180 || longitude.Value > 180)
-                return "Longitude must be between -180 and 180.";
+                return "Kinh độ phải nằm trong khoảng -180 đến 180.";
 
             return null;
         }
 
-        private static string? ValidateParticipants(int minParticipants, int maxParticipants)
+        private static string? ValidateParticipants(int maxParticipants)
         {
-            if (minParticipants < 1)
-                return "Minimum participants must be at least 1.";
             if (maxParticipants < 1)
-                return "Maximum participants must be at least 1.";
-            if (minParticipants > maxParticipants)
-                return "Minimum participants cannot be greater than maximum participants.";
+                return "Số tình nguyện viên tối đa phải từ 1 trở lên.";
             if (maxParticipants > 10000)
-                return "Maximum participants cannot exceed 10000.";
+                return "Số tình nguyện viên tối đa không được vượt quá 10.000.";
 
             return null;
         }
@@ -647,11 +688,13 @@ namespace BaseCore.APIService.Controllers
         private static string? ValidateEventDates(DateTime startDate, DateTime endDate, bool requireFutureStart = false)
         {
             if (startDate == default || endDate == default)
-                return "Event start and end time are required.";
+                return "Vui lòng nhập đầy đủ thời gian bắt đầu và kết thúc.";
             if (endDate <= startDate)
-                return "Event end time must be after start time.";
-            if (requireFutureStart && startDate < DateTime.UtcNow.AddMinutes(-5))
-                return "Event start time cannot be in the past.";
+                return "Thời gian kết thúc phải sau thời gian bắt đầu.";
+            if (requireFutureStart && startDate < DateTime.UtcNow.Add(MinEventLeadTime))
+                return "Sự kiện phải bắt đầu sau thời điểm hiện tại ít nhất 1 giờ để admin kịp duyệt.";
+            if ((endDate - startDate).TotalDays > MaxEventDurationDays)
+                return $"Thời lượng sự kiện không được vượt quá {MaxEventDurationDays} ngày.";
 
             return null;
         }
@@ -660,7 +703,7 @@ namespace BaseCore.APIService.Controllers
         {
             if (!radiusKm.HasValue) return null;
             if (radiusKm.Value <= 0 || radiusKm.Value > 10)
-                return "Check-in radius must be greater than 0 and at most 10km.";
+                return "Bán kính điểm danh phải lớn hơn 0 và không vượt quá 10 km.";
             return null;
         }
     }
@@ -678,6 +721,7 @@ namespace BaseCore.APIService.Controllers
         public int MinParticipants { get; set; } = 1;
         public int MaxParticipants { get; set; }
         public bool RequiresKyc { get; set; }
+        public bool RequiresInterview { get; set; }
         public int CategoryId { get; set; }
         public string? ImageUrl { get; set; }
         public string? RequiredSkillIds { get; set; }
@@ -696,6 +740,7 @@ namespace BaseCore.APIService.Controllers
         public int? MinParticipants { get; set; }
         public int? MaxParticipants { get; set; }
         public bool? RequiresKyc { get; set; }
+        public bool? RequiresInterview { get; set; }
         public int? CategoryId { get; set; }
         public string? ImageUrl { get; set; }
         public string? RequiredSkillIds { get; set; }
@@ -709,6 +754,17 @@ namespace BaseCore.APIService.Controllers
     public class EventRejectDto
     {
         public string? Reason { get; set; }
+    }
+
+    public class EventCompleteDto
+    {
+        public List<EventCompleteAttendanceDto>? ManualAttendances { get; set; }
+    }
+
+    public class EventCompleteAttendanceDto
+    {
+        public int RegistrationId { get; set; }
+        public decimal? Hours { get; set; }
     }
 
     public class EventTransferDto

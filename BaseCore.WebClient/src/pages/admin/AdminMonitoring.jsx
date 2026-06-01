@@ -24,12 +24,12 @@ function statusTone(status) {
 function StatTile({ label, value, icon, tone = 'text-primary-600' }) {
   return (
     <div className="card p-4 flex items-center gap-3">
-      <div className="w-10 h-10 rounded-lg bg-gray-50 flex items-center justify-center flex-shrink-0">
+      <div className="w-10 h-10 rounded-lg bg-surface-2 flex items-center justify-center flex-shrink-0">
         <i className={`fa-solid ${icon} ${tone}`} />
       </div>
       <div className="min-w-0">
-        <p className="text-xs text-gray-500">{label}</p>
-        <p className="text-xl font-bold text-gray-900">{value ?? '-'}</p>
+        <p className="text-xs text-warmink-2">{label}</p>
+        <p className="text-xl font-bold text-warmink">{value ?? '-'}</p>
       </div>
     </div>
   );
@@ -126,8 +126,8 @@ export default function AdminMonitoring() {
     <div className="space-y-5">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-xl font-bold text-gray-900">Giám sát hệ thống</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Theo dõi sức khỏe dịch vụ, số liệu vận hành và audit log thao tác nhạy cảm.</p>
+          <h1 className="text-xl font-bold text-warmink">Giám sát hệ thống</h1>
+          <p className="text-sm text-warmink-2 mt-0.5">Theo dõi sức khỏe dịch vụ, số liệu vận hành và audit log thao tác nhạy cảm.</p>
         </div>
         <button onClick={loadAll} className="btn-secondary flex items-center gap-2">
           <i className="fa-solid fa-rotate-right" /> Làm mới
@@ -148,11 +148,11 @@ export default function AdminMonitoring() {
               <i className={`fa-solid ${healthTone.icon} ${healthTone.text}`} />
             </div>
             <div>
-              <p className="text-sm font-semibold text-gray-900">{health?.service || 'BaseCore.APIService'}</p>
+              <p className="text-sm font-semibold text-warmink">{health?.service || 'BaseCore.APIService'}</p>
               <p className={`text-xs ${healthTone.text}`}>{health?.status || '-'} - Database: {health?.database || '-'}</p>
             </div>
           </div>
-          <p className="text-xs text-gray-500">UTC: {formatDate(health?.utc)}</p>
+          <p className="text-xs text-warmink-2">UTC: {formatDate(health?.utc)}</p>
         </div>
       </div>
 
@@ -169,8 +169,8 @@ export default function AdminMonitoring() {
 
       <div className="card p-4 space-y-4">
         <div className="flex items-center justify-between flex-wrap gap-3">
-          <h2 className="font-semibold text-gray-900">Audit log</h2>
-          {logsLoading && <span className="text-xs text-gray-500">Đang tải...</span>}
+          <h2 className="font-semibold text-warmink">Audit log</h2>
+          {logsLoading && <span className="text-xs text-warmink-2">Đang tải...</span>}
         </div>
 
         <form onSubmit={applyFilters} className="grid grid-cols-1 md:grid-cols-[1fr_1fr_auto_auto] gap-3">
@@ -212,22 +212,22 @@ export default function AdminMonitoring() {
                 <th className="text-left px-4 py-3">IP</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody className="divide-y divide-warmborder">
               {logs.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-10 text-center text-gray-500">Chưa có audit log phù hợp</td>
+                  <td colSpan={6} className="px-4 py-10 text-center text-warmink-2">Chưa có audit log phù hợp</td>
                 </tr>
               ) : logs.map((item) => (
-                <tr key={item.id} className="odd:bg-gray-50/50 hover:bg-gray-50">
-                  <td className="px-4 py-3 text-gray-500 whitespace-nowrap">{formatDate(item.createdAtUtc)}</td>
+                <tr key={item.id} className="odd:bg-surface-2/50 hover:bg-surface-2">
+                  <td className="px-4 py-3 text-warmink-2 whitespace-nowrap">{formatDate(item.createdAtUtc)}</td>
                   <td className="px-4 py-3">
-                    <div className="font-medium text-gray-900">{item.userName || '-'}</div>
-                    <div className="text-xs text-gray-400">{item.userId ? `#${item.userId}` : 'system'}</div>
+                    <div className="font-medium text-warmink">{item.userName || '-'}</div>
+                    <div className="text-xs text-warmink-3">{item.userId ? `#${item.userId}` : 'system'}</div>
                   </td>
                   <td className="px-4 py-3 font-mono text-xs text-primary-700">{item.action}</td>
-                  <td className="px-4 py-3 text-gray-700">{item.entityType}{item.entityId ? ` #${item.entityId}` : ''}</td>
-                  <td className="px-4 py-3 text-gray-500 max-w-xs truncate" title={item.metadata || ''}>{item.metadata || '-'}</td>
-                  <td className="px-4 py-3 text-gray-400 font-mono text-xs">{item.ipAddress || '-'}</td>
+                  <td className="px-4 py-3 text-warmink-2">{item.entityType}{item.entityId ? ` #${item.entityId}` : ''}</td>
+                  <td className="px-4 py-3 text-warmink-2 max-w-xs truncate" title={item.metadata || ''}>{item.metadata || '-'}</td>
+                  <td className="px-4 py-3 text-warmink-3 font-mono text-xs">{item.ipAddress || '-'}</td>
                 </tr>
               ))}
             </tbody>

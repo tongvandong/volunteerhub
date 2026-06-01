@@ -5,9 +5,10 @@ namespace BaseCore.Entities
         public int Id { get; set; }
         public int UserId { get; set; }
         public string BloodType { get; set; }
-        public string Languages { get; set; }
         public string Interests { get; set; }
         public decimal TotalVolunteerHours { get; set; } = 0;
+        public decimal TotalDonatedAmount { get; set; } = 0; // tổng đã ủng hộ (Confirmed)
+        public int DonationCount { get; set; } = 0;           // số lần ủng hộ (Confirmed)
         public string Bio { get; set; }
         public string AvatarUrl { get; set; }
         public string KycStatus { get; set; } = "Unverified"; // Unverified | PendingVerification | Verified | Rejected

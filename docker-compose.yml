@@ -1,0 +1,189 @@
+# VolunteerHub — full stack on a single host.
+#
+#   cp .env.example .env   # then edit secrets
+#   docker compose build
+#   docker compose up -d
+#
+# Public entry point is the `web` (Caddy) container on :80 / :443.
+# Everything else talks over the internal `volunteerhub` network only.
+
+name: volunteerhub
+
+# ---- shared snippets -------------------------------------------------------
+x-dotnet-env: &dotnet-env
+  ASPNETCORE_ENVIRONMENT: Production
+  ConnectionStrings__ConnectedDb: "Server=sqlserver,1433;Database=VolunteerHub;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=true;Encrypt=false;MultipleActiveResultSets=true"
+  Jwt__SecretKey: ${JWT_SECRET}
+  Redis__ConnectionString: "redis:6379,password=${REDIS_PASSWORD},abortConnect=false"
+
+x-dotnet-healthcheck: &dotnet-healthcheck
+  test: ["CMD-SHELL", "curl -fsS http://localhost:8080/health || exit 1"]
+  interval: 15s
+  timeout: 5s
+  retries: 5
+  start_period: 60s
+
+services:
+  # ---- infrastructure ------------------------------------------------------
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: ${SA_PASSWORD}
+      MSSQL_PID: Developer
+    volumes:
+      - mssql_data:/var/opt/mssql
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -C -Q \"SELECT 1\" || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 40s
+    restart: unless-stopped
+    networks: [volunteerhub]
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--requirepass", "${REDIS_PASSWORD}", "--appendonly", "yes"]
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$$REDIS_PASSWORD\" --no-auth-warning ping | grep -q PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+    restart: unless-stopped
+    networks: [volunteerhub]
+
+  # ---- .NET microservices --------------------------------------------------
+  # Started in a chain (each waits for the previous to be healthy) so that the
+  # auto-migration on startup runs sequentially on a fresh database.
+  apiservice:
+    build:
+      context: .
+      dockerfile: deploy/dotnet-service.Dockerfile
+      args: { PROJECT: BaseCore.APIService/BaseCore.APIService.csproj, DLL: BaseCore.APIService.dll }
+    environment:
+      <<: *dotnet-env
+    depends_on:
+      sqlserver: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    healthcheck: *dotnet-healthcheck
+    restart: unless-stopped
+    networks: [volunteerhub]
+
+  authservice:
+    build:
+      context: .
+      dockerfile: deploy/dotnet-service.Dockerfile
+      args: { PROJECT: BaseCore.AuthService/BaseCore.AuthService.csproj, DLL: BaseCore.AuthService.dll }
+    environment:
+      <<: *dotnet-env
+    volumes:
+      - uploads_data:/app/wwwroot/uploads
+    depends_on:
+      apiservice: { condition: service_healthy }
+    healthcheck: *dotnet-healthcheck
+    restart: unless-stopped
+    networks: [volunteerhub]
+
+  eventservice:
+    build:
+      context: .
+      dockerfile: deploy/dotnet-service.Dockerfile
+      args: { PROJECT: BaseCore.EventService/BaseCore.EventService.csproj, DLL: BaseCore.EventService.dll }
+    environment:
+      <<: *dotnet-env
+      Cors__AllowedOrigins: ${PUBLIC_URL}
+    volumes:
+      - certificates_data:/app/wwwroot/certificates
+    depends_on:
+      authservice: { condition: service_healthy }
+    healthcheck: *dotnet-healthcheck
+    restart: unless-stopped
+    networks: [volunteerhub]
+
+  financeservice:
+    build:
+      context: .
+      dockerfile: deploy/dotnet-service.Dockerfile
+      args: { PROJECT: BaseCore.FinanceService/BaseCore.FinanceService.csproj, DLL: BaseCore.FinanceService.dll }
+    environment:
+      <<: *dotnet-env
+    depends_on:
+      eventservice: { condition: service_healthy }
+    healthcheck: *dotnet-healthcheck
+    restart: unless-stopped
+    networks: [volunteerhub]
+
+  gateway:
+    build:
+      context: .
+      dockerfile: deploy/dotnet-service.Dockerfile
+      args: { PROJECT: BaseCore.ApiGateway/BaseCore.ApiGateway.csproj, DLL: BaseCore.ApiGateway.dll }
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      Ocelot__ConfigFile: ocelot.docker.json
+    depends_on:
+      apiservice: { condition: service_healthy }
+      authservice: { condition: service_healthy }
+      eventservice: { condition: service_healthy }
+      financeservice: { condition: service_healthy }
+    healthcheck: *dotnet-healthcheck
+    restart: unless-stopped
+    networks: [volunteerhub]
+
+  # ---- Rust certificate worker --------------------------------------------
+  # Shares the certificates volume with eventservice (worker writes PDFs, the
+  # service serves them). Uses SQL auth over TCP (tiberius), not the LocalDB path.
+  certificateworker:
+    build:
+      context: .
+      dockerfile: deploy/certificateworker.Dockerfile
+    environment:
+      DATABASE_URL: "Server=sqlserver,1433;Database=VolunteerHub;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=true"
+      CERTIFICATE_OUTPUT_DIR: /data/certificates
+      CERTIFICATE_PUBLIC_BASE_URL: /certificates
+      CERTIFICATE_VERIFY_BASE_URL: ${PUBLIC_URL}/verify
+      RUST_LOG: info
+    volumes:
+      - certificates_data:/data/certificates
+    depends_on:
+      eventservice: { condition: service_healthy }
+    restart: unless-stopped
+    networks: [volunteerhub]
+
+  # ---- edge: SPA + reverse proxy + TLS ------------------------------------
+  web:
+    build:
+      context: .
+      dockerfile: deploy/web.Dockerfile
+      args: { VITE_HUB_URL: /hubs/channel }
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      SITE_ADDRESS: ${SITE_ADDRESS:-:80}
+    volumes:
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      gateway: { condition: service_healthy }
+      eventservice: { condition: service_healthy }
+    restart: unless-stopped
+    networks: [volunteerhub]
+
+networks:
+  volunteerhub:
+    driver: bridge
+
+volumes:
+  mssql_data:
+  redis_data:
+  uploads_data:
+  certificates_data:
+  caddy_data:
+  caddy_config:

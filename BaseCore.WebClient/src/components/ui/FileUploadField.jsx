@@ -23,11 +23,11 @@ export default function FileUploadField({ value, onChange, label = 'File dinh ke
   if (value?.url) {
     return (
       <div className="space-y-1">
-        <p className="text-xs font-medium text-gray-600">{label}</p>
-        <div className="flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 p-2">
-          <i className="fa-solid fa-file text-gray-500" />
-          <span className="min-w-0 flex-1 truncate text-sm text-gray-700">{value.name}</span>
-          <span className="text-xs text-gray-400">{Math.max(1, Math.round((value.size || 0) / 1024))} KB</span>
+        <p className="text-xs font-medium text-warmink-2">{label}</p>
+        <div className="flex items-center gap-2 rounded-lg border border-warmborder bg-surface-2 p-2">
+          <i className="fa-solid fa-file text-warmink-2" />
+          <span className="min-w-0 flex-1 truncate text-sm text-warmink-2">{value.name}</span>
+          <span className="text-xs text-warmink-3">{Math.max(1, Math.round((value.size || 0) / 1024))} KB</span>
           <button type="button" onClick={() => onChange(null)} className="text-red-500 hover:text-red-600">
             <i className="fa-solid fa-xmark" />
           </button>
@@ -38,10 +38,10 @@ export default function FileUploadField({ value, onChange, label = 'File dinh ke
 
   return (
     <div className="space-y-1">
-      <p className="text-xs font-medium text-gray-600">{label}</p>
-      <label className="block cursor-pointer rounded-lg border-2 border-dashed border-gray-200 p-3 text-center text-sm text-gray-500 hover:border-primary-400 hover:text-primary-600">
+      <p className="text-xs font-medium text-warmink-2">{label}</p>
+      <label className="block cursor-pointer rounded-lg border-2 border-dashed border-warmborder p-3 text-center text-sm text-warmink-2 hover:border-primary-400 hover:text-primary-600">
         <input type="file" onChange={handleFile} className="hidden" disabled={uploading} />
-        <i className="fa-solid fa-paperclip mr-2 text-gray-400" />
+        <i className="fa-solid fa-paperclip mr-2 text-warmink-3" />
         {uploading ? 'Dang tai...' : 'Chon file PDF, DOCX, anh - toi da 10MB'}
       </label>
     </div>

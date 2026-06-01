@@ -35,9 +35,8 @@ BEGIN TRY
     DELETE FROM dbo.WorkShifts;
     DELETE FROM dbo.Channels;
 
-    -- Keep EF baseline events 1-3; seed_data.sql restores events 4-13.
-    DELETE FROM dbo.Events
-    WHERE Id > 3 OR Title LIKE N'Codex QA%';
+    -- Delete all events; seed_data.sql re-creates all 13 (IDs 1-13) with correct UTF-8 encoding.
+    DELETE FROM dbo.Events;
 
     DELETE FROM dbo.VolunteerSkills;
     DELETE FROM dbo.VolunteerProfiles WHERE Id <> 1;
@@ -106,7 +105,7 @@ BEGIN TRY
     WHERE Id = 1;
 
     UPDATE dbo.Events
-    SET MinParticipants = 20, CurrentParticipants = 1, Status = N'Approved', QrCode = N'EVT-2025-0002', RequiredSkillIds = N'[]', RequiresKyc = 0
+    SET MinParticipants = 20, CurrentParticipants = 1, Status = N'Approved', QrCode = N'EVT-2026-0002', RequiredSkillIds = N'[]', RequiresKyc = 0
     WHERE Id = 2;
 
     UPDATE dbo.Events

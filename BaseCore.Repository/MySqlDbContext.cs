@@ -28,6 +28,7 @@ namespace BaseCore.Repository
 
         // --- VolunteerHub: Registration ---
         public DbSet<Registration> Registrations { get; set; }
+        public DbSet<InterviewSlot> InterviewSlots { get; set; }
 
         // --- VolunteerHub: Social ---
         public DbSet<Channel> Channels { get; set; }
@@ -164,7 +165,6 @@ namespace BaseCore.Repository
             {
                 entity.HasKey(e => e.Id);
                 entity.Property(e => e.BloodType).HasMaxLength(5).IsRequired(false);
-                entity.Property(e => e.Languages).HasMaxLength(500).IsRequired(false);
                 entity.Property(e => e.Interests).HasMaxLength(1000).IsRequired(false);
                 entity.Property(e => e.TotalVolunteerHours).HasPrecision(10, 2);
                 entity.Property(e => e.Bio).HasMaxLength(2000).IsRequired(false);
@@ -174,6 +174,7 @@ namespace BaseCore.Repository
                 entity.Property(e => e.IdentityBackImageUrl).HasMaxLength(500).IsRequired(false);
                 entity.Property(e => e.PortraitImageUrl).HasMaxLength(500).IsRequired(false);
                 entity.Property(e => e.KycAdminNote).HasMaxLength(1000).IsRequired(false);
+                entity.Property(e => e.TotalDonatedAmount).HasPrecision(18, 2);
                 entity.HasOne(e => e.User)
                       .WithMany()
                       .HasForeignKey(e => e.UserId)
@@ -263,6 +264,7 @@ namespace BaseCore.Repository
                 entity.Property(e => e.Note).HasMaxLength(500).IsRequired(false);
                 entity.Property(e => e.VolunteerHours).HasPrecision(5, 2);
                 entity.Property(e => e.CancelReason).HasMaxLength(500).IsRequired(false);
+                entity.Property(e => e.InterviewStatus).HasMaxLength(20).IsRequired(false);
                 entity.HasOne(e => e.Event)
                       .WithMany(ev => ev.Registrations)
                       .HasForeignKey(e => e.EventId)
@@ -277,6 +279,25 @@ namespace BaseCore.Repository
                       .OnDelete(DeleteBehavior.Restrict)
                       .IsRequired(false);
                 entity.HasIndex(e => new { e.EventId, e.UserId }).IsUnique();
+            });
+
+            modelBuilder.Entity<InterviewSlot>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.MeetingUrl).HasMaxLength(500).IsRequired(false);
+                entity.Property(e => e.Note).HasMaxLength(1000).IsRequired(false);
+                entity.Property(e => e.Status).HasMaxLength(20).IsRequired(false);
+                entity.Property(e => e.DecisionNote).HasMaxLength(1000).IsRequired(false);
+                entity.HasIndex(e => e.RegistrationId).IsUnique();
+                entity.HasIndex(e => new { e.EventId, e.Status });
+                entity.HasOne(e => e.Registration)
+                      .WithOne(r => r.InterviewSlot)
+                      .HasForeignKey<InterviewSlot>(e => e.RegistrationId)
+                      .OnDelete(DeleteBehavior.Cascade);
+                entity.HasOne(e => e.Event)
+                      .WithMany()
+                      .HasForeignKey(e => e.EventId)
+                      .OnDelete(DeleteBehavior.NoAction); // tránh multiple cascade path qua Event
             });
 
             // =============================================
@@ -453,6 +474,7 @@ namespace BaseCore.Repository
             {
                 entity.HasKey(e => e.Id);
                 entity.Property(e => e.OrganizationName).HasMaxLength(200).IsRequired();
+                entity.Property(e => e.LogoUrl).HasMaxLength(500).IsRequired(false);
                 entity.Property(e => e.RepresentativeName).HasMaxLength(150).IsRequired();
                 entity.Property(e => e.ContactEmail).HasMaxLength(150).IsRequired();
                 entity.Property(e => e.Phone).HasMaxLength(30).IsRequired(false);
@@ -548,6 +570,9 @@ namespace BaseCore.Repository
                 entity.Property(e => e.TargetAmount).HasPrecision(18, 2);
                 entity.Property(e => e.MinimumAmount).HasPrecision(18, 2);
                 entity.Property(e => e.ReceiveInfo).HasMaxLength(1000).IsRequired(false);
+                entity.Property(e => e.BankBin).HasMaxLength(20).IsRequired(false);
+                entity.Property(e => e.BankAccountNo).HasMaxLength(40).IsRequired(false);
+                entity.Property(e => e.BankAccountName).HasMaxLength(120).IsRequired(false);
                 entity.Property(e => e.TransparencyNote).HasMaxLength(1000).IsRequired(false);
                 entity.Property(e => e.Status).HasMaxLength(50).IsRequired();
                 entity.Property(e => e.UsedAmount).HasPrecision(18, 2);
@@ -754,7 +779,7 @@ namespace BaseCore.Repository
 
             // Seed volunteer profile cho volunteer user
             modelBuilder.Entity<VolunteerProfile>().HasData(
-                new VolunteerProfile { Id = 1, UserId = 4, BloodType = "O", Languages = "Tiếng Việt, Tiếng Anh", Interests = "Môi trường, Giáo dục", TotalVolunteerHours = 0, Bio = "Tình nguyện viên nhiệt huyết", AvatarUrl = "", KycStatus = "Verified", IdentityFrontImageUrl = "", IdentityBackImageUrl = "", PortraitImageUrl = "", KycAdminNote = "Seed verified." }
+                new VolunteerProfile { Id = 1, UserId = 4, BloodType = "O", Interests = "Môi trường, Giáo dục", TotalVolunteerHours = 0, Bio = "Tình nguyện viên nhiệt huyết", AvatarUrl = "", KycStatus = "Verified", IdentityFrontImageUrl = "", IdentityBackImageUrl = "", PortraitImageUrl = "", KycAdminNote = "Seed verified." }
             );
 
             // Seed events

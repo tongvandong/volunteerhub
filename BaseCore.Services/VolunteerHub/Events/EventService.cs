@@ -39,8 +39,9 @@ namespace BaseCore.Services.VolunteerHub
             if (!string.IsNullOrEmpty(status))
             {
                 query = query.Where(e => e.Status == status);
-                // For public listing: hide Approved events that have already ended
-                if (status == "Approved")
+                // Chỉ public listing mới ẩn sự kiện Approved đã quá hạn; admin (publicOnly=false) phải thấy
+                // để còn xử lý (hoàn thành/hủy/auto-complete).
+                if (status == "Approved" && publicOnly)
                 {
                     query = query.Where(e => e.EndDate > DateTime.UtcNow);
                 }
@@ -80,23 +81,27 @@ namespace BaseCore.Services.VolunteerHub
                     .ToList();
                 var total = filtered.Count;
                 var pageItems = filtered.Skip((page - 1) * pageSize).Take(pageSize).ToList();
+                await ApplyConfirmedParticipantCountsAsync(pageItems);
                 return (pageItems, total);
             }
 
             var totalCount = await query.CountAsync();
             var items = await query.OrderByDescending(e => e.CreatedAt)
                 .Skip((page - 1) * pageSize).Take(pageSize).ToListAsync();
+            await ApplyConfirmedParticipantCountsAsync(items);
             return (items, totalCount);
         }
 
         public async Task<List<Entities.Event>> GetByOrganizerAsync(int organizerId)
         {
-            return await _context.Events
+            var items = await _context.Events
                 .Include(e => e.Category)
                 .Include(e => e.Organizer)
                 .Where(e => e.OrganizerId == organizerId)
                 .OrderByDescending(e => e.CreatedAt)
                 .ToListAsync();
+            await ApplyConfirmedParticipantCountsAsync(items);
+            return items;
         }
 
         public async Task<List<Entities.Event>> GetRecommendedAsync(int userId)
@@ -109,7 +114,7 @@ namespace BaseCore.Services.VolunteerHub
             var events = await _context.Events
                 .Include(e => e.Category)
                 .Include(e => e.Organizer)
-                .Where(e => e.Status == "Approved" &&
+                .Where(e => e.Status == "Approved" && e.EndDate > DateTime.UtcNow &&
                             e.RequiredSkillIds != null && e.RequiredSkillIds != "[]" && e.RequiredSkillIds != "")
                 .OrderByDescending(e => e.StartDate)
                 .Take(50)
@@ -126,6 +131,7 @@ namespace BaseCore.Services.VolunteerHub
                 .Take(9)
                 .ToList();
 
+            await ApplyConfirmedParticipantCountsAsync(matched);
             return matched;
         }
 
@@ -138,8 +144,27 @@ namespace BaseCore.Services.VolunteerHub
                 .Include(e => e.Channels)
                 .FirstOrDefaultAsync(e => e.Id == id);
             if (ev != null)
+            {
                 ev.Channel = ev.Channels?.FirstOrDefault(c => c.ParentChannelId == null);
+                await ApplyConfirmedParticipantCountsAsync(new[] { ev });
+            }
             return ev;
+        }
+
+        private async Task ApplyConfirmedParticipantCountsAsync(IEnumerable<Entities.Event> events)
+        {
+            var eventList = events.ToList();
+            var eventIds = eventList.Select(e => e.Id).ToList();
+            if (eventIds.Count == 0) return;
+
+            var confirmedCounts = await _context.Registrations
+                .Where(r => eventIds.Contains(r.EventId) && r.Status == "Confirmed")
+                .GroupBy(r => r.EventId)
+                .Select(g => new { EventId = g.Key, Count = g.Count() })
+                .ToDictionaryAsync(x => x.EventId, x => x.Count);
+
+            foreach (var ev in eventList)
+                ev.CurrentParticipants = confirmedCounts.TryGetValue(ev.Id, out var count) ? count : 0;
         }
 
         public async Task<Entities.Event> CreateAsync(Entities.Event ev)
@@ -160,7 +185,23 @@ namespace BaseCore.Services.VolunteerHub
         public async Task DeleteAsync(int id)
         {
             var ev = await _context.Events.FindAsync(id);
-            if (ev != null) { _context.Events.Remove(ev); await _context.SaveChangesAsync(); }
+            if (ev == null) return;
+
+            var hasRelatedBusinessData =
+                await _context.Registrations.AnyAsync(r => r.EventId == id) ||
+                await _context.WorkShifts.AnyAsync(s => s.EventId == id) ||
+                await _context.Channels.AnyAsync(c => c.EventId == id) ||
+                await _context.SupportCampaigns.AnyAsync(c => c.EventId == id) ||
+                await _context.EventSponsors.AnyAsync(s => s.EventId == id) ||
+                await _context.SponsorshipProposals.AnyAsync(p => p.EventId == id) ||
+                await _context.Certificates.AnyAsync(c => c.EventId == id) ||
+                await _context.Ratings.AnyAsync(r => r.EventId == id);
+
+            if (hasRelatedBusinessData)
+                throw new Exception("Event already has related business data. Cancel it instead of deleting.");
+
+            _context.Events.Remove(ev);
+            await _context.SaveChangesAsync();
         }
 
         public async Task<Entities.Event> ApproveAsync(int eventId)
@@ -228,22 +269,114 @@ namespace BaseCore.Services.VolunteerHub
             return ev;
         }
 
-        public async Task<Entities.Event> CompleteAsync(int eventId, int? organizerId = null)
+        public async Task<Entities.Event> CompleteAsync(int eventId, int? organizerId = null, IReadOnlyCollection<ManualCompletionAttendance>? manualAttendances = null)
         {
             var ev = await _context.Events.FindAsync(eventId)
                 ?? throw new Exception("Event not found");
             if (organizerId.HasValue && ev.OrganizerId != organizerId.Value) throw new Exception("Not authorized");
-            if (ev.Status != "Approved") throw new Exception("Only approved events can be completed");
-            if (ev.CurrentParticipants < ev.MinParticipants)
-                throw new Exception($"Event has {ev.CurrentParticipants}/{ev.MinParticipants} confirmed participants. Adjust the minimum participant count before completing the event.");
+            if (ev.Status != "Approved") throw new Exception("Chỉ có thể hoàn thành sự kiện đang ở trạng thái đã duyệt.");
+
+            var now = DateTime.UtcNow;
+            // Organizer chỉ được hoàn thành sau khi sự kiện đã kết thúc (admin có thể chủ động xử lý sớm).
+            if (organizerId.HasValue && ev.EndDate > now)
+                throw new Exception("Chỉ có thể hoàn thành sự kiện sau khi đã kết thúc.");
+            await ApplyManualCompletionAttendancesAsync(eventId, manualAttendances, now);
+
+            var registrationsToClose = await _context.Registrations
+                .Where(r => r.EventId == eventId && (r.Status == "Pending" || r.CancelRequested))
+                .ToListAsync();
+
+            foreach (var reg in registrationsToClose)
+            {
+                var wasConfirmed = reg.Status == "Confirmed";
+                reg.Status = "Cancelled";
+                reg.CancelledAt = now;
+                reg.CancelRequested = false;
+                reg.CancelRequestedAt = null;
+                reg.CancelReason = wasConfirmed
+                    ? "Sự kiện đã hoàn thành khi yêu cầu hủy đăng ký đang chờ xử lý."
+                    : "Sự kiện đã hoàn thành trước khi đăng ký được xác nhận.";
+                reg.IsAttended = false;
+                reg.AttendedAt = null;
+                reg.CheckedOutAt = null;
+                reg.VolunteerHours = 0;
+
+                if (wasConfirmed && ev.CurrentParticipants > 0)
+                    ev.CurrentParticipants--;
+            }
 
             ev.Status = "Completed";
             await _context.SaveChangesAsync();
+
+            foreach (var reg in registrationsToClose)
+            {
+                await _notificationService.SendAsync(reg.UserId,
+                    "Đăng ký không được tính tham gia",
+                    $"Sự kiện '{ev.Title}' đã hoàn thành trước khi đăng ký của bạn được xử lý/ghi nhận tham gia.",
+                    "RegistrationClosedOnEventComplete", eventId);
+            }
 
             // Auto-issue certificates
             await _certificateService.IssueCertificatesForEventAsync(eventId);
 
             return ev;
+        }
+
+        private async Task ApplyManualCompletionAttendancesAsync(
+            int eventId,
+            IReadOnlyCollection<ManualCompletionAttendance>? manualAttendances,
+            DateTime completedAt)
+        {
+            if (manualAttendances == null || manualAttendances.Count == 0) return;
+
+            var requested = manualAttendances
+                .Where(x => x.RegistrationId > 0)
+                .GroupBy(x => x.RegistrationId)
+                .Select(g => g.Last())
+                .ToList();
+            if (requested.Count == 0) return;
+
+            var registrationIds = requested.Select(x => x.RegistrationId).ToList();
+            var registrations = await _context.Registrations
+                .Include(r => r.Event)
+                .Include(r => r.Shift)
+                .Where(r => registrationIds.Contains(r.Id))
+                .ToListAsync();
+
+            if (registrations.Count != requested.Count)
+                throw new Exception("Some selected registrations were not found");
+
+            foreach (var item in requested)
+            {
+                var reg = registrations.First(r => r.Id == item.RegistrationId);
+                if (reg.EventId != eventId)
+                    throw new Exception("Selected registration does not belong to this event");
+                if (reg.Status != "Confirmed")
+                    throw new Exception("Only confirmed registrations can be marked as completed");
+                if (reg.CancelRequested)
+                    throw new Exception("Cannot mark a registration with pending cancellation as completed");
+
+                var hours = item.Hours ?? CalculateScheduledVolunteerHours(reg);
+                var maxHours = Math.Max(1m, Math.Round(CalculateScheduledVolunteerHours(reg) * 1.5m, 2));
+                if (hours < 0 || hours > maxHours)
+                    throw new Exception($"Hours must be between 0 and {maxHours:0.##} for selected volunteers");
+
+                reg.IsAttended = true;
+                reg.AttendedAt ??= completedAt;
+                reg.CheckedOutAt ??= reg.Shift?.EndTime ?? reg.Event.EndDate;
+                reg.VolunteerHours = hours;
+                reg.CancelRequested = false;
+                reg.CancelRequestedAt = null;
+                reg.CancelReason = "";
+            }
+        }
+
+        private static decimal CalculateScheduledVolunteerHours(Registration reg)
+        {
+            var start = reg.Shift?.StartTime ?? reg.Event?.StartDate;
+            var end = reg.Shift?.EndTime ?? reg.Event?.EndDate;
+            if (!start.HasValue || !end.HasValue || end <= start) return 0m;
+            return Math.Round((decimal)(end.Value - start.Value).TotalHours, 2);
         }
 
         public async Task<Entities.Event> ResubmitAsync(int eventId, int organizerId)
@@ -445,6 +578,78 @@ namespace BaseCore.Services.VolunteerHub
             }
 
             return completed;
+        }
+
+        public async Task<int> AutoCloseOverdueCampaignsAsync()
+        {
+            var now = DateTime.UtcNow;
+            var open = await _context.SupportCampaigns
+                .Where(c => c.Status == "Open" && c.EndDate <= now)
+                .ToListAsync();
+            foreach (var c in open)
+            {
+                c.Status = "Closed";
+                c.UpdatedAt = now;
+            }
+            await _context.SaveChangesAsync();
+
+            foreach (var c in open)
+            {
+                try
+                {
+                    await _notificationService.SendAsync(c.CreatedBy,
+                        "Đợt kêu gọi đã đóng",
+                        $"Đợt '{c.Title}' đã hết hạn và được hệ thống đóng. Hãy báo cáo sử dụng để minh bạch với người ủng hộ.",
+                        "CampaignAutoClosed", c.EventId);
+                }
+                catch { }
+            }
+            return open.Count;
+        }
+
+        public async Task<int> SendCampaignRemindersAsync()
+        {
+            var now = DateTime.UtcNow;
+            var reminders = 0;
+
+            // 1) Đợt đã đóng nhưng chưa báo cáo sử dụng
+            var unreported = await _context.SupportCampaigns
+                .Where(c => c.Status == "Closed")
+                .ToListAsync();
+            foreach (var c in unreported)
+            {
+                try
+                {
+                    await _notificationService.SendAsync(c.CreatedBy,
+                        "Nhắc báo cáo sử dụng",
+                        $"Đợt '{c.Title}' đã đóng nhưng chưa có báo cáo sử dụng. Hãy báo cáo để minh bạch.",
+                        "CampaignReminder", c.EventId);
+                    reminders++;
+                }
+                catch { }
+            }
+
+            // 2) Donation chờ xác nhận quá 3 ngày → nhắc người tạo đợt
+            var staleCutoff = now.AddDays(-3);
+            var stalePending = await _context.IndividualDonations
+                .Include(d => d.Campaign)
+                .Where(d => d.Status == "PendingConfirmation" && d.CreatedAt <= staleCutoff)
+                .ToListAsync();
+            foreach (var g in stalePending.Where(d => d.Campaign != null).GroupBy(d => d.CampaignId))
+            {
+                var camp = g.First().Campaign!;
+                try
+                {
+                    await _notificationService.SendAsync(camp.CreatedBy,
+                        "Có khoản ủng hộ chờ xác nhận",
+                        $"Đợt '{camp.Title}' có {g.Count()} khoản ủng hộ chờ xác nhận quá 3 ngày. Hãy đối chiếu sao kê và xử lý.",
+                        "CampaignReminder", camp.EventId);
+                    reminders++;
+                }
+                catch { }
+            }
+
+            return reminders;
         }
 
         private static bool RequiredSkillsContain(string? requiredSkillIds, int skillId)

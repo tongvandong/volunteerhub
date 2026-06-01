@@ -396,3 +396,58 @@ GET    /api/admin/export/finance            [Admin]    Export finance JSON/CSV (
 | Map | Leaflet | |
 | Version Control | Git + GitHub | |
 | IDE | Visual Studio / VS Code | |
+
+## Cập nhật thiết kế quản trị 2026-05-25
+
+### Admin Badge Management
+- Controller: `BadgesController`.
+- API public đọc: `GET /api/badges`, `GET /api/my-badges`.
+- API admin ghi: `POST /api/badges`, `PUT /api/badges/{id}`, `DELETE /api/badges/{id}`.
+- Guard xóa: nếu tồn tại `UserBadge.BadgeId = id` thì trả `400` và yêu cầu sửa thay vì xóa.
+- Frontend: `/admin/badges`, file `BaseCore.WebClient/src/pages/admin/AdminBadges.jsx`.
+
+### Admin Finance Watch
+- Frontend: `/admin/finance`, file `BaseCore.WebClient/src/pages/admin/AdminFinanceWatch.jsx`.
+- Màn này đọc các endpoint `GET /api/admin/finance/stale-donations`, `GET /api/admin/finance/unreported-campaigns`, `GET /api/admin/finance/open-proposals-past-event`.
+- Màn này chỉ đọc và đối soát: stale donations, unreported campaigns, open proposals past event.
+- Không có action sửa/xóa trên màn này để tránh bypass workflow tài chính chính thức.
+
+### Verification Request Changes
+- KYC volunteer thêm endpoint `PUT /api/admin/volunteer-kyc/{id}/request-changes`.
+- Skill verification thêm endpoint `PUT /api/admin/volunteer-skill-verifications/{id}/request-changes`.
+- Trạng thái mới: `ChangesRequested`.
+- Volunteer có thể gửi lại minh chứng kỹ năng khi trạng thái là `SelfDeclared`, `Rejected` hoặc `ChangesRequested`.
+
+### Quy tắc xóa cứng
+- Event: chỉ xóa nếu chưa có registration, work shift, channel, campaign, sponsor/proposal, certificate, rating.
+- User: chỉ xóa nếu chưa có dữ liệu nghiệp vụ liên quan.
+- Badge: chỉ xóa nếu chưa cấp cho user.
+- Rating: admin được xóa nếu vi phạm; thông thường ưu tiên ẩn/hiện.
+- Audit log, monitoring, export: không sửa/xóa qua UI demo.
+## Cập nhật thiết kế nghiệp vụ lõi 2026-05-25
+
+### Registration / WorkShift
+- `WorkShift` là cấu hình tùy chọn sau khi tạo event, không phải bước bắt buộc của wizard tạo event.
+- Backend phải chặn tạo ca nếu event đã có registration.
+- Backend phải bắt buộc `ShiftId` khi event đã có ít nhất một ca.
+- `Registration.ShiftId` có thể null chỉ khi event không chia ca.
+- `CurrentParticipants` chỉ đếm registration `Confirmed`, không tính `Pending`.
+
+### Attendance
+- `AttendedAt` là thời điểm check-in.
+- `CheckedOutAt` là thời điểm check-out.
+- `VolunteerHours` được tính pro-rate khi check-out/manual adjust, không set full duration ngay lúc check-in.
+- Audit log check-in cần metadata: method (`QR`/`GPS`/manual), tọa độ nếu có, IP và event/registration id.
+- QR code là chuỗi khó đoán, sinh khi approve event và có thể rotate.
+
+### Event completion
+- Complete event không phụ thuộc min participants.
+- Complete event phải xử lý registration chưa hoàn tất theo rule: giữ lịch sử nhưng không tính tham gia/certificate/hours.
+- Certificate chỉ cấp cho registration đã attended và có giờ hợp lệ.
+
+### Finance
+- SupportCampaign và SponsorshipProposal là hai aggregate riêng:
+  - IndividualDonation thuộc SupportCampaign.
+  - SponsorshipProposal thuộc tài trợ doanh nghiệp.
+- Impact report chỉ cộng donation `Confirmed` và proposal `Received`/`Reported`.
+- Legacy `EventSponsor` chỉ dùng tương thích, không được cộng trùng với proposal đã sync.

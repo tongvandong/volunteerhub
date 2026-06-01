@@ -56,7 +56,7 @@ const formatDate = (value) => {
   });
 };
 
-export default function AdminOrganizerVerifications() {
+export default function AdminOrganizerVerifications({ embedded = false }) {
   const [items, setItems] = useState([]);
   const [status, setStatus] = useState('');
   const [loading, setLoading] = useState(true);
@@ -102,8 +102,8 @@ export default function AdminOrganizerVerifications() {
     const note = reviewNote.trim();
     const { item, action } = reviewState;
 
-    if (action !== 'approve' && !note) {
-      setError('Vui lòng nhập lý do để organizer biết cần xử lý gì.');
+    if (action !== 'approve' && note.length < 10) {
+      setError('Vui lòng nhập lý do tối thiểu 10 ký tự để organizer biết cần xử lý gì.');
       return;
     }
 
@@ -133,20 +133,22 @@ export default function AdminOrganizerVerifications() {
   return (
     <div className="space-y-5">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <h1 className="text-xl font-bold text-gray-900">Duyệt tổ chức</h1>
-          <p className="text-sm text-gray-500 mt-1">
-            Kiểm tra hồ sơ pháp lý của organizer trước khi họ được tạo sự kiện.
-          </p>
-        </div>
+        {embedded ? <span /> : (
+          <div>
+            <h1 className="text-xl font-bold text-warmink">Duyệt tổ chức</h1>
+            <p className="text-sm text-warmink-2 mt-1">
+              Kiểm tra hồ sơ pháp lý của organizer trước khi họ được tạo sự kiện.
+            </p>
+          </div>
+        )}
         <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-800">
           <span className="font-semibold">{pendingCount}</span> hồ sơ đang chờ
         </div>
       </div>
 
       <div className="card p-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-2 text-sm text-gray-600">
-          <i className="fa-solid fa-filter text-gray-400" />
+        <div className="flex items-center gap-2 text-sm text-warmink-2">
+          <i className="fa-solid fa-filter text-warmink-3" />
           Lọc trạng thái
         </div>
         <select className="input-field sm:w-56" value={status} onChange={(e) => setStatus(e.target.value)}>
@@ -168,7 +170,7 @@ export default function AdminOrganizerVerifications() {
           <div className="w-8 h-8 border-4 border-primary-600 border-t-transparent rounded-full animate-spin" />
         </div>
       ) : items.length === 0 ? (
-        <div className="card p-8 text-center text-sm text-gray-500">
+        <div className="card p-8 text-center text-sm text-warmink-2">
           Không có hồ sơ xác minh phù hợp bộ lọc hiện tại.
         </div>
       ) : (
@@ -182,12 +184,12 @@ export default function AdminOrganizerVerifications() {
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                   <div>
                     <div className="flex flex-wrap items-center gap-2">
-                      <h2 className="font-semibold text-gray-900">{item.organizationName || 'Chưa có tên tổ chức'}</h2>
+                      <h2 className="font-semibold text-warmink">{item.organizationName || 'Chưa có tên tổ chức'}</h2>
                       <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold ${statusInfo.className}`}>
                         {statusInfo.label}
                       </span>
                     </div>
-                    <p className="text-sm text-gray-500 mt-1">
+                    <p className="text-sm text-warmink-2 mt-1">
                       Organizer: {item.organizerName || item.organizerUserName || `#${item.organizerId}`}
                       {' · '}
                       <a href={`/profile/${item.organizerId}`} target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:underline">
@@ -195,7 +197,7 @@ export default function AdminOrganizerVerifications() {
                       </a>
                     </p>
                   </div>
-                  <div className="text-xs text-gray-400 sm:text-right">
+                  <div className="text-xs text-warmink-3 sm:text-right">
                     <p>Gửi: {formatDate(item.submittedAt)}</p>
                     {item.verifiedAt && <p>Duyệt: {formatDate(item.verifiedAt)}</p>}
                   </div>
@@ -203,36 +205,36 @@ export default function AdminOrganizerVerifications() {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                   <div className="space-y-2">
-                    <p><span className="font-medium text-gray-700">Người đại diện:</span> {item.representativeName || '-'}</p>
-                    <p><span className="font-medium text-gray-700">Email:</span> {item.contactEmail || '-'}</p>
-                    <p><span className="font-medium text-gray-700">Điện thoại:</span> {item.phone || '-'}</p>
-                    <p><span className="font-medium text-gray-700">Địa chỉ:</span> {item.address || '-'}</p>
+                    <p><span className="font-medium text-warmink-2">Người đại diện:</span> {item.representativeName || '-'}</p>
+                    <p><span className="font-medium text-warmink-2">Email:</span> {item.contactEmail || '-'}</p>
+                    <p><span className="font-medium text-warmink-2">Điện thoại:</span> {item.phone || '-'}</p>
+                    <p><span className="font-medium text-warmink-2">Địa chỉ:</span> {item.address || '-'}</p>
                   </div>
                   <div className="space-y-2">
-                    <p><span className="font-medium text-gray-700">Website:</span> {item.websiteUrl ? <a className="text-primary-600 underline" href={item.websiteUrl} target="_blank" rel="noreferrer">{item.websiteUrl}</a> : '-'}</p>
-                    <p><span className="font-medium text-gray-700">Tài liệu:</span>{' '}
+                    <p><span className="font-medium text-warmink-2">Website:</span> {item.websiteUrl ? <a className="text-primary-600 underline" href={item.websiteUrl} target="_blank" rel="noreferrer">{item.websiteUrl}</a> : '-'}</p>
+                    <p><span className="font-medium text-warmink-2">Tài liệu:</span>{' '}
                       {item.documentUrl ? (
                         /\.(jpg|jpeg|png|gif|webp)$/i.test(item.documentUrl)
                           ? <ImageLightbox src={item.documentUrl} alt="Giấy tờ pháp lý" label="Xem ảnh giấy tờ" className="w-24 h-16 inline-block ml-2" />
                           : <a className="text-primary-600 underline" href={item.documentUrl} target="_blank" rel="noreferrer">{item.documentUrl}</a>
                       ) : '-'}
                     </p>
-                    <p><span className="font-medium text-gray-700">Admin:</span> {item.verifierName || '-'}</p>
+                    <p><span className="font-medium text-warmink-2">Admin:</span> {item.verifierName || '-'}</p>
                   </div>
                 </div>
 
-                <div className="rounded-lg border border-gray-100 bg-gray-50 p-3 text-sm text-gray-700">
-                  <p className="font-medium text-gray-900">Mô tả tổ chức</p>
+                <div className="rounded-lg border border-warmborder bg-surface-2 p-3 text-sm text-warmink-2">
+                  <p className="font-medium text-warmink">Mô tả tổ chức</p>
                   <p className="mt-1 whitespace-pre-line">{item.description || '-'}</p>
                   {item.verificationNote && (
                     <>
-                      <p className="font-medium text-gray-900 mt-3">Ghi chú từ organizer</p>
+                      <p className="font-medium text-warmink mt-3">Ghi chú từ organizer</p>
                       <p className="mt-1 whitespace-pre-line">{item.verificationNote}</p>
                     </>
                   )}
                   {item.adminNote && (
                     <>
-                      <p className="font-medium text-gray-900 mt-3">Phản hồi admin gần nhất</p>
+                      <p className="font-medium text-warmink mt-3">Phản hồi admin gần nhất</p>
                       <p className="mt-1 whitespace-pre-line">{item.adminNote}</p>
                     </>
                   )}
@@ -258,15 +260,17 @@ export default function AdminOrganizerVerifications() {
                       <i className="fa-solid fa-xmark" />
                       Từ chối
                     </button>
-                    <button
-                      type="button"
-                      className="btn-primary flex items-center justify-center gap-2"
-                      disabled={actionId === item.id}
-                      onClick={() => openReview(item, 'approve')}
-                    >
-                      <i className="fa-solid fa-check" />
-                      Duyệt tổ chức
-                    </button>
+                    {item.status === 'PendingVerification' && (
+                      <button
+                        type="button"
+                        className="btn-primary flex items-center justify-center gap-2"
+                        disabled={actionId === item.id}
+                        onClick={() => openReview(item, 'approve')}
+                      >
+                        <i className="fa-solid fa-check" />
+                        Duyệt tổ chức
+                      </button>
+                    )}
                   </div>
                 )}
               </article>
@@ -294,12 +298,12 @@ export default function AdminOrganizerVerifications() {
       >
         {reviewState && (
           <div className="space-y-4">
-            <div className="rounded-lg border border-gray-100 bg-gray-50 p-3 text-sm text-gray-700">
-              <p className="font-semibold text-gray-900">{reviewState.item.organizationName}</p>
+            <div className="rounded-lg border border-warmborder bg-surface-2 p-3 text-sm text-warmink-2">
+              <p className="font-semibold text-warmink">{reviewState.item.organizationName}</p>
               <p className="mt-1">Organizer: {reviewState.item.organizerName || reviewState.item.organizerUserName || `#${reviewState.item.organizerId}`}</p>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">{reviewCopy.label}</label>
+              <label className="block text-sm font-medium text-warmink-2 mb-1">{reviewCopy.label}</label>
               <textarea
                 rows={4}
                 className="input-field resize-none"
@@ -309,7 +313,7 @@ export default function AdminOrganizerVerifications() {
                 autoFocus
               />
               {reviewState.action !== 'approve' && (
-                <p className="text-xs text-gray-400 mt-1">Thông tin này sẽ hiển thị lại cho organizer để họ biết cần làm gì tiếp theo.</p>
+                <p className="text-xs text-warmink-3 mt-1">Thông tin này sẽ hiển thị lại cho organizer để họ biết cần làm gì tiếp theo.</p>
               )}
             </div>
           </div>

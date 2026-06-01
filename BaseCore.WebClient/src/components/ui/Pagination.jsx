@@ -12,25 +12,25 @@ export default function Pagination({ page, totalPages, onPageChange }) {
       <button
         onClick={() => onPageChange(page - 1)}
         disabled={page <= 1}
-        className="px-3 py-1.5 rounded-lg text-sm border border-gray-200 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+        className="px-3 py-1.5 rounded-lg text-sm border border-warmborder hover:bg-surface-2 disabled:opacity-40 disabled:cursor-not-allowed"
       >
         <i className="fa-solid fa-chevron-left" />
       </button>
-      {start > 1 && <span className="px-2 text-gray-400">...</span>}
+      {start > 1 && <span className="px-2 text-warmink-3">...</span>}
       {pages.map(p => (
         <button
           key={p}
           onClick={() => onPageChange(p)}
-          className={`px-3 py-1.5 rounded-lg text-sm border ${p === page ? 'bg-primary-600 text-white border-primary-600' : 'border-gray-200 hover:bg-gray-50'}`}
+          className={`px-3 py-1.5 rounded-lg text-sm border ${p === page ? 'bg-primary-600 text-white border-primary-600' : 'border-warmborder hover:bg-surface-2'}`}
         >
           {p}
         </button>
       ))}
-      {end < totalPages && <span className="px-2 text-gray-400">...</span>}
+      {end < totalPages && <span className="px-2 text-warmink-3">...</span>}
       <button
         onClick={() => onPageChange(page + 1)}
         disabled={page >= totalPages}
-        className="px-3 py-1.5 rounded-lg text-sm border border-gray-200 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+        className="px-3 py-1.5 rounded-lg text-sm border border-warmborder hover:bg-surface-2 disabled:opacity-40 disabled:cursor-not-allowed"
       >
         <i className="fa-solid fa-chevron-right" />
       </button>

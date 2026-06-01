@@ -8,6 +8,7 @@ namespace BaseCore.Entities
         public int OrganizerId { get; set; }
         public User Organizer { get; set; }
         public string OrganizationName { get; set; } = "";
+        public string LogoUrl { get; set; } = "";
         public string RepresentativeName { get; set; } = "";
         public string ContactEmail { get; set; } = "";
         public string Phone { get; set; } = "";

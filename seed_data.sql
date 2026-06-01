@@ -4,6 +4,9 @@
 -- ============================================================
 
 SET NOCOUNT ON;
+SET QUOTED_IDENTIFIER ON;
+SET ANSI_NULLS ON;
+
 BEGIN TRY
   BEGIN TRANSACTION;
 
@@ -43,6 +46,37 @@ BEGIN TRY
   -- ============================================================
   -- 4. EVENTS (ID 4 – 13)
   -- ============================================================
+  -- Events 1-3: EF-baseline events (kept by reset; only insert if wiped entirely)
+  IF NOT EXISTS (SELECT 1 FROM Events WHERE Id = 1)
+  BEGIN
+      SET IDENTITY_INSERT Events ON;
+      INSERT INTO Events
+          (Id, Title, Description, Location, Latitude, Longitude,
+           StartDate, EndDate, MaxParticipants, CurrentParticipants,
+           Status, CategoryId, OrganizerId, ImageUrl, QrCode, RequiredSkillIds, CreatedAt)
+      VALUES
+      (1,  N'Trồng cây xanh Hà Nội 2026',
+           N'Chiến dịch trồng 1000 cây xanh tại các tuyến phố Hà Nội nhằm cải thiện môi trường và chất lượng không khí.',
+           N'Hà Nội', 21.0285, 105.8542,
+           '2026-08-15 07:00:00', '2026-08-15 17:00:00', 50, 0, N'Pending', 1, 2,
+           N'https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=800',
+           N'', N'[4]', '2026-07-01'),
+      (2,  N'Dọn sạch bãi biển Đà Nẵng',
+           N'Vệ sinh bãi biển Mỹ Khê và tuyên truyền bảo vệ môi trường biển.',
+           N'Đà Nẵng', 16.0544, 108.2022,
+           '2026-09-05 06:00:00', '2026-09-05 12:00:00', 100, 0, N'Approved', 2, 2,
+           N'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=800',
+           N'EVT-2026-0002', N'[]', '2026-07-10'),
+      (3,  N'Dạy kỹ năng số cho người cao tuổi',
+           N'Hướng dẫn người cao tuổi sử dụng điện thoại thông minh và internet tại TP.HCM.',
+           N'TP. Hồ Chí Minh', 10.8231, 106.6297,
+           '2025-06-01 08:00:00', '2025-06-30 17:00:00', 30, 0, N'Completed', 4, 2,
+           N'https://images.unsplash.com/photo-1609921212029-bb5a28e60960?w=800',
+           N'EVT-2025-0003', N'[3,6]', '2025-05-01');
+      SET IDENTITY_INSERT Events OFF;
+  END
+
+  -- Events 4-13: seed events (deleted by reset each run)
   IF NOT EXISTS (SELECT 1 FROM Events WHERE Id = 4)
   BEGIN
       SET IDENTITY_INSERT Events ON;
@@ -54,58 +88,58 @@ BEGIN TRY
       (4,  N'Từ thiện trẻ em vùng cao Hà Giang',
            N'Mang sách vở, quần áo và nhu yếu phẩm đến với các em học sinh nghèo tại huyện Đồng Văn, Hà Giang.',
            N'Đồng Văn, Hà Giang', 23.2740, 105.3670,
-           '2025-10-12 06:00:00', '2025-10-13 20:00:00', 60, 0, N'Approved', 3, 2,
+           '2026-10-12 06:00:00', '2026-10-13 20:00:00', 60, 0, N'Approved', 3, 2,
            N'https://images.unsplash.com/photo-1488521787991-ed7bbaae773c?w=800',
-           N'EVT-2025-0004', N'[]', '2025-08-01'),
+           N'EVT-2026-0004', N'[]', '2026-08-01'),
 
-      (5,  N'Hiến máu nhân đạo Đà Nẵng – Mùa hè 2025',
+      (5,  N'Hiến máu nhân đạo Đà Nẵng – Mùa hè 2026',
            N'Ngày hội hiến máu tình nguyện tại Cung thể thao Tiên Sơn. Mỗi lần hiến máu có thể cứu sống 3 người.',
            N'Cung thể thao Tiên Sơn, Đà Nẵng', 16.0692, 108.2209,
-           '2025-09-20 07:00:00', '2025-09-20 17:00:00', 200, 0, N'Approved', 5, 2,
+           '2026-09-20 07:00:00', '2026-09-20 17:00:00', 200, 0, N'Approved', 5, 2,
            N'https://images.unsplash.com/photo-1615461066841-6116e61058f4?w=800',
-           N'EVT-2025-0005', N'[8]', '2025-08-05'),
+           N'EVT-2026-0005', N'[8]', '2026-08-05'),
 
       (6,  N'Phục hồi rừng ngập mặn Cà Mau',
            N'Trồng và chăm sóc cây đước tại khu bảo tồn rừng ngập mặn Mũi Cà Mau.',
            N'Vườn Quốc gia Mũi Cà Mau, Cà Mau', 8.5990, 104.7279,
-           '2025-11-02 06:00:00', '2025-11-02 18:00:00', 80, 0, N'Approved', 6, 2,
+           '2026-11-02 06:00:00', '2026-11-02 18:00:00', 80, 0, N'Approved', 6, 2,
            N'https://images.unsplash.com/photo-1542601906990-b4d3fb778b09?w=800',
-           N'EVT-2025-0006', N'[4]', '2025-08-10'),
+           N'EVT-2026-0006', N'[4]', '2026-08-10'),
 
       (7,  N'Dọn rác công viên Tao Đàn – TP.HCM',
            N'Hoạt động dọn vệ sinh và trồng hoa tại công viên Tao Đàn, kết hợp tuyên truyền ý thức môi trường.',
            N'Công viên Tao Đàn, Quận 1, TP.HCM', 10.7749, 106.6950,
-           '2025-09-28 06:30:00', '2025-09-28 11:00:00', 40, 0, N'Approved', 2, 2,
+           '2026-09-28 06:30:00', '2026-09-28 11:00:00', 40, 0, N'Approved', 2, 2,
            N'https://images.unsplash.com/photo-1532996122724-e3c354a0b15b?w=800',
-           N'EVT-2025-0007', N'[]', '2025-08-12'),
+           N'EVT-2026-0007', N'[]', '2026-08-12'),
 
       (8,  N'Tiếng Anh miễn phí cho thanh niên nông thôn',
            N'Lớp học tiếng Anh giao tiếp cơ bản dành cho thanh niên 15–25 tuổi tại huyện Củ Chi.',
            N'Huyện Củ Chi, TP.HCM', 11.0046, 106.5028,
-           '2025-10-05 08:00:00', '2025-12-28 11:00:00', 30, 0, N'Approved', 4, 2,
+           '2026-10-05 08:00:00', '2026-12-28 11:00:00', 30, 0, N'Approved', 4, 2,
            N'https://images.unsplash.com/photo-1503676260728-1c00da094a0b?w=800',
-           N'EVT-2025-0008', N'[2,6]', '2025-08-15'),
+           N'EVT-2026-0008', N'[2,6]', '2026-08-15'),
 
       (9,  N'Ngày hội hiến sách – Thư viện cho em',
            N'Quyên góp sách giáo khoa, truyện và tài liệu học tập để xây dựng tủ sách cộng đồng ở Bình Phước.',
            N'Bình Phước', 11.7512, 106.7235,
-           '2025-10-18 08:00:00', '2025-10-18 16:00:00', 50, 0, N'Approved', 3, 2,
+           '2026-10-18 08:00:00', '2026-10-18 16:00:00', 50, 0, N'Approved', 3, 2,
            N'https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=800',
-           N'EVT-2025-0009', N'[]', '2025-08-20'),
+           N'EVT-2026-0009', N'[]', '2026-08-20'),
 
       (10, N'Sơn lại trường làng Quảng Nam',
            N'Cùng sơn sửa lại các phòng học, vẽ tranh tường tại trường Tiểu học Phước Hà, Quảng Nam.',
            N'Tiên Phước, Quảng Nam', 15.4589, 108.3118,
-           '2025-11-15 07:00:00', '2025-11-16 17:00:00', 35, 0, N'Pending', 3, 2,
+           '2026-11-15 07:00:00', '2026-11-16 17:00:00', 35, 0, N'Pending', 3, 2,
            N'https://images.unsplash.com/photo-1607453998774-d533f65dac99?w=800',
-           N'', N'[]', '2025-09-01'),
+           N'', N'[]', '2026-09-01'),
 
       (11, N'Làm sạch sông Sài Gòn – Đoạn Thủ Đức',
            N'Thu gom rác thải trên mặt sông và hai bờ kênh rạch khu vực phường Linh Đông, TP. Thủ Đức.',
            N'Phường Linh Đông, TP. Thủ Đức, TP.HCM', 10.8410, 106.7563,
-           '2025-12-07 06:00:00', '2025-12-07 12:00:00', 70, 0, N'Pending', 2, 2,
+           '2026-12-07 06:00:00', '2026-12-07 12:00:00', 70, 0, N'Pending', 2, 2,
            N'https://images.unsplash.com/photo-1621451537084-482c73073a0f?w=800',
-           N'', N'[]', '2025-09-05'),
+           N'', N'[]', '2026-09-05'),
 
       (12, N'Tết thiếu nhi vùng khó 2025',
            N'Tổ chức Tết thiếu nhi cho 200 em nhỏ tại các gia đình hoàn cảnh khó khăn: vui chơi, quà tặng, khám bệnh.',
@@ -130,19 +164,29 @@ BEGIN TRY
   BEGIN
       SET IDENTITY_INSERT WorkShifts ON;
       INSERT INTO WorkShifts (Id, EventId, Name, StartTime, EndTime, MaxVolunteers, RequiredSkillId) VALUES
-      (1, 4,  N'Ca vận chuyển hàng hóa',    '2025-10-12 06:00:00', '2025-10-12 10:00:00', 20, 4),
-      (2, 4,  N'Ca phân phát quà tặng',      '2025-10-12 10:00:00', '2025-10-12 14:00:00', 20, NULL),
-      (3, 4,  N'Ca tổng kết & dọn dẹp',      '2025-10-12 14:00:00', '2025-10-13 18:00:00', 15, NULL),
-      (4, 5,  N'Ca sáng – Đội hỗ trợ y tế', '2025-09-20 07:00:00', '2025-09-20 12:00:00', 50, 8),
-      (5, 5,  N'Ca chiều – Đội hỗ trợ y tế','2025-09-20 12:00:00', '2025-09-20 17:00:00', 50, 8),
-      (6, 6,  N'Ca trồng cây buổi sáng',     '2025-11-02 06:00:00', '2025-11-02 12:00:00', 40, 4),
-      (7, 6,  N'Ca chăm sóc cây buổi chiều', '2025-11-02 12:00:00', '2025-11-02 18:00:00', 40, 4);
+      (1, 4,  N'Ca vận chuyển hàng hóa',    '2026-10-12 06:00:00', '2026-10-12 10:00:00', 20, 4),
+      (2, 4,  N'Ca phân phát quà tặng',      '2026-10-12 10:00:00', '2026-10-12 14:00:00', 20, NULL),
+      (3, 4,  N'Ca tổng kết & dọn dẹp',      '2026-10-12 14:00:00', '2026-10-13 18:00:00', 15, NULL),
+      (4, 5,  N'Ca sáng – Đội hỗ trợ y tế', '2026-09-20 07:00:00', '2026-09-20 12:00:00', 50, 8),
+      (5, 5,  N'Ca chiều – Đội hỗ trợ y tế','2026-09-20 12:00:00', '2026-09-20 17:00:00', 50, 8),
+      (6, 6,  N'Ca trồng cây buổi sáng',     '2026-11-02 06:00:00', '2026-11-02 12:00:00', 40, 4),
+      (7, 6,  N'Ca chăm sóc cây buổi chiều', '2026-11-02 12:00:00', '2026-11-02 18:00:00', 40, 4);
       SET IDENTITY_INSERT WorkShifts OFF;
   END
 
   -- ============================================================
   -- 6. CHANNELS
   -- ============================================================
+  -- Channels 1-2 are EF-baseline (events 2-3) and get wiped by the reset; re-seed them.
+  IF NOT EXISTS (SELECT 1 FROM Channels WHERE Id = 1)
+  BEGIN
+      SET IDENTITY_INSERT Channels ON;
+      INSERT INTO Channels (Id, EventId, Name, CreatedAt, IsActive) VALUES
+      (1,  2,  N'Kênh trao đổi - Dọn sạch bãi biển Đà Nẵng',        '2025-07-11', 1),
+      (2,  3,  N'Kênh trao đổi - Dạy kỹ năng số cho người cao tuổi', '2025-05-02', 1);
+      SET IDENTITY_INSERT Channels OFF;
+  END
+
   IF NOT EXISTS (SELECT 1 FROM Channels WHERE EventId = 4)
   BEGIN
       SET IDENTITY_INSERT Channels ON;
@@ -182,6 +226,18 @@ BEGIN TRY
   -- ============================================================
   -- 8. REGISTRATIONS
   -- ============================================================
+  -- EF-baseline registrations (for events 2-3) also wiped by reset; restore them.
+  IF NOT EXISTS (SELECT 1 FROM Registrations WHERE Id = 1)
+  BEGIN
+      SET IDENTITY_INSERT Registrations ON;
+      INSERT INTO Registrations
+          (Id, EventId, UserId, Status, Note, RegisteredAt, ConfirmedAt, IsAttended, AttendedAt, VolunteerHours, ShiftId)
+      VALUES
+      (1, 2, 4, N'Confirmed', NULL, '2025-07-12', '2025-07-13', 0, NULL, 0, NULL),
+      (2, 3, 4, N'Confirmed', NULL, '2025-05-05', '2025-05-06', 1, '2025-06-01 08:00:00', 8, NULL);
+      SET IDENTITY_INSERT Registrations OFF;
+  END
+
   IF NOT EXISTS (SELECT 1 FROM Registrations WHERE Id = 3)
   BEGIN
       SET IDENTITY_INSERT Registrations ON;
@@ -202,11 +258,20 @@ BEGIN TRY
   -- ============================================================
   UPDATE Events SET CurrentParticipants =
       (SELECT COUNT(*) FROM Registrations WHERE EventId = Events.Id AND Status IN (N'Confirmed', N'Pending'))
-  WHERE Id IN (4, 5, 6, 7, 8, 9, 10, 11, 12, 13);
+  WHERE Id IN (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13);
 
   -- ============================================================
   -- 10. CERTIFICATES
   -- ============================================================
+  -- EF-baseline cert 1 (event 3) is also wiped by reset; restore it.
+  IF NOT EXISTS (SELECT 1 FROM Certificates WHERE Id = 1)
+  BEGIN
+      SET IDENTITY_INSERT Certificates ON;
+      INSERT INTO Certificates (Id, UserId, EventId, CertificateCode, IssuedAt, VolunteerHours, PdfUrl) VALUES
+      (1, 4, 3, N'CERT-2025-0001', '2025-07-01', 8, N'');
+      SET IDENTITY_INSERT Certificates OFF;
+  END
+
   IF NOT EXISTS (SELECT 1 FROM Certificates WHERE Id = 2)
   BEGIN
       SET IDENTITY_INSERT Certificates ON;
@@ -284,12 +349,12 @@ BEGIN TRY
 
   COMMIT TRANSACTION;
   PRINT N'Seed data thanh cong!';
-  PRINT N'  + 10 events (ID 4-13)';
+  PRINT N'  + 13 events (ID 1-13)';
   PRINT N'  + 7 work shifts';
-  PRINT N'  + 8 channels';
+  PRINT N'  + 10 channels (ID 1-10)';
   PRINT N'  + 11 posts';
-  PRINT N'  + 6 registrations';
-  PRINT N'  + 2 certificates';
+  PRINT N'  + 8 registrations (ID 1-8)';
+  PRINT N'  + 3 certificates (ID 1-3)';
   PRINT N'  + 2 user badges';
   PRINT N'  + 3 volunteer skills';
   PRINT N'  + 6 notifications';

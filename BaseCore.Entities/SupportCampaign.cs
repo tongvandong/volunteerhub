@@ -14,6 +14,10 @@ namespace BaseCore.Entities
         public DateTime StartDate { get; set; }
         public DateTime EndDate { get; set; }
         public string ReceiveInfo { get; set; } = "";
+        // Thông tin chuyển khoản có cấu trúc để sinh VietQR (thanh toán ngoài hệ thống)
+        public string BankBin { get; set; } = "";          // mã BIN ngân hàng, vd 970422 (MB)
+        public string BankAccountNo { get; set; } = "";    // số tài khoản
+        public string BankAccountName { get; set; } = "";  // tên chủ tài khoản
         public string TransparencyNote { get; set; } = "";
         public string Status { get; set; } = "Draft";
         public int CreatedBy { get; set; }

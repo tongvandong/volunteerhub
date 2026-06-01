@@ -21,36 +21,30 @@ export const AuthProvider = ({ children }) => {
     const token = authStorage.getToken();
     const storedUser = authStorage.getUser();
 
-    if (token && storedUser) {
-      setUser(storedUser);
+    if (!token) {
+      if (storedUser) authStorage.clear();
       setLoading(false);
       return;
     }
 
-    if (token) {
-      authApi
-        .me()
-        .then((response) => {
-          const currentUser = response.data;
-          authStorage.setAuth({ token, user: currentUser });
-          setUser(currentUser);
-        })
-        .catch(() => {
-          authStorage.clear();
-          setUser(null);
-        })
-        .finally(() => {
-          setLoading(false);
-        });
+    // Hiển thị cached user tạm thời để đỡ flicker, nhưng vẫn verify với BE.
+    // Nếu BE từ chối (401) hoặc không phản hồi (down/network) → clear + về login.
+    if (storedUser) setUser(storedUser);
 
-      return;
-    }
-
-    if (storedUser) {
-      authStorage.clear();
-    }
-
-    setLoading(false);
+    authApi
+      .me()
+      .then((response) => {
+        const currentUser = response.data;
+        authStorage.setAuth({ token, user: currentUser });
+        setUser(currentUser);
+      })
+      .catch(() => {
+        authStorage.clear();
+        setUser(null);
+      })
+      .finally(() => {
+        setLoading(false);
+      });
   }, []);
 
   const login = async (identifier, password) => {
@@ -91,6 +85,16 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // Cập nhật một phần thông tin user hiện tại (vd tên/SĐT sau khi sửa hồ sơ) + lưu localStorage.
+  const updateUser = (partial) => {
+    setUser((prev) => {
+      const next = { ...(prev || {}), ...partial };
+      const token = authStorage.getToken();
+      if (token) authStorage.setAuth({ token, user: next });
+      return next;
+    });
+  };
+
   const isVolunteer = () => user?.role === 'Volunteer';
   const isOrganizer = () => user?.role === 'Organizer';
   const isSponsor = () => user?.role === 'Sponsor';
@@ -102,6 +106,7 @@ export const AuthProvider = ({ children }) => {
         user,
         login,
         logout,
+        updateUser,
         loading,
         isAuthenticated: !!user,
         isVolunteer,

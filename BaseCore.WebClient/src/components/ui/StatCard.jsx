@@ -12,9 +12,9 @@ export default function StatCard({ icon, label, value, color = 'green', sub }) {
     <div className="card p-5">
       <div className="flex items-start justify-between">
         <div>
-          <p className="text-sm text-gray-500 mb-1">{label}</p>
-          <p className="text-2xl font-bold text-gray-900">{value ?? '—'}</p>
-          {sub && <p className="text-xs text-gray-400 mt-1">{sub}</p>}
+          <p className="text-sm mb-1" style={{ color: 'rgba(15,15,15,0.50)' }}>{label}</p>
+          <p className="text-2xl font-bold" style={{ color: 'var(--c-ink)' }}>{value ?? '—'}</p>
+          {sub && <p className="text-xs mt-1" style={{ color: 'rgba(15,15,15,0.40)' }}>{sub}</p>}
         </div>
         <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${colors[color] || colors.green}`}>
           <i className={`fa-solid ${icon} text-lg`} />

@@ -117,3 +117,27 @@ Có thể:
 - Hợp đồng tài trợ pháp lý.
 - Push notification (mobile native).
 - Ứng dụng mobile native.
+
+## Cập nhật nghiệp vụ hiện tại
+
+Các nghiệp vụ quản trị đã được chuẩn hóa theo nguyên tắc: dữ liệu đã phát sinh lịch sử thì không xóa cứng, chỉ hủy, ẩn, yêu cầu bổ sung hoặc ghi nhận trạng thái mới.
+
+- Admin có màn quản lý sự kiện: xem chi tiết, duyệt/từ chối, hủy có lý do, hoàn thành/mở lại, chuyển nhà tổ chức, xóa cứng chỉ khi sự kiện chưa phát sinh dữ liệu nghiệp vụ.
+- Admin có màn quản lý huy hiệu: thêm/sửa/xóa huy hiệu. Chỉ cho xóa huy hiệu chưa từng cấp cho user; nếu đã cấp thì nên sửa thông tin nhẹ nhàng để không làm sai lịch sử.
+- Admin có màn giám sát tài chính: xem donation chờ xác nhận lâu, campaign có tiền chưa báo cáo, proposal tài trợ bị treo sau khi event hoàn thành/hủy. Màn này chỉ xem/đối soát, không sửa hoặc xóa dữ liệu tài chính trực tiếp.
+- KYC volunteer và xác minh kỹ năng có thêm trạng thái `ChangesRequested` để admin yêu cầu người dùng gửi lại/bổ sung thay vì phải từ chối ngay.
+- Danh mục sự kiện và kỹ năng vẫn có CRUD đầy đủ, nhưng xóa bị chặn hoặc xử lý an toàn khi đã được dữ liệu khác sử dụng.
+- Audit log, monitoring và export là vùng chỉ xem/tải dữ liệu trong UI demo; không cho sửa/xóa qua giao diện nghiệp vụ.
+## Cập nhật nghiệp vụ lõi 2026-05-25
+
+Các luồng đăng ký, ca làm việc, điểm danh và ủng hộ/tài trợ được thống nhất như sau:
+
+- Tạo event mặc định không yêu cầu chia ca. Organizer chỉ bật `Chia ca` trong màn quản lý event khi thật sự cần, và chỉ được bật khi event chưa có registration nào.
+- Nếu event đã chia ca, volunteer bắt buộc chọn ca khi đăng ký. Nếu event chưa chia ca, volunteer đăng ký trực tiếp vào event.
+- Không dùng `MinParticipants` như điều kiện cứng để bắt đầu/hoàn thành event. Organizer vẫn được vận hành event; hệ thống chỉ cảnh báo nếu số người xác nhận/điểm danh thấp.
+- Khi hoàn thành event, các registration còn `Pending` hoặc đang xin hủy không được tính tham gia, không cấp chứng chỉ và không cộng giờ.
+- Điểm danh chỉ hợp lệ với registration `Confirmed`, trong cửa sổ thời gian event/shift. Check-in ghi nhận thời điểm vào, check-out tính giờ thực tế theo thời gian ở lại.
+- Organizer có thể walk-in volunteer tại hiện trường. Nếu event có ca, walk-in cũng phải chọn ca.
+- Campaign ủng hộ cá nhân là tùy chọn của organizer. Event không có campaign hoặc không có ai ủng hộ vẫn chạy và hoàn thành bình thường.
+- Donation cá nhân chỉ ghi nhận khi organizer xác nhận đã nhận tiền. Tiền ủng hộ cá nhân tách biệt với proposal tài trợ doanh nghiệp.
+- Tài trợ doanh nghiệp đi qua sponsorship proposal hai chiều: organizer mời sponsor hoặc sponsor đề nghị tài trợ; chỉ proposal `Received` mới tính vào số tiền tài trợ đã nhận.

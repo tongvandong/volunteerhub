@@ -15,4 +15,11 @@
     <ProjectReference Include="..\BaseCore.Common\BaseCore.Common.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- Route maps are loaded at runtime from the content root, so they must be published.
+         Use Update (not Include) because the Web SDK already includes *.json as Content. -->
+    <Content Update="ocelot.json" CopyToOutputDirectory="PreserveNewest" />
+    <Content Update="ocelot.docker.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

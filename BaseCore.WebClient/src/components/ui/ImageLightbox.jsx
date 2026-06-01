@@ -19,7 +19,7 @@ export default function ImageLightbox({ src, alt = '', className = '', label }) 
         <img
           src={src}
           alt={alt}
-          className={`rounded border border-gray-200 object-cover cursor-pointer group-hover:ring-2 group-hover:ring-primary-400 transition-all ${className || 'w-20 h-14'}`}
+          className={`rounded border border-warmborder object-cover cursor-pointer group-hover:ring-2 group-hover:ring-primary-400 transition-all ${className || 'w-20 h-14'}`}
         />
         {label && <p className="text-xs text-primary-600 mt-1 group-hover:underline">{label}</p>}
       </button>
@@ -33,7 +33,7 @@ export default function ImageLightbox({ src, alt = '', className = '', label }) 
             <button
               type="button"
               onClick={() => setOpen(false)}
-              className="absolute -top-3 -right-3 w-8 h-8 bg-white rounded-full shadow flex items-center justify-center text-gray-600 hover:text-red-500 z-10"
+              className="absolute -top-3 -right-3 w-8 h-8 bg-white rounded-full shadow flex items-center justify-center text-warmink-2 hover:text-red-500 z-10"
             >
               <i className="fa-solid fa-xmark" />
             </button>

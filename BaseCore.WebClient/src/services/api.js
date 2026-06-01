@@ -149,14 +149,19 @@ export const eventApi = {
   approve: (id) => api.put(`/events/${id}/approve`),
   rotateQr: (id) => api.post(`/events/${id}/qr/rotate`),
   reject: (id, data = {}) => api.put(`/events/${id}/reject`, data),
-  complete: (id) => api.put(`/events/${id}/complete`),
+  complete: (id, data = {}) => api.put(`/events/${id}/complete`, data),
   cancel: (id, reason) => api.put(`/events/${id}/cancel`, { reason }),
   resubmit: (id) => api.post(`/events/${id}/resubmit`),
   uncomplete: (id) => api.post(`/events/${id}/uncomplete`),
+  transfer: (id, data) => api.put(`/events/${id}/transfer`, data),
+  overduePreview: () => api.get('/events/overdue-preview'),
+  autoCompleteOverdue: () => api.post('/events/auto-complete-overdue'),
   getRegistrations: (id) => api.get(`/events/${id}/registrations`),
   getEventHistory: (id) => api.get(`/events/${id}/history`),
   getShifts: (id) => api.get(`/events/${id}/shifts`),
   createShift: (id, data) => api.post(`/events/${id}/shifts`, data),
+  updateShift: (eventId, shiftId, data) => api.put(`/events/${eventId}/shifts/${shiftId}`, data),
+  deleteShift: (eventId, shiftId) => api.delete(`/events/${eventId}/shifts/${shiftId}`),
 };
 
 export const registrationApi = {
@@ -170,9 +175,19 @@ export const registrationApi = {
   manualAttend: (eventId, regId, hours) => api.post(`/events/${eventId}/registrations/${regId}/manual-attend`, { hours }),
   checkOut: (eventId, regId) => api.post(`/events/${eventId}/registrations/${regId}/checkout`),
   adjustHours: (eventId, regId, hours) => api.put(`/events/${eventId}/registrations/${regId}/hours`, { hours }),
+  changeShift: (eventId, regId, shiftId) => api.put(`/events/${eventId}/registrations/${regId}/shift`, { shiftId }),
   checkin: (eventId, regId, data) => api.post(`/events/${eventId}/registrations/${regId}/checkin`, data),
   selfCheckin: (eventId, data) => api.post(`/events/${eventId}/self-checkin`, data),
   getMyRegistrations: () => api.get('/my-registrations'),
+  // Phỏng vấn trực tuyến
+  scheduleInterview: (eventId, regId, data) => api.post(`/events/${eventId}/registrations/${regId}/interview`, data),
+  updateInterview: (eventId, regId, data) => api.put(`/events/${eventId}/registrations/${regId}/interview`, data),
+  decideInterview: (eventId, regId, data) => api.put(`/events/${eventId}/registrations/${regId}/interview/outcome`, data),
+  cancelInterview: (eventId, regId) => api.delete(`/events/${eventId}/registrations/${regId}/interview`),
+};
+
+export const interviewCallApi = {
+  getTrtcToken: (slotId) => api.get(`/interviews/${slotId}/trtc-token`),
 };
 
 export const eventCategoryApi = {
@@ -236,10 +251,15 @@ export const certificateApi = {
 export const badgeApi = {
   getAll: () => api.get('/badges'),
   getMyBadges: () => api.get('/my-badges'),
+  create: (data) => api.post('/badges', data),
+  update: (id, data) => api.put(`/badges/${id}`, data),
+  delete: (id) => api.delete(`/badges/${id}`),
 };
 
 export const ratingApi = {
   create: (eventId, data) => api.post(`/events/${eventId}/ratings`, data),
+  getByEvent: (eventId) => api.get(`/events/${eventId}/ratings`),
+  update: (id, data) => api.put(`/ratings/${id}`, data),
   getUserRatings: (userId) => api.get(`/users/${userId}/ratings`),
   getAdminRatings: (params = {}) => api.get('/admin/ratings', { params }),
   hide: (id, reason) => api.put(`/ratings/${id}/hide`, { reason }),
@@ -251,7 +271,6 @@ export const sponsorApi = {
   getByEvent: (eventId) => api.get(`/events/${eventId}/sponsors`),
   addSponsor: (eventId, data) => api.post(`/events/${eventId}/sponsors`, data),
   getMySponsorships: () => api.get('/sponsors/my'),
-  getMySponsorshipTracking: (id) => api.get(`/sponsors/my/${id}/tracking`),
 };
 
 export const sponsorProfileApi = {
@@ -325,6 +344,10 @@ export const adminApi = {
     const { search, ...rest } = params;
     return api.get('/admin/users', { params: { ...rest, keyword: search } });
   },
+  getUserDetail: (id) => api.get(`/admin/users/${id}`),
+  createUser: (data) => api.post('/admin/users', data),
+  updateUser: (id, data) => api.put(`/admin/users/${id}`, data),
+  deleteUser: (id) => api.delete(`/admin/users/${id}`),
   toggleUserStatus: (id) => api.put(`/admin/users/${id}/toggle-status`),
   getOrganizerVerifications: (params = {}) => api.get('/admin/organizer-verifications', { params }),
   approveOrganizerVerification: (id, data = {}) => api.put(`/admin/organizer-verifications/${id}/approve`, data),
@@ -333,13 +356,18 @@ export const adminApi = {
   getVolunteerKycRequests: (params = {}) => api.get('/admin/volunteer-kyc', { params }),
   approveVolunteerKyc: (id, data = {}) => api.put(`/admin/volunteer-kyc/${id}/approve`, data),
   rejectVolunteerKyc: (id, data = {}) => api.put(`/admin/volunteer-kyc/${id}/reject`, data),
+  requestVolunteerKycChanges: (id, data = {}) => api.put(`/admin/volunteer-kyc/${id}/request-changes`, data),
   getVolunteerSkillVerifications: (params = {}) => api.get('/admin/volunteer-skill-verifications', { params }),
   approveVolunteerSkill: (id, data = {}) => api.put(`/admin/volunteer-skill-verifications/${id}/approve`, data),
   rejectVolunteerSkill: (id, data = {}) => api.put(`/admin/volunteer-skill-verifications/${id}/reject`, data),
+  requestVolunteerSkillChanges: (id, data = {}) => api.put(`/admin/volunteer-skill-verifications/${id}/request-changes`, data),
   getMonitoringHealth: () => api.get('/monitoring/health'),
   getMonitoringSummary: () => api.get('/admin/monitoring/summary'),
   getAuditLogs: (params = {}) => api.get('/admin/audit-logs', { params }),
   getFinanceOverview: () => api.get('/admin/finance/overview'),
+  getStaleDonations: (params = {}) => api.get('/admin/finance/stale-donations', { params }),
+  getUnreportedCampaigns: () => api.get('/admin/finance/unreported-campaigns'),
+  getOpenProposalsPastEvent: () => api.get('/admin/finance/open-proposals-past-event'),
   exportEvents: (format) =>
     api.get('/admin/export/events', {
       params: { format },

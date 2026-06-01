@@ -32,7 +32,7 @@ function HideRatingModal({ rating, onClose, onSubmit, saving }) {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Lý do ẩn</label>
+          <label className="block text-sm font-medium text-warmink-2 mb-1">Lý do ẩn</label>
           <textarea
             rows={4}
             value={reason}
@@ -143,8 +143,8 @@ export default function AdminRatings() {
   return (
     <div className="space-y-5">
       <div>
-        <h1 className="text-xl font-bold text-gray-900">Kiểm duyệt đánh giá</h1>
-        <p className="text-sm text-gray-500 mt-1">Ẩn, hiện lại hoặc xóa các đánh giá không phù hợp trong hệ thống.</p>
+        <h1 className="text-xl font-bold text-warmink">Kiểm duyệt đánh giá</h1>
+        <p className="text-sm text-warmink-2 mt-1">Ẩn, hiện lại hoặc xóa các đánh giá không phù hợp trong hệ thống.</p>
       </div>
 
       <div className="flex gap-2 flex-wrap">
@@ -154,7 +154,7 @@ export default function AdminRatings() {
             type="button"
             onClick={() => setFilter(item.key)}
             className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
-              filter === item.key ? 'bg-primary-600 text-white' : 'bg-white border border-gray-200 text-gray-600 hover:border-primary-300'
+              filter === item.key ? 'bg-primary-600 text-white' : 'bg-white border border-warmborder text-warmink-2 hover:border-primary-300'
             }`}
           >
             {item.label}
@@ -164,8 +164,8 @@ export default function AdminRatings() {
 
       {loading ? <LoadingSpinner /> : ratings.length === 0 ? (
         <div className="card p-12 text-center">
-          <i className="fa-solid fa-star text-4xl text-gray-300 mb-3 block" />
-          <p className="text-gray-500">Không có đánh giá nào phù hợp bộ lọc</p>
+          <i className="fa-solid fa-star text-4xl text-warmink-3 mb-3 block" />
+          <p className="text-warmink-2">Không có đánh giá nào phù hợp bộ lọc</p>
         </div>
       ) : (
         <div className="space-y-3">
@@ -174,7 +174,7 @@ export default function AdminRatings() {
               <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                 <div className="space-y-2 min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
-                    <p className="font-semibold text-gray-900">{rating.eventTitle || `Sự kiện #${rating.eventId}`}</p>
+                    <p className="font-semibold text-warmink">{rating.eventTitle || `Sự kiện #${rating.eventId}`}</p>
                     <span className={`rounded-full px-2.5 py-1 text-xs font-medium border ${rating.isHidden ? 'border-red-200 bg-red-50 text-red-700' : 'border-green-200 bg-green-50 text-green-700'}`}>
                       {rating.isHidden ? 'Đã ẩn' : 'Đang hiển thị'}
                     </span>
@@ -182,13 +182,13 @@ export default function AdminRatings() {
                       {rating.score}/5 sao
                     </span>
                   </div>
-                  <p className="text-sm text-gray-600">
+                  <p className="text-sm text-warmink-2">
                     <span className="font-medium">Người đánh giá:</span> {rating.raterName || `#${rating.raterId}`}
                     {' · '}
                     <span className="font-medium">Người được đánh giá:</span> {rating.rateeName || `#${rating.rateeId}`}
                   </p>
-                  <p className="text-sm text-gray-800 whitespace-pre-wrap">{rating.comment || 'Không có nhận xét.'}</p>
-                  <p className="text-xs text-gray-400">Tạo lúc {fmt(rating.createdAt)}</p>
+                  <p className="text-sm text-warmink whitespace-pre-wrap">{rating.comment || 'Không có nhận xét.'}</p>
+                  <p className="text-xs text-warmink-3">Tạo lúc {fmt(rating.createdAt)}</p>
                   {rating.isHidden && (
                     <div className="rounded-lg border border-red-100 bg-red-50 p-3 text-sm text-red-700">
                       <p><span className="font-medium">Lý do ẩn:</span> {rating.hiddenReason || 'Không có ghi chú'}</p>
@@ -208,7 +208,7 @@ export default function AdminRatings() {
                   ) : (
                     <button type="button" onClick={() => unhideRating(rating)} disabled={!!actionLoading[rating.id]} className="btn-secondary btn-sm flex items-center gap-1">
                       {actionLoading[rating.id] === 'unhide'
-                        ? <div className="w-3 h-3 border-2 border-gray-500 border-t-transparent rounded-full animate-spin" />
+                        ? <div className="w-3 h-3 border-2 border-warmborder-2 border-t-transparent rounded-full animate-spin" />
                         : <i className="fa-solid fa-eye" />}
                       Hiện lại
                     </button>
@@ -228,7 +228,7 @@ export default function AdminRatings() {
       )}
 
       {totalPages > 1 && (
-        <Pagination currentPage={page} totalPages={totalPages} onPageChange={(nextPage) => load(nextPage)} />
+        <Pagination page={page} totalPages={totalPages} onPageChange={(nextPage) => load(nextPage)} />
       )}
 
       <HideRatingModal

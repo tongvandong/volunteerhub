@@ -9,7 +9,7 @@ function clamp(value, min, max) {
   return Math.min(Math.max(value, min), max);
 }
 
-export default function AvatarUploadField({ label, value, onChange, helper }) {
+export default function AvatarUploadField({ label, value, onChange, helper, variant = 'default', size = 96 }) {
   const inputRef = useRef(null);
   const imageRef = useRef(null);
   const dragRef = useRef(null);
@@ -141,38 +141,68 @@ export default function AvatarUploadField({ label, value, onChange, helper }) {
   };
 
   return (
-    <div className="space-y-3">
-      {label && <label className="block text-sm font-semibold text-gray-800">{label}</label>}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-        <div className="h-24 w-24 shrink-0 overflow-hidden rounded-full border border-gray-200 bg-gray-50 shadow-sm flex items-center justify-center">
-          {value ? (
-            <img src={value} alt="" className="h-full w-full object-cover" />
-          ) : (
-            <i className="fa-solid fa-user text-3xl text-gray-300" />
-          )}
-        </div>
-        <div className="flex-1 space-y-2">
-          <input ref={inputRef} type="file" accept="image/*" className="hidden" onChange={handleFile} />
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              className="btn-secondary btn-sm flex items-center gap-2"
-              onClick={() => inputRef.current?.click()}
-              disabled={uploading}
-            >
-              <i className="fa-solid fa-upload" />
-              {value ? 'Đổi ảnh' : 'Chọn ảnh'}
-            </button>
-            {value && (
-              <button type="button" className="btn-secondary btn-sm" onClick={() => onChange('')} disabled={uploading}>
-                Gỡ ảnh
-              </button>
+    <div className={variant === 'avatar' ? 'inline-block' : 'space-y-3'}>
+      {variant === 'avatar' ? (
+        <div className="relative inline-block">
+          <div
+            className="overflow-hidden rounded-full flex items-center justify-center"
+            style={{ width: size, height: size, border: '2px solid var(--c-border)', background: 'var(--c-surface-2)' }}
+          >
+            {value ? (
+              <img src={value} alt="" className="h-full w-full object-cover" />
+            ) : (
+              <i className="fa-solid fa-user text-warmink-3" style={{ fontSize: Math.round(size * 0.32) }} />
             )}
           </div>
-          {helper && <p className="text-xs text-gray-500">{helper}</p>}
-          {value && <p className="text-xs text-gray-400 break-all">{value}</p>}
+          <input ref={inputRef} type="file" accept="image/*" className="hidden" onChange={handleFile} />
+          <button
+            type="button"
+            onClick={() => inputRef.current?.click()}
+            disabled={uploading}
+            title="Đổi ảnh đại diện"
+            className="absolute bottom-0 right-0 flex items-center justify-center rounded-full text-white transition-colors"
+            style={{ width: 28, height: 28, background: 'var(--c-primary)', border: '2px solid var(--c-surface)' }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--c-primary-700)')}
+            onMouseLeave={(e) => (e.currentTarget.style.background = 'var(--c-primary)')}
+          >
+            <i className={`fa-solid ${uploading ? 'fa-spinner fa-spin' : 'fa-camera'} text-[11px]`} />
+          </button>
         </div>
-      </div>
+      ) : (
+        <>
+          {label && <label className="block text-sm font-semibold text-warmink">{label}</label>}
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+            <div className="h-24 w-24 shrink-0 overflow-hidden rounded-full border border-warmborder bg-surface-2 shadow-sm flex items-center justify-center">
+              {value ? (
+                <img src={value} alt="" className="h-full w-full object-cover" />
+              ) : (
+                <i className="fa-solid fa-user text-3xl text-warmink-3" />
+              )}
+            </div>
+            <div className="flex-1 space-y-2">
+              <input ref={inputRef} type="file" accept="image/*" className="hidden" onChange={handleFile} />
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  className="btn-secondary btn-sm flex items-center gap-2"
+                  onClick={() => inputRef.current?.click()}
+                  disabled={uploading}
+                >
+                  <i className="fa-solid fa-upload" />
+                  {value ? 'Đổi ảnh' : 'Chọn ảnh'}
+                </button>
+                {value && (
+                  <button type="button" className="btn-secondary btn-sm" onClick={() => onChange('')} disabled={uploading}>
+                    Gỡ ảnh
+                  </button>
+                )}
+              </div>
+              {helper && <p className="text-xs text-warmink-2">{helper}</p>}
+              {value && <p className="text-xs text-warmink-3 break-all">{value}</p>}
+            </div>
+          </div>
+        </>
+      )}
 
       <Modal
         open={Boolean(sourceUrl)}
@@ -192,7 +222,7 @@ export default function AvatarUploadField({ label, value, onChange, helper }) {
         <div className="space-y-5">
           <div className="flex justify-center">
             <div
-              className="relative select-none touch-none overflow-hidden rounded-full border-4 border-white bg-gray-100 shadow-[0_0_0_1px_rgba(15,23,42,0.12),0_18px_45px_rgba(15,23,42,0.18)]"
+              className="relative select-none touch-none overflow-hidden rounded-full border-4 border-white bg-surface-2 shadow-[0_0_0_1px_rgba(15,23,42,0.12),0_18px_45px_rgba(15,23,42,0.18)]"
               style={{ width: CROP_SIZE, height: CROP_SIZE }}
               onPointerDown={startDrag}
               onPointerMove={moveDrag}
@@ -220,7 +250,7 @@ export default function AvatarUploadField({ label, value, onChange, helper }) {
           </div>
 
           <div className="mx-auto max-w-md space-y-2">
-            <div className="flex items-center justify-between text-sm font-medium text-gray-700">
+            <div className="flex items-center justify-between text-sm font-medium text-warmink-2">
               <span>Thu phóng</span>
               <span>{Math.round(zoom * 100)}%</span>
             </div>
@@ -233,7 +263,7 @@ export default function AvatarUploadField({ label, value, onChange, helper }) {
               onChange={handleZoom}
               className="w-full accent-primary-600"
             />
-            <p className="text-center text-xs text-gray-500">Kéo ảnh để căn khuôn mặt vào vòng tròn, sau đó bấm dùng ảnh này.</p>
+            <p className="text-center text-xs text-warmink-2">Kéo ảnh để căn khuôn mặt vào vòng tròn, sau đó bấm dùng ảnh này.</p>
           </div>
 
           {error && <p className="text-center text-sm text-red-600">{error}</p>}

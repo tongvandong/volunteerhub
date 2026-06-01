@@ -1,4 +1,5 @@
 using System;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace BaseCore.Entities
 {
@@ -20,10 +21,21 @@ namespace BaseCore.Entities
         public bool CancelRequested { get; set; } = false;
         public DateTime? CancelRequestedAt { get; set; }
         public string CancelReason { get; set; } = "";
+        // null | Scheduled | Passed | Failed | NoShow | Cancelled (denormalize từ InterviewSlot)
+        public string? InterviewStatus { get; set; }
+        [NotMapped]
+        public bool HasRated { get; set; }
+        [NotMapped]
+        public int? RatingId { get; set; }
+        [NotMapped]
+        public int? RatingScore { get; set; }
+        [NotMapped]
+        public string RatingComment { get; set; } = "";
 
         // Navigation
         public Event Event { get; set; }
         public User User { get; set; }
         public WorkShift Shift { get; set; }
+        public InterviewSlot InterviewSlot { get; set; }
     }
 }
