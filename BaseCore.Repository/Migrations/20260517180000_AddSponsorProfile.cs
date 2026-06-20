@@ -1,10 +1,17 @@
 using System;
+using BaseCore.Repository;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
 namespace BaseCore.Repository.Migrations
 {
+    // NB: this migration originally shipped WITHOUT a .Designer.cs, so EF never registered it and
+    // the SponsorProfiles table was never created on a fresh database. These attributes (normally
+    // generated into the Designer file) register the migration so Database.Migrate() applies it.
+    [DbContext(typeof(MySqlDbContext))]
+    [Migration("20260517180000_AddSponsorProfile")]
     /// <inheritdoc />
     public partial class AddSponsorProfile : Migration
     {
@@ -45,12 +52,8 @@ namespace BaseCore.Repository.Migrations
                 table: "SponsorProfiles",
                 column: "UserId",
                 unique: true);
-
-            // Seed sponsor profile for demo sponsor user (userId=3)
-            migrationBuilder.InsertData(
-                table: "SponsorProfiles",
-                columns: new[] { "Id", "UserId", "OrganizationName", "RepresentativeName", "ContactEmail", "Phone", "Website", "LogoUrl", "Description", "IsVerified", "CreatedAt", "UpdatedAt" },
-                values: new object[] { 1, 3, "Công ty TNHH Tài trợ Demo", "Nguyễn Văn Sponsor", "sponsor@demo.vn", "0901234567", "https://sponsor-demo.vn", "", "Nhà tài trợ demo cho hệ thống VolunteerHub", true, new DateTime(2025, 5, 1), new DateTime(2025, 5, 1) });
+            // NB: InsertData seed row removed — it required a populated target model which this
+            // hand-registered migration doesn't carry. The sponsor profile can be created via API/seeder.
         }
 
         /// <inheritdoc />

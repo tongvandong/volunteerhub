@@ -481,6 +481,38 @@
       "Priority": 130
     },
     {
+      "DownstreamPathTemplate": "/api/recommendations/{everything}",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [{ "Host": "eventservice", "Port": 8080 }],
+      "UpstreamPathTemplate": "/api/recommendations/{everything}",
+      "UpstreamHttpMethod": [ "GET", "POST", "PUT", "DELETE", "OPTIONS" ],
+      "Priority": 165
+    },
+    {
+      "DownstreamPathTemplate": "/api/recommendations",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [{ "Host": "eventservice", "Port": 8080 }],
+      "UpstreamPathTemplate": "/api/recommendations",
+      "UpstreamHttpMethod": [ "GET", "POST", "PUT", "DELETE", "OPTIONS" ],
+      "Priority": 165
+    },
+    {
+      "DownstreamPathTemplate": "/api/admin/graph/{everything}",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [{ "Host": "eventservice", "Port": 8080 }],
+      "UpstreamPathTemplate": "/api/admin/graph/{everything}",
+      "UpstreamHttpMethod": [ "GET", "POST", "PUT", "DELETE", "OPTIONS" ],
+      "Priority": 170
+    },
+    {
+      "DownstreamPathTemplate": "/api/admin/dev/{everything}",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [{ "Host": "eventservice", "Port": 8080 }],
+      "UpstreamPathTemplate": "/api/admin/dev/{everything}",
+      "UpstreamHttpMethod": [ "GET", "POST", "PUT", "DELETE", "OPTIONS" ],
+      "Priority": 170
+    },
+    {
       "DownstreamPathTemplate": "/api/{everything}",
       "DownstreamScheme": "http",
       "DownstreamHostAndPorts": [{ "Host": "apiservice", "Port": 8080 }],

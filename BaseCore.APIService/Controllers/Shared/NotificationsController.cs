@@ -45,5 +45,33 @@ namespace BaseCore.APIService.Controllers
             await _notificationService.MarkAllReadAsync(userId);
             return Ok(new { message = "All marked as read" });
         }
+
+        // Đăng ký Expo push token của thiết bị cho user hiện tại.
+        [HttpPost("device-token")]
+        public async Task<IActionResult> RegisterDeviceToken([FromBody] DeviceTokenDto dto)
+        {
+            if (!int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var userId))
+                return Unauthorized();
+            if (string.IsNullOrWhiteSpace(dto?.Token))
+                return BadRequest(new { message = "Token is required" });
+            await _notificationService.RegisterDeviceTokenAsync(userId, dto.Token, dto.Platform ?? "");
+            return Ok(new { message = "Registered" });
+        }
+
+        [HttpDelete("device-token")]
+        public async Task<IActionResult> RemoveDeviceToken([FromBody] DeviceTokenDto dto)
+        {
+            if (!int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var userId))
+                return Unauthorized();
+            if (!string.IsNullOrWhiteSpace(dto?.Token))
+                await _notificationService.RemoveDeviceTokenAsync(userId, dto.Token);
+            return Ok(new { message = "Removed" });
+        }
+    }
+
+    public class DeviceTokenDto
+    {
+        public string Token { get; set; } = "";
+        public string? Platform { get; set; }
     }
 }

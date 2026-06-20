@@ -57,6 +57,7 @@ namespace BaseCore.Repository
         public DbSet<CertificateJob> CertificateJobs { get; set; }
         public DbSet<OrganizerVerification> OrganizerVerifications { get; set; }
         public DbSet<SponsorProfile> SponsorProfiles { get; set; }
+        public DbSet<PushDeviceToken> PushDeviceTokens { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -833,6 +834,15 @@ namespace BaseCore.Repository
             // =============================================
             // VOLUNTEERHUB: SPONSOR PROFILE
             // =============================================
+
+            modelBuilder.Entity<PushDeviceToken>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Token).HasMaxLength(300).IsRequired();
+                entity.Property(e => e.Platform).HasMaxLength(20).IsRequired(false);
+                entity.HasIndex(e => e.Token).IsUnique();
+                entity.HasOne(e => e.User).WithMany().HasForeignKey(e => e.UserId).OnDelete(DeleteBehavior.Cascade);
+            });
 
             modelBuilder.Entity<SponsorProfile>(entity =>
             {

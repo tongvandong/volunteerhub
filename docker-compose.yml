@@ -58,6 +58,27 @@ services:
     restart: unless-stopped
     networks: [volunteerhub]
 
+  neo4j:
+    image: neo4j:5-community
+    environment:
+      NEO4J_AUTH: neo4j/${NEO4J_PASSWORD}
+      # NB: biến bắt đầu bằng NEO4J_ bị Neo4j hiểu là dòng config. Dùng tên khác cho healthcheck.
+      HC_PASSWORD: ${NEO4J_PASSWORD}
+      NEO4J_server_memory_heap_max__size: 512m
+      NEO4J_server_memory_pagecache_size: 256m
+    volumes:
+      - neo4j_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "cypher-shell -u neo4j -p \"$$HC_PASSWORD\" 'RETURN 1' >/dev/null 2>&1 || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 12
+      start_period: 45s
+    restart: unless-stopped
+    networks: [volunteerhub]
+    # Cổng 7474 (browser) / 7687 (bolt) chỉ dùng nội bộ. Mở khi cần xem Neo4j Browser lúc dev:
+    # ports: ["7474:7474", "7687:7687"]
+
   # ---- .NET microservices --------------------------------------------------
   # Started in a chain (each waits for the previous to be healthy) so that the
   # auto-migration on startup runs sequentially on a fresh database.
@@ -98,10 +119,18 @@ services:
     environment:
       <<: *dotnet-env
       Cors__AllowedOrigins: ${PUBLIC_URL}
+      Neo4j__Uri: bolt://neo4j:7687
+      Neo4j__User: neo4j
+      Neo4j__Password: ${NEO4J_PASSWORD}
+      Graph__SyncIntervalMinutes: 20
+      # Cho phép endpoint seed dữ liệu demo chạy (môi trường Production trong container).
+      # ĐẶT "false" hoặc xóa dòng này khi deploy thật để khóa /api/admin/dev/seed.
+      Demo__SeedEnabled: "true"
     volumes:
       - certificates_data:/app/wwwroot/certificates
     depends_on:
       authservice: { condition: service_healthy }
+      neo4j: { condition: service_healthy }
     healthcheck: *dotnet-healthcheck
     restart: unless-stopped
     networks: [volunteerhub]
@@ -183,6 +212,7 @@ networks:
 volumes:
   mssql_data:
   redis_data:
+  neo4j_data:
   uploads_data:
   certificates_data:
   caddy_data:

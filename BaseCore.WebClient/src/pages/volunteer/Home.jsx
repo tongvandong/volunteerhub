@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { profileApi, registrationApi, eventApi, dashboardApi, certificateApi } from '../../services/api';
+import { profileApi, registrationApi, eventApi, dashboardApi, certificateApi, recommendationApi } from '../../services/api';
 import { DashboardSkeleton } from '../../components/ui/Skeleton';
 import SectionLabel from '../../components/ui/SectionLabel';
 import ActionRow from '../../components/ui/ActionRow';
@@ -49,6 +49,13 @@ function firstName(name) {
   return parts[parts.length - 1];
 }
 
+function graphReason(g) {
+  const parts = [];
+  if (g.skillMatch > 0) parts.push(`${g.skillMatch} kỹ năng phù hợp`);
+  if (g.fieldMatch > 0) parts.push('cùng lĩnh vực bạn từng tham gia');
+  return parts.length ? `Vì ${parts.join(' · ')}` : 'Gợi ý dựa trên hoạt động của bạn';
+}
+
 export default function VolunteerHome() {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
@@ -56,6 +63,7 @@ export default function VolunteerHome() {
   const [mySkillIds, setMySkillIds] = useState([]);
   const [registrations, setRegistrations] = useState([]);
   const [recommended, setRecommended] = useState([]);
+  const [graphRecs, setGraphRecs] = useState([]);
   const [stats, setStats] = useState({ totalHours: 0, attendedEvents: 0, badges: 0, certificates: 0 });
 
   useEffect(() => {
@@ -66,8 +74,9 @@ export default function VolunteerHome() {
       eventApi.getAll({ status: 'Approved', page: 1, pageSize: 12 }).catch(() => ({ data: { items: [] } })),
       dashboardApi.get().catch(() => ({ data: {} })),
       certificateApi.getMyCertificates().catch(() => ({ data: [] })),
+      recommendationApi.eventsForMe(6).catch(() => ({ data: { items: [] } })),
     ])
-      .then(([profileRes, regsRes, recRes, evRes, dashRes, certRes]) => {
+      .then(([profileRes, regsRes, recRes, evRes, dashRes, certRes, graphRes]) => {
         const p = profileRes?.data?.profile || null;
         const skills = profileRes?.data?.volunteerSkills || profileRes?.data?.skills || [];
         const skillIds = skills.map((s) => s.skillId || s.id).filter(Boolean);
@@ -93,6 +102,9 @@ export default function VolunteerHome() {
           .sort((a, b) => (b._matchPct ?? 0) - (a._matchPct ?? 0) || new Date(a.startDate) - new Date(b.startDate))
           .slice(0, 8);
         setRecommended(scored);
+
+        const graphItems = Array.isArray(graphRes?.data?.items) ? graphRes.data.items : [];
+        setGraphRecs(graphItems);
 
         const d = dashRes?.data || {};
         const certCount = Array.isArray(certRes?.data) ? certRes.data.length : (certRes?.data?.items?.length || 0);
@@ -153,6 +165,36 @@ export default function VolunteerHome() {
           </div>
         )}
       </section>
+
+      {/* Section: Gợi ý cho bạn (knowledge graph) — chỉ hiện khi có dữ liệu */}
+      {graphRecs.length > 0 && (
+        <section className="mb-10">
+          <SectionLabel action={<Link to="/events" className="link-inline">Xem tất cả →</Link>}>
+            Gợi ý cho bạn
+          </SectionLabel>
+          <div className="space-y-2">
+            {graphRecs.map((g) => (
+              <Link
+                key={g.eventId}
+                to={`/events/${g.eventId}`}
+                className="card px-4 py-3 flex items-center gap-3 no-underline transition-colors"
+                style={{ color: 'inherit' }}
+                onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--c-border-2)'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--c-border)'; }}
+              >
+                <span className="flex items-center justify-center flex-shrink-0" style={{ width: 38, height: 38, borderRadius: 11, ...TINT.accent, fontSize: 14 }}>
+                  <i className="fa-solid fa-wand-magic-sparkles" />
+                </span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[14px] font-semibold truncate" style={{ color: 'var(--c-ink)' }}>{g.title}</p>
+                  <p className="text-[12px] mt-0.5" style={{ color: 'var(--c-ink-2)' }}>{graphReason(g)}</p>
+                </div>
+                <span className="text-sm font-medium flex-shrink-0" style={{ color: 'var(--c-primary)' }}>→</span>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Section: Sự kiện đề xuất */}
       <section className="mb-10">

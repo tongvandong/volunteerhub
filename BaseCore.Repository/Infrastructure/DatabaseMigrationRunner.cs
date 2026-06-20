@@ -50,19 +50,45 @@ namespace BaseCore.Repository.Infrastructure
                     dbContext.Database.CloseConnection();
                     return;
                 }
-                // Error 4060: the server is reachable and the login succeeded, but the
-                // target database does not exist yet (e.g. a brand-new SQL Server
-                // container or VPS). That's expected on first boot - Database.Migrate()
-                // below will create it. Stop probing and let migration proceed.
-                catch (SqlException ex) when (ex.Number == 4060)
+                // EF Core wraps the SqlException in an InvalidOperationException
+                // ("...likely due to a transient failure..."), so we must inspect the
+                // whole exception chain rather than catch SqlException directly.
+                catch (Exception ex) when (TryGetSqlErrorNumber(ex, out var errorNumber))
                 {
-                    return;
-                }
-                catch (SqlException) when (attempt < MaxConnectionAttempts)
-                {
+                    // Error 4060: the server is reachable and the login succeeded, but
+                    // the target database does not exist yet (a brand-new SQL Server
+                    // container or VPS). That's expected on first boot - Database.Migrate()
+                    // below will create it. Stop probing and let migration proceed.
+                    if (errorNumber == 4060)
+                    {
+                        return;
+                    }
+
+                    // Any other SQL error (e.g. server still starting up): retry a few
+                    // times, then surface the original exception.
+                    if (attempt >= MaxConnectionAttempts)
+                    {
+                        throw;
+                    }
+
                     Thread.Sleep(ConnectionRetryDelay);
                 }
             }
+        }
+
+        private static bool TryGetSqlErrorNumber(Exception exception, out int number)
+        {
+            for (Exception? current = exception; current != null; current = current.InnerException)
+            {
+                if (current is SqlException sqlException)
+                {
+                    number = sqlException.Number;
+                    return true;
+                }
+            }
+
+            number = 0;
+            return false;
         }
     }
 }

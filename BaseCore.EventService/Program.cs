@@ -152,6 +152,20 @@ builder.Services.AddDbContext<MySqlDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("ConnectedDb"));
 });
 
+// ---- Knowledge graph (Mức 1) ----
+// Neo4j driver is registered only when configured; the rest of the app runs fine without it.
+var neo4jUri = builder.Configuration["Neo4j:Uri"];
+if (!string.IsNullOrWhiteSpace(neo4jUri))
+{
+    var neo4jUser = builder.Configuration["Neo4j:User"] ?? "neo4j";
+    var neo4jPassword = builder.Configuration["Neo4j:Password"] ?? "";
+    builder.Services.AddSingleton<Neo4j.Driver.IDriver>(_ =>
+        Neo4j.Driver.GraphDatabase.Driver(neo4jUri, Neo4j.Driver.AuthTokens.Basic(neo4jUser, neo4jPassword)));
+}
+builder.Services.AddSingleton<BaseCore.EventService.Graph.GraphSyncService>();
+builder.Services.AddHostedService<BaseCore.EventService.Graph.GraphSyncWorker>();
+builder.Services.AddScoped<BaseCore.EventService.Demo.DemoSeederService>();
+
 builder.Services.AddScoped<IProductRepositoryEF, ProductRepositoryEF>();
 builder.Services.AddScoped<ICategoryRepositoryEF, CategoryRepositoryEF>();
 builder.Services.AddScoped<IOrderRepositoryEF, OrderRepositoryEF>();

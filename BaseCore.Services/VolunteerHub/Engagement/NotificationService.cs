@@ -26,6 +26,39 @@ namespace BaseCore.Services.VolunteerHub
                 CreatedAt = DateTime.UtcNow
             });
             await _context.SaveChangesAsync();
+
+            // Gửi push (best-effort, fire-and-forget) tới các thiết bị của user.
+            var tokens = await _context.PushDeviceTokens
+                .Where(t => t.UserId == userId)
+                .Select(t => t.Token)
+                .ToListAsync();
+            if (tokens.Count > 0)
+            {
+                _ = ExpoPush.SendAsync(tokens, title, message, new { type, relatedId });
+            }
+        }
+
+        public async Task RegisterDeviceTokenAsync(int userId, string token, string platform)
+        {
+            if (string.IsNullOrWhiteSpace(token)) return;
+            var existing = await _context.PushDeviceTokens.FirstOrDefaultAsync(t => t.Token == token);
+            if (existing == null)
+            {
+                _context.PushDeviceTokens.Add(new PushDeviceToken { UserId = userId, Token = token, Platform = platform ?? "", UpdatedAt = DateTime.UtcNow });
+            }
+            else
+            {
+                existing.UserId = userId; // token có thể đổi chủ khi đăng nhập tài khoản khác
+                existing.Platform = platform ?? existing.Platform;
+                existing.UpdatedAt = DateTime.UtcNow;
+            }
+            await _context.SaveChangesAsync();
+        }
+
+        public async Task RemoveDeviceTokenAsync(int userId, string token)
+        {
+            var rows = await _context.PushDeviceTokens.Where(t => t.Token == token).ToListAsync();
+            if (rows.Count > 0) { _context.PushDeviceTokens.RemoveRange(rows); await _context.SaveChangesAsync(); }
         }
 
         public async Task<(List<Notification> Items, int TotalCount)> GetByUserAsync(int userId, int page, int pageSize)

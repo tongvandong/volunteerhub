@@ -1350,6 +1350,39 @@ namespace BaseCore.Repository.Migrations
                         });
                 });
 
+            modelBuilder.Entity("BaseCore.Entities.PushDeviceToken", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Platform")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("Token")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Token")
+                        .IsUnique();
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("PushDeviceTokens");
+                });
+
             modelBuilder.Entity("BaseCore.Entities.Rating", b =>
                 {
                     b.Property<int>("Id")
@@ -2566,6 +2599,17 @@ namespace BaseCore.Repository.Migrations
                         .IsRequired();
 
                     b.Navigation("Category");
+                });
+
+            modelBuilder.Entity("BaseCore.Entities.PushDeviceToken", b =>
+                {
+                    b.HasOne("BaseCore.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("BaseCore.Entities.Rating", b =>

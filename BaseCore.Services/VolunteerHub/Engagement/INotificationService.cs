@@ -8,5 +8,7 @@ namespace BaseCore.Services.VolunteerHub
         Task<(List<Notification> Items, int TotalCount)> GetByUserAsync(int userId, int page, int pageSize);
         Task MarkReadAsync(int notificationId, int userId);
         Task MarkAllReadAsync(int userId);
+        Task RegisterDeviceTokenAsync(int userId, string token, string platform);
+        Task RemoveDeviceTokenAsync(int userId, string token);
     }
 }

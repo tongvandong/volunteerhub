@@ -164,6 +164,14 @@ export const eventApi = {
   deleteShift: (eventId, shiftId) => api.delete(`/events/${eventId}/shifts/${shiftId}`),
 };
 
+export const recommendationApi = {
+  // Gợi ý dựa trên knowledge graph (Neo4j). Trả { items, degraded }.
+  eventsForMe: (limit = 5) => api.get('/recommendations/events', { params: { limit } }),
+  volunteersForEvent: (eventId, limit = 10) => api.get(`/recommendations/events/${eventId}/volunteers`, { params: { limit } }),
+  sponsorsForEvent: (eventId, limit = 10) => api.get(`/recommendations/events/${eventId}/sponsors`, { params: { limit } }),
+  similarVolunteers: (userId, limit = 10) => api.get(`/recommendations/volunteers/${userId}/similar`, { params: { limit } }),
+};
+
 export const registrationApi = {
   register: (eventId, data) => api.post(`/events/${eventId}/register`, data),
   withdraw: (eventId) => api.delete(`/events/${eventId}/register`),
