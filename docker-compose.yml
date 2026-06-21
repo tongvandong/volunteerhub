@@ -82,20 +82,6 @@ services:
   # ---- .NET microservices --------------------------------------------------
   # Started in a chain (each waits for the previous to be healthy) so that the
   # auto-migration on startup runs sequentially on a fresh database.
-  apiservice:
-    build:
-      context: .
-      dockerfile: deploy/dotnet-service.Dockerfile
-      args: { PROJECT: BaseCore.APIService/BaseCore.APIService.csproj, DLL: BaseCore.APIService.dll }
-    environment:
-      <<: *dotnet-env
-    depends_on:
-      sqlserver: { condition: service_healthy }
-      redis: { condition: service_healthy }
-    healthcheck: *dotnet-healthcheck
-    restart: unless-stopped
-    networks: [volunteerhub]
-
   authservice:
     build:
       context: .
@@ -106,7 +92,8 @@ services:
     volumes:
       - uploads_data:/app/wwwroot/uploads
     depends_on:
-      apiservice: { condition: service_healthy }
+      sqlserver: { condition: service_healthy }
+      redis: { condition: service_healthy }
     healthcheck: *dotnet-healthcheck
     restart: unless-stopped
     networks: [volunteerhub]
@@ -157,7 +144,6 @@ services:
       ASPNETCORE_ENVIRONMENT: Production
       Ocelot__ConfigFile: ocelot.docker.json
     depends_on:
-      apiservice: { condition: service_healthy }
       authservice: { condition: service_healthy }
       eventservice: { condition: service_healthy }
       financeservice: { condition: service_healthy }
