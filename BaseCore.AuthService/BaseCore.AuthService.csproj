@@ -23,13 +23,4 @@
     <ProjectReference Include="..\BaseCore.Services\BaseCore.Services.csproj" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Compile Include="..\BaseCore.APIService\Controllers\Identity\**\*.cs" Link="Controllers\Identity\%(RecursiveDir)%(Filename)%(Extension)" />
-    <Compile Include="..\BaseCore.APIService\Controllers\Shared\UploadsController.cs" Link="Controllers\Shared\UploadsController.cs" />
-    <Compile Include="..\BaseCore.APIService\Controllers\Shared\NotificationsController.cs" Link="Controllers\Shared\NotificationsController.cs" />
-    <Compile Include="..\BaseCore.APIService\Controllers\Admin\AdminController.cs" Link="Controllers\Admin\AdminController.cs" />
-    <Compile Include="..\BaseCore.APIService\Controllers\Admin\MonitoringController.cs" Link="Controllers\Admin\MonitoringController.cs" />
-    <Compile Include="..\BaseCore.APIService\Controllers\Admin\BadgesController.cs" Link="Controllers\Admin\BadgesController.cs" />
-  </ItemGroup>
-
 </Project>
