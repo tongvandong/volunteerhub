@@ -109,10 +109,13 @@ jobs:
           cd /opt/volunteerhub
           git fetch origin
           git reset --hard origin/main
+          export COMPOSE_PARALLEL_LIMIT=1
           docker compose -f docker-compose.nginx.yml --env-file .env build
           docker compose -f docker-compose.nginx.yml --env-file .env up -d
           docker compose -f docker-compose.nginx.yml --env-file .env ps
 ```
+
+`COMPOSE_PARALLEL_LIMIT=1` giúp VPS RAM thấp build từng service một, tránh nghẽn Docker khi SQL Server, Neo4j và các service .NET đang chạy.
 
 ## 5. Chạy Thử
 
