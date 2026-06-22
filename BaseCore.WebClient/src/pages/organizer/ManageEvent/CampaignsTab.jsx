@@ -44,6 +44,15 @@ export default function CampaignsTab({
   const [confirmSaving, setConfirmSaving] = useState(false);
   const [confirmError, setConfirmError] = useState('');
 
+  const hasCampaignReceiveInfo = (campaign) => Boolean(campaign.receiveInfo?.trim());
+  const receiveInfoMessage = 'Vui lòng nhập thông tin nhận ủng hộ trước khi mở đợt kêu gọi.';
+  const canOpenCreatedCampaign = campaignForm.status !== 'Open' || Boolean(
+    campaignForm.receiveInfo?.trim()
+    || campaignForm.bankBin
+    || campaignForm.bankAccountNo
+    || campaignForm.bankAccountName?.trim()
+  );
+
   const openConfirm = (donation) => {
     setConfirmTarget(donation);
     setReconciled(false);
@@ -177,7 +186,14 @@ export default function CampaignsTab({
                     </button>
                   )}
                   {campaign.status !== 'Open' && campaign.status !== 'Cancelled' && (
-                    <button onClick={() => onChangeCampaignStatus(campaign, 'open')} className="btn-primary btn-sm">Mở</button>
+                    <button
+                      onClick={() => onChangeCampaignStatus(campaign, 'open')}
+                      disabled={!hasCampaignReceiveInfo(campaign)}
+                      title={!hasCampaignReceiveInfo(campaign) ? receiveInfoMessage : undefined}
+                      className="btn-primary btn-sm disabled:opacity-60 disabled:cursor-not-allowed"
+                    >
+                      Mở
+                    </button>
                   )}
                   {campaign.status === 'Open' && (
                     <button onClick={() => onChangeCampaignStatus(campaign, 'close')} className="btn-secondary btn-sm">Đóng</button>
@@ -269,9 +285,15 @@ export default function CampaignsTab({
             <input type="checkbox" checked={campaignForm.status === 'Open'} onChange={(e) => setCampaignForm((f) => ({ ...f, status: e.target.checked ? 'Open' : 'Draft' }))} />
             Mở nhận ủng hộ ngay sau khi tạo
           </label>
+          {!canOpenCreatedCampaign && (
+            <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+              <i className="fa-solid fa-circle-info mr-1.5" />
+              {receiveInfoMessage}
+            </div>
+          )}
           <div className="flex justify-end gap-3 pt-2">
             <button type="button" onClick={() => setCampaignModal(false)} className="btn-secondary">Hủy</button>
-            <button type="submit" disabled={campaignSaving} className="btn-primary flex items-center gap-2">
+            <button type="submit" disabled={campaignSaving || !canOpenCreatedCampaign} className="btn-primary flex items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed">
               {campaignSaving && <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />}
               Tạo đợt
             </button>
