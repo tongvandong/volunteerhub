@@ -22,6 +22,7 @@ import { fmtDateTime, money } from '../../utils/format';
 import VolunteerCheckInModal from '../../components/ui/VolunteerCheckInModal';
 import MobileActionBar from '../../components/ui/MobileActionBar';
 import { isWithinCheckinWindow } from '../../utils/checkin';
+import usePageMeta from '../../utils/usePageMeta';
 
 const MapView = lazy(() => import('../../components/ui/MapView'));
 
@@ -73,6 +74,13 @@ export default function EventDetail() {
   const [campaigns, setCampaigns] = useState([]);
   const [eventRatings, setEventRatings] = useState({ ratings: [], averageScore: 0, totalRatings: 0 });
   const [myRatingForm, setMyRatingForm] = useState({ score: 5, comment: '', editing: false });
+
+  // Cập nhật tiêu đề + thẻ Open Graph theo sự kiện đang xem (cho share/Web Share API).
+  usePageMeta({
+    title: event?.title,
+    description: event?.description ? String(event.description).slice(0, 200) : undefined,
+    image: event?.imageUrl,
+  });
   const [myRatingSaving, setMyRatingSaving] = useState(false);
   const [checkinTarget, setCheckinTarget] = useState(null);
   const [donationModal, setDonationModal] = useState(false);
