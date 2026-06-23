@@ -140,12 +140,13 @@ export default function MyProfile({ embedded = false }) {
   const loadProfile = async () => {
     const res = await profileApi.getMyProfile();
     const p   = res.data.profile;
+    const account = p?.user || res.data.user || {};
     setProfile(p);
     setSkills(res.data.skills || []);
     if (p) {
       setForm({
-        name: p.user?.name || '',
-        phone: p.user?.phone || '',
+        name: account.name || '',
+        phone: account.phone || '',
         bloodType: p.bloodType || '',
         interests: p.interests || '',
         bio:       p.bio       || '',

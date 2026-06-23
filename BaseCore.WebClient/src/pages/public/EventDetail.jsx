@@ -348,6 +348,11 @@ export default function EventDetail() {
     ? Math.round((event.currentParticipants / event.maxParticipants) * 100)
     : 0;
   const activeRegistration = myRegistration?.status === 'Cancelled' ? null : myRegistration;
+  const canAccessEventChannel = Boolean(event.channel?.id) && isAuthenticated && (
+    user?.role === 'Admin'
+    || event.organizerId === user?.id
+    || activeRegistration?.status === 'Confirmed'
+  );
   const kycSatisfied = !event.requiresKyc || myProfile?.kycStatus === 'Verified';
   const now = new Date();
   const eventStarted = event.startDate && new Date(event.startDate) <= now;
@@ -533,7 +538,7 @@ export default function EventDetail() {
                     || event.organizer?.name || event.organizerProfile?.name || 'Tổ chức'}
                 </p>
               </div>
-              {event.channel?.id && (
+              {canAccessEventChannel && (
                 <Link
                   to={`/channels/${event.channel.id}`}
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-semibold no-underline"
@@ -1238,7 +1243,7 @@ export default function EventDetail() {
             )}
           </div>
 
-          {event.status === 'Approved' && isAuthenticated && event.channel?.id && !event.organizer && !event.organizerProfile && (
+          {event.status === 'Approved' && canAccessEventChannel && !event.organizer && !event.organizerProfile && (
             <Link
               to={`/channels/${event.channel.id}`}
               className="flex items-center gap-3 rounded-lg bg-white p-4 no-underline transition-colors"

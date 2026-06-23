@@ -236,6 +236,9 @@ namespace BaseCore.AuthService.Controllers
             };
 
             _context.Users.Add(user);
+            await _context.SaveChangesAsync();
+
+            AddDefaultProfileForRegisteredUser(user);
             _context.PendingRegistrations.Remove(pending);
             await _context.SaveChangesAsync();
             await transaction.CommitAsync();
@@ -691,6 +694,58 @@ namespace BaseCore.AuthService.Controllers
             var material = $"{secretKey}:{email.Trim().ToLowerInvariant()}:{username.Trim()}";
             using var hmac = new HMACSHA256(Encoding.UTF8.GetBytes(material));
             return Base64UrlEncode(hmac.ComputeHash(Encoding.UTF8.GetBytes(code)));
+        }
+
+        private void AddDefaultProfileForRegisteredUser(User user)
+        {
+            if (user.UserType == 0)
+            {
+                _context.VolunteerProfiles.Add(new VolunteerProfile
+                {
+                    UserId = user.Id,
+                    BloodType = "",
+                    Interests = "",
+                    Bio = "",
+                    AvatarUrl = "",
+                    KycStatus = "Unverified",
+                    IdentityFrontImageUrl = "",
+                    IdentityBackImageUrl = "",
+                    PortraitImageUrl = "",
+                    KycAdminNote = ""
+                });
+                return;
+            }
+
+            if (user.UserType == 1)
+            {
+                _context.OrganizerVerifications.Add(new OrganizerVerification
+                {
+                    OrganizerId = user.Id,
+                    OrganizationName = "",
+                    RepresentativeName = user.Name ?? "",
+                    ContactEmail = user.Email ?? "",
+                    Phone = user.Phone ?? "",
+                    Status = "Unverified",
+                    CreatedAt = DateTime.UtcNow,
+                    SubmittedAt = DateTime.UtcNow
+                });
+                return;
+            }
+
+            if (user.UserType == 2)
+            {
+                _context.SponsorProfiles.Add(new SponsorProfile
+                {
+                    UserId = user.Id,
+                    OrganizationName = "",
+                    RepresentativeName = user.Name ?? "",
+                    ContactEmail = user.Email ?? "",
+                    Phone = user.Phone ?? "",
+                    IsVerified = false,
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow
+                });
+            }
         }
 
         private static string Base64UrlEncode(string value)
