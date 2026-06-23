@@ -14,6 +14,14 @@ x-dotnet-env: &dotnet-env
   ConnectionStrings__ConnectedDb: "Server=sqlserver,1433;Database=VolunteerHub;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=true;Encrypt=false;MultipleActiveResultSets=true"
   Jwt__SecretKey: ${JWT_SECRET}
   Redis__ConnectionString: "redis:6379,password=${REDIS_PASSWORD},abortConnect=false"
+  Frontend__BaseUrl: ${PUBLIC_URL}
+  Smtp__Host: ${SMTP_HOST:-}
+  Smtp__Port: ${SMTP_PORT:-587}
+  Smtp__EnableSsl: ${SMTP_ENABLE_SSL:-true}
+  Smtp__Username: ${SMTP_USERNAME:-}
+  Smtp__Password: ${SMTP_PASSWORD:-}
+  Smtp__FromEmail: ${SMTP_FROM_EMAIL:-}
+  Smtp__FromName: ${SMTP_FROM_NAME:-VolunteerHub}
 
 x-dotnet-healthcheck: &dotnet-healthcheck
   test: ["CMD-SHELL", "curl -fsS http://localhost:8080/health || exit 1"]
