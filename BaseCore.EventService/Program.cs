@@ -25,6 +25,7 @@ builder.Services.AddControllers()
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddHealthChecks();
+builder.Services.AddHttpClient();
 
 // Redis-backed distributed cache (falls back to in-memory when Redis is not configured).
 var redisConnectionString = builder.Services.AddVolunteerHubCache(builder.Configuration);
