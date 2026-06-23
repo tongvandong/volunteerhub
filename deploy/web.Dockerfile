@@ -1,5 +1,6 @@
-# Builds the React/Vite SPA and serves it through Caddy, which also reverse-proxies
-# /api -> gateway and /hubs -> eventservice (with automatic websocket upgrade + optional HTTPS).
+# Builds the React/Vite SPA and serves it through nginx, which also reverse-proxies
+# /api -> gateway and /hubs -> eventservice. TLS is handled by host nginx/Certbot
+# in the VPS deployment guide.
 # Build context MUST be the repository root.
 #
 #   docker build -f deploy/web.Dockerfile -t volunteerhub-web .
@@ -15,6 +16,6 @@ ARG VITE_HUB_URL=/hubs/channel
 ENV VITE_HUB_URL=${VITE_HUB_URL}
 RUN npm run build
 
-FROM caddy:2-alpine AS final
-COPY deploy/Caddyfile /etc/caddy/Caddyfile
-COPY --from=build /app/dist /srv
+FROM nginx:1.27-alpine AS final
+COPY deploy/web.nginx.conf /etc/nginx/conf.d/default.conf
+COPY --from=build /app/dist /usr/share/nginx/html

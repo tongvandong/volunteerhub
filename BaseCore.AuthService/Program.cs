@@ -11,6 +11,7 @@ using BaseCore.Repository.EFCore;
 using BaseCore.Repository.Infrastructure;
 using BaseCore.Repository.Authen;
 using BaseCore.Common.Infrastructure;
+using BaseCore.AuthService.Services;
 using BaseCore.Services.Authen;
 using BaseCore.Services.VolunteerHub;
 using System.Text;
@@ -139,10 +140,6 @@ builder.Services.AddDbContext<MySqlDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("ConnectedDb"));
 });
 
-builder.Services.AddScoped<IProductRepositoryEF, ProductRepositoryEF>();
-builder.Services.AddScoped<ICategoryRepositoryEF, CategoryRepositoryEF>();
-builder.Services.AddScoped<IOrderRepositoryEF, OrderRepositoryEF>();
-builder.Services.AddScoped<IOrderDetailRepositoryEF, OrderDetailRepositoryEF>();
 builder.Services.AddScoped<ISkillRepositoryEF, SkillRepositoryEF>();
 builder.Services.AddScoped<IVolunteerProfileRepositoryEF, VolunteerProfileRepositoryEF>();
 builder.Services.AddScoped<IEventCategoryRepositoryEF, EventCategoryRepositoryEF>();
@@ -159,6 +156,7 @@ builder.Services.AddScoped<IEventSponsorRepositoryEF, EventSponsorRepositoryEF>(
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IRefreshTokenService, RefreshTokenService>();
+builder.Services.AddScoped<IEmailSender, SmtpEmailSender>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddScoped<IBadgeService, BadgeService>();
 builder.Services.AddScoped<ICertificateService, CertificateService>();

@@ -173,6 +173,10 @@ export default function Register() {
               <Link to="/login" className="font-medium hover:underline" style={{ color: 'var(--c-primary)' }}>
                 Đăng nhập
               </Link>
+              <span className="mx-2" style={{ color: 'var(--c-ink-3)' }}>·</span>
+              <Link to="/forgot-password" className="font-medium hover:underline" style={{ color: 'var(--c-primary)' }}>
+                Quên mật khẩu?
+              </Link>
             </p>
           </div>
         </div>

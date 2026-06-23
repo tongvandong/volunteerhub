@@ -22,6 +22,7 @@ import { fmtDateTime, money } from '../../utils/format';
 import VolunteerCheckInModal from '../../components/ui/VolunteerCheckInModal';
 import MobileActionBar from '../../components/ui/MobileActionBar';
 import { isWithinCheckinWindow } from '../../utils/checkin';
+import usePageMeta from '../../utils/usePageMeta';
 
 const MapView = lazy(() => import('../../components/ui/MapView'));
 
@@ -73,6 +74,13 @@ export default function EventDetail() {
   const [campaigns, setCampaigns] = useState([]);
   const [eventRatings, setEventRatings] = useState({ ratings: [], averageScore: 0, totalRatings: 0 });
   const [myRatingForm, setMyRatingForm] = useState({ score: 5, comment: '', editing: false });
+
+  // Cập nhật tiêu đề + thẻ Open Graph theo sự kiện đang xem (cho share/Web Share API).
+  usePageMeta({
+    title: event?.title,
+    description: event?.description ? String(event.description).slice(0, 200) : undefined,
+    image: event?.imageUrl,
+  });
   const [myRatingSaving, setMyRatingSaving] = useState(false);
   const [checkinTarget, setCheckinTarget] = useState(null);
   const [donationModal, setDonationModal] = useState(false);
@@ -302,6 +310,16 @@ export default function EventDetail() {
       setMsg({ type: 'error', text: err.response?.data?.message || 'Gửi ủng hộ thất bại' });
     } finally {
       setDonating(false);
+    }
+  };
+
+  const handleDonationAmountChange = (value) => {
+    setDonationForm((f) => ({ ...f, amount: value }));
+    const amount = Number(value);
+    if (value !== '' && (!Number.isFinite(amount) || amount <= 0)) {
+      setMsg({ type: 'error', text: 'Số tiền ủng hộ phải lớn hơn 0.' });
+    } else if (msg.text === 'Số tiền ủng hộ phải lớn hơn 0.') {
+      setMsg({ type: '', text: '' });
     }
   };
 
@@ -1260,7 +1278,20 @@ export default function EventDetail() {
           )}
           <div>
             <label className="block text-sm font-medium text-warmink-2 mb-1">Số tiền *</label>
-            <input type="number" min="1" value={donationForm.amount} onChange={(e) => setDonationForm((f) => ({ ...f, amount: e.target.value }))} required className="input-field" />
+            <input
+              type="number"
+              min="1"
+              value={donationForm.amount}
+              onChange={(e) => handleDonationAmountChange(e.target.value)}
+              onInvalid={(e) => {
+                e.currentTarget.setCustomValidity('Số tiền ủng hộ phải lớn hơn 0.');
+                setMsg({ type: 'error', text: 'Số tiền ủng hộ phải lớn hơn 0.' });
+              }}
+              onInput={(e) => e.currentTarget.setCustomValidity('')}
+              required
+              className="input-field"
+            />
+            <p className="mt-1 text-xs text-warmink-2">Số tiền ủng hộ phải lớn hơn 0.</p>
           </div>
           <label className="flex items-center gap-2 text-sm text-warmink-2">
             <input type="checkbox" checked={donationForm.isAnonymous} onChange={(e) => setDonationForm((f) => ({ ...f, isAnonymous: e.target.checked }))} />

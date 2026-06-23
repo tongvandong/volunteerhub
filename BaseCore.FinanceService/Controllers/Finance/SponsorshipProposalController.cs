@@ -89,7 +89,7 @@ namespace BaseCore.APIService.Controllers
             var validation = ValidateProposal(dto, "OrganizerRequest");
             if (validation != null) return BadRequest(new { message = validation });
             if (await HasActiveProposalAsync(eventId, sponsor.Id))
-                return BadRequest(new { message = "This sponsor already has an active sponsorship proposal for this event" });
+                return BadRequest(new { message = "Nhà tài trợ này đã có một đề nghị tài trợ đang hoạt động cho sự kiện này." });
 
             var proposal = new SponsorshipProposal
             {
@@ -135,7 +135,7 @@ namespace BaseCore.APIService.Controllers
             var validation = ValidateProposal(dto, "SponsorOffer");
             if (validation != null) return BadRequest(new { message = validation });
             if (await HasActiveProposalAsync(eventId, userId))
-                return BadRequest(new { message = "You already have an active sponsorship proposal for this event" });
+                return BadRequest(new { message = "Bạn đã có một đề nghị tài trợ đang hoạt động cho sự kiện này." });
 
             var sponsor = await _context.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == userId);
             var proposal = new SponsorshipProposal

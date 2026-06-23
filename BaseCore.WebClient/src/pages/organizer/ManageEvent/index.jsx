@@ -178,6 +178,23 @@ export default function ManageEvent() {
     setCampaigns(r.data || []);
   };
 
+  const normalizeCampaignReceiveInfo = (form) => {
+    const manual = form.receiveInfo?.trim();
+    const bankParts = [
+      form.bankBin ? `Ngân hàng: ${form.bankBin}` : '',
+      form.bankAccountNo ? `Số tài khoản: ${form.bankAccountNo}` : '',
+      form.bankAccountName ? `Chủ tài khoản: ${form.bankAccountName.trim()}` : '',
+    ].filter(Boolean);
+    return [manual, bankParts.length ? bankParts.join(' | ') : ''].filter(Boolean).join('\n');
+  };
+
+  const campaignReceiveInfoMessage = 'Vui lòng nhập thông tin nhận ủng hộ trước khi mở đợt kêu gọi.';
+
+  const normalizeCampaignErrorMessage = (message) => {
+    if (message === 'Receive info is required to open a campaign') return campaignReceiveInfoMessage;
+    return message;
+  };
+
   const reloadProposals = async () => {
     const r = await sponsorshipProposalApi.getByEvent(id);
     setProposals(r.data || []);
@@ -718,27 +735,36 @@ export default function ManageEvent() {
     if (minimumAmount != null && (!Number.isFinite(minimumAmount) || minimumAmount < 0 || minimumAmount > targetAmount)) {
       alert('Số tiền tối thiểu phải nằm trong khoảng 0 đến mục tiêu.'); return;
     }
+    const receiveInfo = normalizeCampaignReceiveInfo(campaignForm);
+    if (campaignForm.status === 'Open' && !receiveInfo.trim()) {
+      alert(campaignReceiveInfoMessage);
+      return;
+    }
     setCampaignSaving(true);
     try {
       await supportCampaignApi.create(id, {
         ...campaignForm, title: campaignForm.title.trim(), description: campaignForm.description.trim(),
-        targetAmount, minimumAmount,
+        targetAmount, minimumAmount, receiveInfo,
         startDate: new Date(campaignForm.startDate).toISOString(), endDate: new Date(campaignForm.endDate).toISOString(),
       });
       await reloadCampaigns();
       setCampaignModal(false);
     } catch (err) {
-      alert(err.response?.data?.message || 'Tạo đợt kêu gọi thất bại');
+      alert(normalizeCampaignErrorMessage(err.response?.data?.message) || 'Tạo đợt kêu gọi thất bại');
     } finally { setCampaignSaving(false); }
   };
 
   const changeCampaignStatus = async (campaign, action) => {
+    if (action === 'open' && !campaign.receiveInfo?.trim()) {
+      alert(campaignReceiveInfoMessage);
+      return;
+    }
     try {
       if (action === 'open') await supportCampaignApi.open(campaign.id);
       if (action === 'close') await supportCampaignApi.close(campaign.id);
       if (action === 'cancel') await supportCampaignApi.cancel(campaign.id);
       await reloadCampaigns();
-    } catch (err) { alert(err.response?.data?.message || 'Cập nhật trạng thái thất bại'); }
+    } catch (err) { alert(normalizeCampaignErrorMessage(err.response?.data?.message) || 'Cập nhật trạng thái thất bại'); }
   };
 
   const openDonations = async (campaign) => {

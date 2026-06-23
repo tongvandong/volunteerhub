@@ -1,20 +1,27 @@
-# VolunteerHub — full stack on a single host.
+# VolunteerHub on a VPS where nginx + Certbot owns ports 80/443.
 #
-#   cp .env.example .env   # then edit secrets
-#   docker compose build
-#   docker compose up -d
+# Usage:
+#   docker compose -f docker-compose.nginx.yml --env-file .env build
+#   docker compose -f docker-compose.nginx.yml --env-file .env up -d
 #
-# Public entry point is the `web` (nginx) container on :80.
-# Everything else talks over the internal `volunteerhub` network only.
+# Public traffic:
+#   nginx :80/:443 -> http://127.0.0.1:8080 -> web container -> /api gateway, /hubs eventservice
 
 name: volunteerhub
 
-# ---- shared snippets -------------------------------------------------------
 x-dotnet-env: &dotnet-env
   ASPNETCORE_ENVIRONMENT: Production
   ConnectionStrings__ConnectedDb: "Server=sqlserver,1433;Database=VolunteerHub;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=true;Encrypt=false;MultipleActiveResultSets=true"
   Jwt__SecretKey: ${JWT_SECRET}
   Redis__ConnectionString: "redis:6379,password=${REDIS_PASSWORD},abortConnect=false"
+  Frontend__BaseUrl: ${PUBLIC_URL}
+  Smtp__Host: ${SMTP_HOST:-}
+  Smtp__Port: ${SMTP_PORT:-587}
+  Smtp__EnableSsl: ${SMTP_ENABLE_SSL:-true}
+  Smtp__Username: ${SMTP_USERNAME:-}
+  Smtp__Password: ${SMTP_PASSWORD:-}
+  Smtp__FromEmail: ${SMTP_FROM_EMAIL:-}
+  Smtp__FromName: ${SMTP_FROM_NAME:-VolunteerHub}
 
 x-dotnet-healthcheck: &dotnet-healthcheck
   test: ["CMD-SHELL", "curl -fsS http://localhost:8080/health || exit 1"]
@@ -24,7 +31,6 @@ x-dotnet-healthcheck: &dotnet-healthcheck
   start_period: 60s
 
 services:
-  # ---- infrastructure ------------------------------------------------------
   sqlserver:
     image: mcr.microsoft.com/mssql/server:2022-latest
     environment:
@@ -62,7 +68,6 @@ services:
     image: neo4j:5-community
     environment:
       NEO4J_AUTH: neo4j/${NEO4J_PASSWORD}
-      # NB: biến bắt đầu bằng NEO4J_ bị Neo4j hiểu là dòng config. Dùng tên khác cho healthcheck.
       HC_PASSWORD: ${NEO4J_PASSWORD}
       NEO4J_server_memory_heap_max__size: 512m
       NEO4J_server_memory_pagecache_size: 256m
@@ -76,12 +81,7 @@ services:
       start_period: 45s
     restart: unless-stopped
     networks: [volunteerhub]
-    # Cổng 7474 (browser) / 7687 (bolt) chỉ dùng nội bộ. Mở khi cần xem Neo4j Browser lúc dev:
-    # ports: ["7474:7474", "7687:7687"]
 
-  # ---- .NET microservices --------------------------------------------------
-  # Started in a chain (each waits for the previous to be healthy) so that the
-  # auto-migration on startup runs sequentially on a fresh database.
   authservice:
     build:
       context: .
@@ -110,9 +110,7 @@ services:
       Neo4j__User: neo4j
       Neo4j__Password: ${NEO4J_PASSWORD}
       Graph__SyncIntervalMinutes: 20
-      # Cho phép endpoint seed dữ liệu demo chạy (môi trường Production trong container).
-      # ĐẶT "false" hoặc xóa dòng này khi deploy thật để khóa /api/admin/dev/seed.
-      Demo__SeedEnabled: "true"
+      Demo__SeedEnabled: ${DEMO_SEED_ENABLED:-false}
       TRTC__SdkAppId: ${TRTC_SDK_APP_ID:-0}
       TRTC__SDKSecretKey: ${TRTC_SDK_SECRET_KEY:-}
       TRTC__RestApiHost: ${TRTC_REST_API_HOST:-adminapisgp.im.qcloud.com}
@@ -155,9 +153,6 @@ services:
     restart: unless-stopped
     networks: [volunteerhub]
 
-  # ---- Rust certificate worker --------------------------------------------
-  # Shares the certificates volume with eventservice (worker writes PDFs, the
-  # service serves them). Uses SQL auth over TCP (tiberius), not the LocalDB path.
   certificateworker:
     build:
       context: .
@@ -175,14 +170,13 @@ services:
     restart: unless-stopped
     networks: [volunteerhub]
 
-  # ---- edge: SPA + reverse proxy ------------------------------------------
   web:
     build:
       context: .
       dockerfile: deploy/web.Dockerfile
       args: { VITE_HUB_URL: /hubs/channel }
     ports:
-      - "80:80"
+      - "127.0.0.1:8080:80"
     depends_on:
       gateway: { condition: service_healthy }
       eventservice: { condition: service_healthy }

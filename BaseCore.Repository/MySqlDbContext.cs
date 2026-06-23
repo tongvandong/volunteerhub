@@ -9,12 +9,7 @@ namespace BaseCore.Repository
         {
         }
 
-        // --- Existing ---
         public DbSet<User> Users { get; set; }
-        public DbSet<Product> Products { get; set; }
-        public DbSet<Category> Categories { get; set; }
-        public DbSet<Order> Orders { get; set; }
-        public DbSet<OrderDetail> OrderDetails { get; set; }
 
         // --- VolunteerHub: Profile & Skills ---
         public DbSet<Skill> Skills { get; set; }
@@ -63,10 +58,6 @@ namespace BaseCore.Repository
         {
             base.OnModelCreating(modelBuilder);
 
-            // =============================================
-            // EXISTING ENTITIES
-            // =============================================
-
             modelBuilder.Entity<User>(entity =>
             {
                 entity.HasKey(e => e.Id);
@@ -107,48 +98,6 @@ namespace BaseCore.Repository
                       .OnDelete(DeleteBehavior.SetNull);
                 entity.HasIndex(e => e.CreatedAtUtc);
                 entity.HasIndex(e => new { e.EntityType, e.EntityId });
-            });
-
-            modelBuilder.Entity<Category>(entity =>
-            {
-                entity.HasKey(e => e.Id);
-                entity.Property(e => e.Name).HasMaxLength(100).IsRequired();
-                entity.Property(e => e.Description).HasMaxLength(500).IsRequired(false);
-            });
-
-            modelBuilder.Entity<Product>(entity =>
-            {
-                entity.HasKey(e => e.Id);
-                entity.Property(e => e.Name).HasMaxLength(200).IsRequired();
-                entity.Property(e => e.Price).HasPrecision(18, 2);
-                entity.Property(e => e.Description).HasMaxLength(1000).IsRequired(false);
-                entity.Property(e => e.ImageUrl).HasMaxLength(500).IsRequired(false);
-                entity.HasOne(e => e.Category)
-                      .WithMany()
-                      .HasForeignKey(e => e.CategoryId)
-                      .OnDelete(DeleteBehavior.Restrict);
-            });
-
-            modelBuilder.Entity<Order>(entity =>
-            {
-                entity.HasKey(e => e.Id);
-                entity.Property(e => e.TotalAmount).HasPrecision(18, 2);
-                entity.Property(e => e.Status).HasMaxLength(50).IsRequired(false);
-                entity.Property(e => e.ShippingAddress).HasMaxLength(500).IsRequired(false);
-            });
-
-            modelBuilder.Entity<OrderDetail>(entity =>
-            {
-                entity.HasKey(e => e.Id);
-                entity.Property(e => e.UnitPrice).HasPrecision(18, 2);
-                entity.HasOne(e => e.Order)
-                      .WithMany(o => o.OrderDetails)
-                      .HasForeignKey(e => e.OrderId)
-                      .OnDelete(DeleteBehavior.Cascade);
-                entity.HasOne(e => e.Product)
-                      .WithMany()
-                      .HasForeignKey(e => e.ProductId)
-                      .OnDelete(DeleteBehavior.Restrict);
             });
 
             // =============================================
@@ -693,23 +642,6 @@ namespace BaseCore.Repository
 
         private void SeedData(ModelBuilder modelBuilder)
         {
-            // Seed existing shop data
-            modelBuilder.Entity<Category>().HasData(
-                new Category { Id = 1, Name = "Electronics", Description = "Electronic devices and gadgets" },
-                new Category { Id = 2, Name = "Clothing", Description = "Apparel and fashion items" },
-                new Category { Id = 3, Name = "Books", Description = "Books and publications" },
-                new Category { Id = 4, Name = "Home & Garden", Description = "Home and garden products" },
-                new Category { Id = 5, Name = "Sports", Description = "Sports equipment and accessories" }
-            );
-
-            modelBuilder.Entity<Product>().HasData(
-                new Product { Id = 1, Name = "Laptop Dell XPS 15", Price = 35000000, Stock = 10, CategoryId = 1, Description = "High-performance laptop", ImageUrl = "" },
-                new Product { Id = 2, Name = "iPhone 15 Pro", Price = 28000000, Stock = 15, CategoryId = 1, Description = "Latest Apple smartphone", ImageUrl = "" },
-                new Product { Id = 3, Name = "T-Shirt Cotton", Price = 250000, Stock = 100, CategoryId = 2, Description = "Comfortable cotton t-shirt", ImageUrl = "" },
-                new Product { Id = 4, Name = "Programming Book", Price = 450000, Stock = 50, CategoryId = 3, Description = "Learn programming basics", ImageUrl = "" },
-                new Product { Id = 5, Name = "Garden Tools Set", Price = 850000, Stock = 25, CategoryId = 4, Description = "Complete gardening toolkit", ImageUrl = "" }
-            );
-
             // Seed users (4 roles) with fixed hashes to keep EF migrations stable
             var saltAdmin = new byte[] { 120, 8, 176, 127, 89, 181, 227, 27, 90, 188, 243, 26, 125, 173, 154, 156 };
             var saltOrg = new byte[] { 58, 34, 153, 111, 0, 143, 116, 1, 232, 193, 45, 121, 201, 7, 162, 24 };

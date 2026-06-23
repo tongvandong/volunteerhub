@@ -964,9 +964,9 @@ namespace BaseCore.APIService.Controllers
             if (!string.IsNullOrWhiteSpace(dto.Phone) && !Regex.IsMatch(dto.Phone.Trim(), "^\\+?[0-9\\s.-]{8,20}$"))
                 return "Phone format is invalid";
             if (string.IsNullOrWhiteSpace(dto.Password) || dto.Password.Length < 8)
-                return "Password must be at least 8 characters";
+                return "Mật khẩu phải có ít nhất 8 ký tự.";
             if (!Regex.IsMatch(dto.Password, "[A-Za-z]") || !Regex.IsMatch(dto.Password, "[0-9]"))
-                return "Password must contain at least one letter and one number";
+                return "Mật khẩu phải có ít nhất một chữ cái và một chữ số.";
             return null;
         }
 

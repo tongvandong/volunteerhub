@@ -12,6 +12,7 @@ namespace BaseCore.Services.Authen
         Task<AuthRefreshToken?> GetActiveTokenAsync(string plainToken);
         Task<(AuthRefreshToken Entity, string PlainToken)> RotateAsync(AuthRefreshToken currentToken);
         Task<bool> RevokeAsync(string plainToken);
+        Task<int> RevokeAllForUserAsync(int userId);
     }
 
     public class RefreshTokenService : IRefreshTokenService
@@ -73,6 +74,22 @@ namespace BaseCore.Services.Authen
             token.RevokedAtUtc = DateTime.UtcNow;
             await _context.SaveChangesAsync();
             return true;
+        }
+
+        public async Task<int> RevokeAllForUserAsync(int userId)
+        {
+            var now = DateTime.UtcNow;
+            var tokens = await _context.AuthRefreshTokens
+                .Where(x => x.UserId == userId && x.RevokedAtUtc == null && x.ExpiresAtUtc > now)
+                .ToListAsync();
+
+            foreach (var token in tokens)
+            {
+                token.RevokedAtUtc = now;
+            }
+
+            await _context.SaveChangesAsync();
+            return tokens.Count;
         }
 
         private static string GenerateToken()
