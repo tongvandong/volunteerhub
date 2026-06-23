@@ -52,6 +52,75 @@ function renderMentionText(text) {
   ));
 }
 
+const roleBadgeClass = {
+  Organizer: 'bg-indigo-50 text-indigo-700 border-indigo-100',
+  Volunteer: 'bg-emerald-50 text-emerald-700 border-emerald-100',
+  Sponsor: 'bg-amber-50 text-amber-700 border-amber-100',
+  Admin: 'bg-rose-50 text-rose-700 border-rose-100',
+};
+
+function getChatAuthor(item) {
+  const author = item?.author || {};
+  const role = author.role || item?.authorRole || '';
+  const roleLabel = author.roleLabel || item?.authorRoleLabel || (
+    role === 'Organizer' ? 'Nhà tổ chức'
+      : role === 'Sponsor' ? 'Nhà tài trợ'
+        : role === 'Admin' ? 'Quản trị viên'
+          : role === 'Volunteer' ? 'Tình nguyện viên'
+            : ''
+  );
+  const name = author.name
+    || item?.authorDisplayName
+    || item?.authorName
+    || author.userName
+    || item?.authorUserName
+    || 'Người dùng';
+
+  return {
+    name,
+    userName: author.userName || item?.authorUserName || '',
+    role,
+    roleLabel,
+    avatarUrl: author.avatarUrl || item?.authorAvatarUrl || author.image || '',
+  };
+}
+
+function getInitials(name) {
+  return String(name || 'U')
+    .trim()
+    .split(/\s+/)
+    .slice(-2)
+    .map((part) => part[0])
+    .join('')
+    .toUpperCase() || 'U';
+}
+
+function AuthorAvatar({ author, size = 'md' }) {
+  const sizeClass = size === 'sm' ? 'h-7 w-7 text-[10px]' : 'h-10 w-10 text-xs';
+  return (
+    <div className={`flex ${sizeClass} flex-shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary-100 font-semibold text-primary-600`}>
+      {author.avatarUrl ? (
+        <img src={author.avatarUrl} alt="" className="h-full w-full object-cover" />
+      ) : (
+        <span>{getInitials(author.name)}</span>
+      )}
+    </div>
+  );
+}
+
+function AuthorHeader({ author, compact = false }) {
+  return (
+    <div className={`flex min-w-0 ${compact ? 'items-center gap-2' : 'flex-wrap items-center gap-x-2 gap-y-1'}`}>
+      <p className={`${compact ? 'text-xs' : 'text-sm'} truncate font-semibold text-warmink`}>{author.name}</p>
+      {author.roleLabel && (
+        <span className={`inline-flex rounded-full border px-2 py-0.5 text-[11px] font-medium ${roleBadgeClass[author.role] || 'border-slate-200 bg-slate-50 text-slate-600'}`}>
+          {author.roleLabel}
+        </span>
+      )}
+    </div>
+  );
+}
+
 function MentionTextarea({ channelId, value, onChange, rows = 3, placeholder, className, autoFocus }) {
   const inputRef = useRef(null);
   const [mentionQuery, setMentionQuery] = useState(null);
@@ -199,15 +268,18 @@ function CommentSection({ channelId, postId, incomingComments = [] }) {
   const replies = comments.filter((c) => c.parentCommentId);
 
   if (loading) return <div className="px-4 py-2"><LoadingSpinner size="sm" /></div>;
+  const currentAuthor = getChatAuthor({ author: { name: user?.name, userName: user?.userName, role: user?.role, roleLabel: user?.roleLabel, avatarUrl: user?.avatarUrl || user?.image } });
 
-  const commentNode = (comment, isReply = false) => (
+  const commentNode = (comment, isReply = false) => {
+    const author = getChatAuthor(comment);
+    return (
     <div key={comment.id} className={`flex gap-2 group ${isReply ? 'ml-9' : ''}`}>
-      <div className="mt-0.5 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-primary-100">
-        <i className="fa-solid fa-user text-xs text-primary-500" />
+      <div className="mt-0.5">
+        <AuthorAvatar author={author} size="sm" />
       </div>
       <div className="min-w-0 flex-1">
         <div className="rounded-xl border border-warmborder bg-white px-3 py-2 shadow-sm">
-          <p className="text-xs font-semibold text-warmink">{comment.author?.name || comment.author?.userName || 'Nguoi dung'}</p>
+          <AuthorHeader author={author} compact />
           <p className="mt-0.5 whitespace-pre-wrap text-sm text-warmink-2">{renderMentionText(comment.content)}</p>
         </div>
         <div className="mt-1 flex items-center gap-2 pl-1">
@@ -221,7 +293,8 @@ function CommentSection({ channelId, postId, incomingComments = [] }) {
         </div>
       </div>
     </div>
-  );
+    );
+  };
 
   return (
     <div className="space-y-3 border-t border-warmborder bg-surface-2 px-4 py-3">
@@ -248,8 +321,8 @@ function CommentSection({ channelId, postId, incomingComments = [] }) {
 
       {user && (
         <form onSubmit={submit} className="flex gap-2">
-          <div className="mt-1 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-primary-100">
-            <i className="fa-solid fa-user text-xs text-primary-500" />
+          <div className="mt-1">
+            <AuthorAvatar author={currentAuthor} size="sm" />
           </div>
           <div className="flex flex-1 gap-2">
             <input
@@ -313,6 +386,7 @@ function PostCard({ channelId, channel, post, onDelete, onTogglePin, onPollVote,
   const canManage = channel?.event?.organizerId === currentUser?.id || currentUser?.role === 'Admin';
   const canDelete = post.authorId === currentUser?.id || currentUser?.role === 'Admin';
   const typeInfo = typeMap[post.postType] || null;
+  const author = getChatAuthor(post);
 
   useEffect(() => {
     setLiked(post.isLikedByMe || false);
@@ -352,12 +426,10 @@ function PostCard({ channelId, channel, post, onDelete, onTogglePin, onPollVote,
       )}
 
       <div className="flex items-start gap-3 p-4">
-        <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-primary-100">
-          <i className="fa-solid fa-user text-primary-500" />
-        </div>
+        <AuthorAvatar author={author} />
         <div className="min-w-0 flex-1">
           <div className="flex items-center justify-between gap-2">
-            <p className="text-sm font-semibold text-warmink">{post.author?.name || post.author?.userName || 'Nguoi dung'}</p>
+            <AuthorHeader author={author} />
             <div className="flex items-center gap-2">
               <span className="text-xs text-warmink-3">{fmt(post.createdAt)}</span>
               {canManage && (
@@ -434,6 +506,7 @@ export default function Channel() {
 
   const canManage = channel?.event?.organizerId === user?.id || user?.role === 'Admin';
   const visibleTabs = canManage ? filterTabs : filterTabs.filter((tab) => tab.value !== 'announcement' || posts.some((post) => post.postType === 'announcement'));
+  const currentAuthor = getChatAuthor({ author: { name: user?.name, userName: user?.userName, role: user?.role, roleLabel: user?.roleLabel, avatarUrl: user?.avatarUrl || user?.image } });
 
   const loadChannel = async () => {
     try {
@@ -639,9 +712,7 @@ export default function Channel() {
           <div className="card p-4">
             {!showForm ? (
               <button onClick={() => setShowForm(true)} className="flex w-full items-center gap-3 text-left">
-                <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-primary-100">
-                  <i className="fa-solid fa-user text-primary-500" />
-                </div>
+                <AuthorAvatar author={currentAuthor} />
                 <div className="flex-1 rounded-full bg-surface-2 px-4 py-2 text-sm text-warmink-3 transition-colors hover:bg-surface-2">
                   Chia sẻ điều gì đó...
                 </div>
@@ -649,8 +720,8 @@ export default function Channel() {
             ) : (
               <form onSubmit={handleSubmit} className="space-y-3">
                 <div className="flex gap-3">
-                  <div className="mt-1 flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-primary-100">
-                    <i className="fa-solid fa-user text-primary-500" />
+                  <div className="mt-1">
+                    <AuthorAvatar author={currentAuthor} />
                   </div>
                   <div className="flex-1 space-y-3">
                     <div className="flex flex-wrap items-center gap-2">

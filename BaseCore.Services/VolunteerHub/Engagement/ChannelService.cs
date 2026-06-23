@@ -110,6 +110,8 @@ namespace BaseCore.Services.VolunteerHub
                 .Take(pageSize)
                 .ToListAsync();
 
+            await HydratePostAuthorsAsync(items);
+
             foreach (var post in items)
             {
                 post.CommentCount = post.Comments?.Count ?? 0;
@@ -231,12 +233,15 @@ namespace BaseCore.Services.VolunteerHub
 
         public async Task<List<Comment>> GetCommentsAsync(int postId)
         {
-            return await _context.Comments
+            var comments = await _context.Comments
                 .Include(c => c.Author)
                 .Where(c => c.PostId == postId)
                 .OrderBy(c => c.ParentCommentId.HasValue)
                 .ThenBy(c => c.CreatedAt)
                 .ToListAsync();
+
+            await HydrateCommentAuthorsAsync(comments);
+            return comments;
         }
 
         public async Task<Comment> AddCommentAsync(int channelId, int postId, int authorId, string content, int? parentCommentId)
@@ -265,6 +270,7 @@ namespace BaseCore.Services.VolunteerHub
             await ProcessMentionsAsync(content, "Comment", comment.Id, authorId, channelId);
 
             var created = await _context.Comments.Include(c => c.Author).FirstAsync(c => c.Id == comment.Id);
+            await HydrateCommentAuthorsAsync(new[] { created });
             await _realtimeNotifier.CommentAddedAsync(channelId, postId, created);
             return created;
         }
@@ -470,6 +476,8 @@ namespace BaseCore.Services.VolunteerHub
                 .FirstOrDefaultAsync(p => p.Id == postId);
             if (post == null) return null;
 
+            await HydratePostAuthorsAsync(new[] { post });
+
             post.CommentCount = post.Comments?.Count ?? 0;
             post.IsLikedByMe = post.Likes?.Any(l => l.UserId == userId) == true;
             if (post.Poll != null)
@@ -497,10 +505,120 @@ namespace BaseCore.Services.VolunteerHub
             return poll;
         }
 
+        private async Task HydratePostAuthorsAsync(IEnumerable<Post> posts)
+        {
+            var list = posts.Where(p => p.AuthorId > 0).ToList();
+            if (list.Count == 0) return;
+            var snapshots = await LoadAuthorSnapshotsAsync(list.Select(p => p.AuthorId));
+            foreach (var post in list)
+            {
+                if (!snapshots.TryGetValue(post.AuthorId, out var author)) continue;
+                post.AuthorDisplayName = author.DisplayName;
+                post.AuthorUserName = author.UserName;
+                post.AuthorRole = author.Role;
+                post.AuthorRoleLabel = author.RoleLabel;
+                post.AuthorAvatarUrl = author.AvatarUrl;
+            }
+        }
+
+        private async Task HydrateCommentAuthorsAsync(IEnumerable<Comment> comments)
+        {
+            var list = comments.Where(c => c.AuthorId > 0).ToList();
+            if (list.Count == 0) return;
+            var snapshots = await LoadAuthorSnapshotsAsync(list.Select(c => c.AuthorId));
+            foreach (var comment in list)
+            {
+                if (!snapshots.TryGetValue(comment.AuthorId, out var author)) continue;
+                comment.AuthorDisplayName = author.DisplayName;
+                comment.AuthorUserName = author.UserName;
+                comment.AuthorRole = author.Role;
+                comment.AuthorRoleLabel = author.RoleLabel;
+                comment.AuthorAvatarUrl = author.AvatarUrl;
+            }
+        }
+
+        private async Task<Dictionary<int, ChatAuthorSnapshot>> LoadAuthorSnapshotsAsync(IEnumerable<int> userIds)
+        {
+            var ids = userIds.Distinct().ToList();
+            if (ids.Count == 0) return new Dictionary<int, ChatAuthorSnapshot>();
+
+            var users = await _context.Users
+                .Where(u => ids.Contains(u.Id))
+                .Select(u => new { u.Id, u.Name, u.UserName, u.UserType, u.Image })
+                .ToListAsync();
+
+            var volunteerAvatars = await _context.VolunteerProfiles
+                .Where(p => ids.Contains(p.UserId))
+                .Select(p => new { p.UserId, p.AvatarUrl })
+                .ToDictionaryAsync(p => p.UserId, p => p.AvatarUrl ?? "");
+
+            var organizerLogos = await _context.OrganizerVerifications
+                .Where(v => ids.Contains(v.OrganizerId))
+                .OrderByDescending(v => v.Status == "Verified")
+                .ThenByDescending(v => v.UpdatedAt ?? v.SubmittedAt)
+                .Select(v => new { v.OrganizerId, v.LogoUrl })
+                .ToListAsync();
+
+            var organizerLogoMap = organizerLogos
+                .GroupBy(v => v.OrganizerId)
+                .ToDictionary(g => g.Key, g => g.First().LogoUrl ?? "");
+
+            var sponsorLogos = await _context.SponsorProfiles
+                .Where(p => ids.Contains(p.UserId))
+                .Select(p => new { p.UserId, p.LogoUrl })
+                .ToDictionaryAsync(p => p.UserId, p => p.LogoUrl ?? "");
+
+            return users.ToDictionary(
+                u => u.Id,
+                u =>
+                {
+                    var role = RoleKey(u.UserType);
+                    var avatar = (u.Image ?? "").Trim();
+                    if (string.IsNullOrWhiteSpace(avatar) && volunteerAvatars.TryGetValue(u.Id, out var volunteerAvatar))
+                        avatar = volunteerAvatar;
+                    if (string.IsNullOrWhiteSpace(avatar) && organizerLogoMap.TryGetValue(u.Id, out var organizerLogo))
+                        avatar = organizerLogo;
+                    if (string.IsNullOrWhiteSpace(avatar) && sponsorLogos.TryGetValue(u.Id, out var sponsorLogo))
+                        avatar = sponsorLogo;
+
+                    return new ChatAuthorSnapshot(
+                        DisplayName: FirstNonBlank(u.Name, u.UserName, "Người dùng"),
+                        UserName: u.UserName ?? "",
+                        Role: role,
+                        RoleLabel: RoleLabel(u.UserType),
+                        AvatarUrl: avatar ?? "");
+                });
+        }
+
+        private static string FirstNonBlank(params string?[] values)
+        {
+            foreach (var value in values)
+                if (!string.IsNullOrWhiteSpace(value)) return value.Trim();
+            return "";
+        }
+
+        private static string RoleKey(int userType) => userType switch
+        {
+            1 => "Organizer",
+            2 => "Sponsor",
+            3 => "Admin",
+            _ => "Volunteer"
+        };
+
+        private static string RoleLabel(int userType) => userType switch
+        {
+            1 => "Nhà tổ chức",
+            2 => "Nhà tài trợ",
+            3 => "Quản trị viên",
+            _ => "Tình nguyện viên"
+        };
+
         private static string NormalizePostType(string? postType)
         {
             var normalized = (postType ?? "discussion").Trim().ToLowerInvariant();
             return ValidPostTypes.Contains(normalized) ? normalized : "discussion";
         }
+
+        private record ChatAuthorSnapshot(string DisplayName, string UserName, string Role, string RoleLabel, string AvatarUrl);
     }
 }

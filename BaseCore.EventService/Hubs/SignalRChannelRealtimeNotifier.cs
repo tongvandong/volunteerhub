@@ -34,6 +34,13 @@ namespace BaseCore.EventService.Hubs
             post.ChannelId,
             post.AuthorId,
             authorName = post.Author?.Name ?? post.Author?.UserName ?? "",
+            author = MapAuthor(
+                post.AuthorId,
+                post.AuthorDisplayName,
+                post.AuthorUserName,
+                post.AuthorRole,
+                post.AuthorRoleLabel,
+                post.AuthorAvatarUrl),
             post.Content,
             post.ImageUrl,
             post.LikeCount,
@@ -57,9 +64,26 @@ namespace BaseCore.EventService.Hubs
             comment.PostId,
             comment.AuthorId,
             authorName = comment.Author?.Name ?? comment.Author?.UserName ?? "",
+            author = MapAuthor(
+                comment.AuthorId,
+                comment.AuthorDisplayName,
+                comment.AuthorUserName,
+                comment.AuthorRole,
+                comment.AuthorRoleLabel,
+                comment.AuthorAvatarUrl),
             comment.Content,
             comment.ParentCommentId,
             comment.CreatedAt
+        };
+
+        private static object MapAuthor(int id, string displayName, string userName, string role, string roleLabel, string avatarUrl) => new
+        {
+            id,
+            name = displayName,
+            userName,
+            role,
+            roleLabel,
+            avatarUrl
         };
 
         private static object MapPoll(Poll poll) => new

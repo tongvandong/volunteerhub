@@ -26,6 +26,16 @@ namespace BaseCore.Entities
         public int CommentCount { get; set; }
         [NotMapped]
         public bool IsLikedByMe { get; set; }
+        [NotMapped]
+        public string AuthorDisplayName { get; set; } = "";
+        [NotMapped]
+        public string AuthorUserName { get; set; } = "";
+        [NotMapped]
+        public string AuthorRole { get; set; } = "";
+        [NotMapped]
+        public string AuthorRoleLabel { get; set; } = "";
+        [NotMapped]
+        public string AuthorAvatarUrl { get; set; } = "";
 
         // Navigation
         public Channel Channel { get; set; }
