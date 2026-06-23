@@ -23,6 +23,7 @@ import VolunteerCheckInModal from '../../components/ui/VolunteerCheckInModal';
 import MobileActionBar from '../../components/ui/MobileActionBar';
 import { isWithinCheckinWindow } from '../../utils/checkin';
 import usePageMeta from '../../utils/usePageMeta';
+import { getApiErrorMessage } from '../../utils/apiError';
 
 const MapView = lazy(() => import('../../components/ui/MapView'));
 
@@ -174,7 +175,7 @@ export default function EventDetail() {
       setNote('');
       setMsg({ type: 'success', text: 'Đăng ký thành công! Chờ ban tổ chức xác nhận.' });
     } catch (err) {
-      setMsg({ type: 'error', text: err.response?.data?.message || 'Đăng ký thất bại' });
+      setMsg({ type: 'error', text: getApiErrorMessage(err, 'Đăng ký thất bại. Vui lòng thử lại.') });
     } finally {
       setRegistering(false);
     }
@@ -191,7 +192,7 @@ export default function EventDetail() {
       await loadEventData();
       setMsg({ type: 'success', text: 'Bạn đã rút đăng ký khỏi sự kiện.' });
     } catch (err) {
-      setMsg({ type: 'error', text: err.response?.data?.message || 'Rút đăng ký thất bại' });
+      setMsg({ type: 'error', text: getApiErrorMessage(err, 'Rút đăng ký thất bại. Vui lòng thử lại.') });
     } finally {
       setWithdrawing(false);
     }
@@ -240,7 +241,7 @@ export default function EventDetail() {
       if (ratingsRes?.data) setEventRatings(ratingsRes.data);
       setMsg({ type: 'success', text: ratingId ? 'Đã cập nhật đánh giá của bạn.' : 'Đã gửi đánh giá của bạn.' });
     } catch (err) {
-      setMsg({ type: 'error', text: err.response?.data?.message || 'Đánh giá thất bại' });
+      setMsg({ type: 'error', text: getApiErrorMessage(err, 'Đánh giá thất bại. Vui lòng thử lại.') });
     } finally {
       setMyRatingSaving(false);
     }
@@ -307,7 +308,7 @@ export default function EventDetail() {
       setDonationModal(false);
       setMsg({ type: 'success', text: 'Đã gửi thông tin ủng hộ. Khoản này sẽ được tính sau khi ban tổ chức xác nhận.' });
     } catch (err) {
-      setMsg({ type: 'error', text: err.response?.data?.message || 'Gửi ủng hộ thất bại' });
+      setMsg({ type: 'error', text: getApiErrorMessage(err, 'Gửi ủng hộ thất bại. Vui lòng thử lại.') });
     } finally {
       setDonating(false);
     }
@@ -348,6 +349,11 @@ export default function EventDetail() {
     ? Math.round((event.currentParticipants / event.maxParticipants) * 100)
     : 0;
   const activeRegistration = myRegistration?.status === 'Cancelled' ? null : myRegistration;
+  const canAccessEventChannel = Boolean(event.channel?.id) && isAuthenticated && (
+    user?.role === 'Admin'
+    || event.organizerId === user?.id
+    || activeRegistration?.status === 'Confirmed'
+  );
   const kycSatisfied = !event.requiresKyc || myProfile?.kycStatus === 'Verified';
   const now = new Date();
   const eventStarted = event.startDate && new Date(event.startDate) <= now;
@@ -533,7 +539,7 @@ export default function EventDetail() {
                     || event.organizer?.name || event.organizerProfile?.name || 'Tổ chức'}
                 </p>
               </div>
-              {event.channel?.id && (
+              {canAccessEventChannel && (
                 <Link
                   to={`/channels/${event.channel.id}`}
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-semibold no-underline"
@@ -1238,7 +1244,7 @@ export default function EventDetail() {
             )}
           </div>
 
-          {event.status === 'Approved' && isAuthenticated && event.channel?.id && !event.organizer && !event.organizerProfile && (
+          {event.status === 'Approved' && canAccessEventChannel && !event.organizer && !event.organizerProfile && (
             <Link
               to={`/channels/${event.channel.id}`}
               className="flex items-center gap-3 rounded-lg bg-white p-4 no-underline transition-colors"

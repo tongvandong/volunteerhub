@@ -43,8 +43,32 @@ namespace BaseCore.APIService.Controllers
             if (!int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var userId))
                 return Unauthorized();
             var profile = await _profileRepo.GetByUserIdAsync(userId);
+            var account = await _context.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == userId);
+            if (profile == null && account?.UserType == 0)
+            {
+                profile = new VolunteerProfile
+                {
+                    UserId = userId,
+                    BloodType = "",
+                    Interests = "",
+                    Bio = "",
+                    AvatarUrl = "",
+                    KycStatus = "Unverified",
+                    IdentityFrontImageUrl = "",
+                    IdentityBackImageUrl = "",
+                    PortraitImageUrl = "",
+                    KycAdminNote = ""
+                };
+                await _profileRepo.AddAsync(profile);
+                profile.User = account;
+            }
+            else if (profile != null && profile.User == null && account != null)
+            {
+                profile.User = account;
+            }
+
             var skills = await _profileRepo.GetSkillsByUserIdAsync(userId);
-            return Ok(new { profile, skills });
+            return Ok(new { profile, user = account, skills });
         }
 
         [HttpGet("api/profile/{userId:int}")]

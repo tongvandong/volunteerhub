@@ -1208,7 +1208,7 @@ export default function ManageEvent() {
       <Modal isOpen={!!interviewModal} onClose={() => setInterviewModal(null)} title={interviewModal?.mode === 'edit' ? 'Đổi lịch phỏng vấn' : 'Hẹn phỏng vấn'} size="md">
         <form onSubmit={submitInterview} className="space-y-4">
           <div className="rounded-lg p-3 text-sm" style={{ background: 'rgba(27,97,201,0.06)', border: '1px solid rgba(27,97,201,0.18)', color: '#1b61c9' }}>
-            Dán link Google Meet / Zoom / Teams. Hệ thống sẽ thông báo giờ hẹn và link cho tình nguyện viên.
+            Nếu để trống link, hệ thống sẽ tự tạo phòng phỏng vấn Daily riêng cho organizer và volunteer.
           </div>
           {interviewError && (
             <div className="rounded-lg p-3 text-sm" style={{ background: 'rgba(185,28,28,0.07)', border: '1px solid rgba(185,28,28,0.18)', color: '#b91c1c' }}>
@@ -1245,9 +1245,9 @@ export default function ManageEvent() {
               value={interviewForm.meetingUrl}
               onChange={(e) => setInterviewForm((f) => ({ ...f, meetingUrl: e.target.value }))}
               className="input-field"
-              placeholder="Bỏ trống nếu dùng phòng gọi nội bộ"
+              placeholder="Bỏ trống để tự tạo phòng Daily"
             />
-            <p className="mt-1 text-xs text-warmink-2">Nếu để trống, volunteer sẽ vào phòng phỏng vấn video ngay trong hệ thống.</p>
+            <p className="mt-1 text-xs text-warmink-2">Nếu nhập link ngoài, hệ thống vẫn lưu link đó. Nếu để trống, Daily sẽ tạo phòng private tự động.</p>
           </div>
           <div>
             <label className="block text-sm font-medium mb-1" style={{ color: 'rgba(15,15,15,0.70)' }}>Ghi chú cho tình nguyện viên</label>
@@ -1271,7 +1271,6 @@ export default function ManageEvent() {
 
       <InterviewCallModal
         slot={interviewCallSlot}
-        forceCaller
         onClose={() => setInterviewCallSlot(null)}
       />
 

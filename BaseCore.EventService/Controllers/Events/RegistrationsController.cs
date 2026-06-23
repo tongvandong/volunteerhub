@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using BaseCore.Services.VolunteerHub;
+using BaseCore.EventService.Services;
 using System.Security.Claims;
 
 namespace BaseCore.APIService.Controllers
@@ -12,12 +13,18 @@ namespace BaseCore.APIService.Controllers
         private readonly IRegistrationService _registrationService;
         private readonly IInterviewService _interviewService;
         private readonly IAuditLogService _auditLogService;
+        private readonly IDailyVideoService _dailyVideoService;
 
-        public RegistrationsController(IRegistrationService registrationService, IInterviewService interviewService, IAuditLogService auditLogService)
+        public RegistrationsController(
+            IRegistrationService registrationService,
+            IInterviewService interviewService,
+            IAuditLogService auditLogService,
+            IDailyVideoService dailyVideoService)
         {
             _registrationService = registrationService;
             _interviewService = interviewService;
             _auditLogService = auditLogService;
+            _dailyVideoService = dailyVideoService;
         }
 
         [HttpPost("api/events/{eventId}/register"), Authorize(Roles = "Volunteer")]
@@ -178,7 +185,9 @@ namespace BaseCore.APIService.Controllers
                 return Unauthorized();
             try
             {
-                var slot = await _interviewService.ScheduleAsync(eventId, regId, userId, dto.ScheduledAt, dto.DurationMinutes ?? 30, dto.MeetingUrl, dto.Note);
+                var duration = dto.DurationMinutes ?? 30;
+                var meetingUrl = await ResolveInterviewMeetingUrlAsync(eventId, regId, dto.ScheduledAt, duration, dto.MeetingUrl);
+                var slot = await _interviewService.ScheduleAsync(eventId, regId, userId, dto.ScheduledAt, duration, meetingUrl, dto.Note);
                 await RecordAuditAsync(userId, "Interview.Schedule", "InterviewSlot", slot.Id, $"EventId={eventId};RegId={regId};At={dto.ScheduledAt:o}");
                 return Ok(slot);
             }
@@ -193,7 +202,9 @@ namespace BaseCore.APIService.Controllers
                 return Unauthorized();
             try
             {
-                var slot = await _interviewService.UpdateAsync(eventId, regId, userId, dto.ScheduledAt, dto.DurationMinutes ?? 30, dto.MeetingUrl, dto.Note);
+                var duration = dto.DurationMinutes ?? 30;
+                var meetingUrl = await ResolveInterviewMeetingUrlAsync(eventId, regId, dto.ScheduledAt, duration, dto.MeetingUrl);
+                var slot = await _interviewService.UpdateAsync(eventId, regId, userId, dto.ScheduledAt, duration, meetingUrl, dto.Note);
                 await RecordAuditAsync(userId, "Interview.Update", "InterviewSlot", slot.Id, $"EventId={eventId};RegId={regId};At={dto.ScheduledAt:o}");
                 return Ok(slot);
             }
@@ -288,6 +299,23 @@ namespace BaseCore.APIService.Controllers
                 entityId,
                 metadata,
                 HttpContext.Connection.RemoteIpAddress?.ToString());
+        }
+
+        private async Task<string> ResolveInterviewMeetingUrlAsync(int eventId, int regId, DateTime scheduledAt, int durationMinutes, string? meetingUrl)
+        {
+            var trimmed = meetingUrl?.Trim() ?? "";
+            if (!string.IsNullOrWhiteSpace(trimmed))
+            {
+                return trimmed;
+            }
+
+            if (!_dailyVideoService.IsConfigured)
+            {
+                return "";
+            }
+
+            var room = await _dailyVideoService.CreateInterviewRoomAsync(eventId, regId, scheduledAt, durationMinutes);
+            return room.RoomUrl;
         }
 
         private string BuildCheckInMetadata(int eventId, CheckInDto dto)

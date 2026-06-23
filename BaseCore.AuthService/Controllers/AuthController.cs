@@ -1,11 +1,13 @@
-using BaseCore.Common;
+﻿using BaseCore.Common;
 using BaseCore.AuthService.Services;
 using BaseCore.Entities;
+using BaseCore.Repository;
 using BaseCore.Services.Authen;
 using BaseCore.Services.VolunteerHub;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.EntityFrameworkCore;
 using System.Net.Mail;
 using System.Security.Cryptography;
 using System.Security.Claims;
@@ -23,20 +25,25 @@ namespace BaseCore.AuthService.Controllers
         private readonly IEmailSender _emailSender;
         private readonly IAuditLogService _auditLogService;
         private readonly IConfiguration _configuration;
+        private readonly MySqlDbContext _context;
         private const int TokenExpirationMinutes = 480;
+        private const int RegistrationCodeExpirationMinutes = 10;
+        private const int MaxRegistrationCodeAttempts = 5;
 
         public AuthController(
             IUserService userService,
             IRefreshTokenService refreshTokenService,
             IEmailSender emailSender,
             IAuditLogService auditLogService,
-            IConfiguration configuration)
+            IConfiguration configuration,
+            MySqlDbContext context)
         {
             _userService = userService;
             _refreshTokenService = refreshTokenService;
             _emailSender = emailSender;
             _auditLogService = auditLogService;
             _configuration = configuration;
+            _context = context;
         }
 
         [HttpPost("login")]
@@ -45,13 +52,13 @@ namespace BaseCore.AuthService.Controllers
         {
             if (request == null || string.IsNullOrWhiteSpace(request.Password))
             {
-                return BadRequest(new { message = "Username/email and password are required" });
+                return BadRequest(new { message = "Tên đăng nhập/email và mật khẩu là bắt buộc." });
             }
 
             var identifier = request.Username ?? request.Email;
             if (string.IsNullOrWhiteSpace(identifier))
             {
-                return BadRequest(new { message = "Username/email and password are required" });
+                return BadRequest(new { message = "Tên đăng nhập/email và mật khẩu là bắt buộc." });
             }
 
             var user = await _userService.AuthenticateByUsernameOrEmail(identifier, request.Password);
@@ -72,13 +79,13 @@ namespace BaseCore.AuthService.Controllers
         {
             if (request == null)
             {
-                return BadRequest(new { message = "Invalid request" });
+                return BadRequest(new { message = "Dữ liệu đăng ký không hợp lệ." });
             }
 
             var username = ResolveUsername(request);
             if (string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(request.Password))
             {
-                return BadRequest(new { message = "Username/email and password are required" });
+                return BadRequest(new { message = "Tên đăng nhập và mật khẩu là bắt buộc." });
             }
 
             var validation = await ValidateRegisterRequestAsync(request, username);
@@ -89,31 +96,159 @@ namespace BaseCore.AuthService.Controllers
 
             var userType = ResolveUserType(request);
             var displayName = ResolveDisplayName(request, username);
+            var email = request.Email?.Trim() ?? "";
+            var phone = request.Phone?.Trim() ?? "";
 
             try
             {
-                var user = new User
+                var code = RandomNumberGenerator.GetInt32(0, 1_000_000).ToString("D6");
+                var passwordHash = TokenHelper.HashPassword(request.Password, out var salt);
+                var normalizedUsername = username.Trim();
+                var normalizedEmail = email.ToLowerInvariant();
+
+                var existingPendings = await _context.PendingRegistrations
+                    .Where(p => p.UserName == normalizedUsername || p.Email == normalizedEmail)
+                    .ToListAsync();
+                if (existingPendings.Count > 0)
                 {
-                    UserName = username,
+                    _context.PendingRegistrations.RemoveRange(existingPendings);
+                }
+
+                var pending = new PendingRegistration
+                {
+                    UserName = normalizedUsername,
                     Name = displayName,
-                    Email = request.Email?.Trim() ?? "",
-                    Phone = request.Phone?.Trim() ?? "",
-                    UserType = userType
+                    Email = normalizedEmail,
+                    Phone = phone,
+                    UserType = userType,
+                    Password = passwordHash,
+                    Salt = salt,
+                    CodeHash = HashRegistrationCode(code, normalizedEmail, normalizedUsername),
+                    Attempts = 0,
+                    CreatedAtUtc = DateTime.UtcNow,
+                    LastSentAtUtc = DateTime.UtcNow,
+                    ExpiresAtUtc = DateTime.UtcNow.AddMinutes(RegistrationCodeExpirationMinutes)
                 };
 
-                var createdUser = await _userService.Create(user, request.Password);
-                await RecordAuditAsync(createdUser.Id, "Auth.Register", "User", createdUser.Id, $"Role={MapRole(createdUser.UserType)}");
+                _context.PendingRegistrations.Add(pending);
+                await _context.SaveChangesAsync();
+
+                await _emailSender.SendRegistrationCodeAsync(normalizedEmail, displayName, code);
+                await RecordAuditAsync(null, "Auth.RegisterCodeSent", "PendingRegistration", pending.Id, $"Role={MapRole(userType)};Email={MaskEmail(normalizedEmail)}");
 
                 return Ok(new
                 {
-                    message = "Registration successful",
-                    user = MapUserResponse(createdUser)
+                    message = $"Đã gửi mã xác minh 6 số đến {MaskEmail(normalizedEmail)}. Vui lòng kiểm tra hộp thư đến hoặc thư rác.",
+                    requiresEmailVerification = true,
+                    email = MaskEmail(normalizedEmail),
+                    expiresInMinutes = RegistrationCodeExpirationMinutes
                 });
             }
             catch (Exception ex)
             {
-                return BadRequest(new { message = "Registration failed: " + ex.Message });
+                await RecordAuditAsync(null, "Auth.RegisterCodeFailed", "PendingRegistration", null, ex.Message);
+                return StatusCode(StatusCodes.Status503ServiceUnavailable, new
+                {
+                    message = "Chưa gửi được mã xác minh đăng ký. Vui lòng kiểm tra cấu hình SMTP."
+                });
             }
+        }
+
+        [HttpPost("verify-registration")]
+        [EnableRateLimiting("auth-sensitive")]
+        public async Task<IActionResult> VerifyRegistration([FromBody] VerifyRegistrationRequest request)
+        {
+            if (request == null ||
+                string.IsNullOrWhiteSpace(request.Username) ||
+                string.IsNullOrWhiteSpace(request.Email) ||
+                string.IsNullOrWhiteSpace(request.Code))
+            {
+                return BadRequest(new { message = "Tên đăng nhập, email và mã xác minh là bắt buộc." });
+            }
+
+            var username = request.Username.Trim();
+            var email = request.Email.Trim().ToLowerInvariant();
+            var code = request.Code.Trim();
+
+            if (!Regex.IsMatch(code, @"^\d{6}$"))
+            {
+                return BadRequest(new { message = "Mã xác minh phải gồm đúng 6 chữ số." });
+            }
+
+            var pending = await _context.PendingRegistrations
+                .FirstOrDefaultAsync(p => p.UserName == username && p.Email == email);
+
+            if (pending == null || pending.ExpiresAtUtc < DateTime.UtcNow)
+            {
+                if (pending != null)
+                {
+                    _context.PendingRegistrations.Remove(pending);
+                    await _context.SaveChangesAsync();
+                }
+
+                return BadRequest(new { message = "Mã đăng ký không hợp lệ hoặc đã hết hạn. Vui lòng đăng ký lại để nhận mã mới." });
+            }
+
+            if (pending.Attempts >= MaxRegistrationCodeAttempts)
+            {
+                _context.PendingRegistrations.Remove(pending);
+                await _context.SaveChangesAsync();
+                return BadRequest(new { message = "Bạn đã nhập sai mã quá nhiều lần. Vui lòng đăng ký lại để nhận mã mới." });
+            }
+
+            var expectedHash = HashRegistrationCode(code, pending.Email, pending.UserName);
+            if (!FixedTimeEquals(expectedHash, pending.CodeHash))
+            {
+                pending.Attempts++;
+                await _context.SaveChangesAsync();
+                return BadRequest(new { message = "Mã xác minh không đúng." });
+            }
+
+            if (await _context.Users.AnyAsync(u => u.UserName == pending.UserName))
+            {
+                _context.PendingRegistrations.Remove(pending);
+                await _context.SaveChangesAsync();
+                return BadRequest(new { message = "Tên đăng nhập đã tồn tại. Vui lòng đăng ký lại bằng tên khác." });
+            }
+
+            if (await _context.Users.AnyAsync(u => u.Email == pending.Email))
+            {
+                _context.PendingRegistrations.Remove(pending);
+                await _context.SaveChangesAsync();
+                return BadRequest(new { message = "Email đã tồn tại. Vui lòng đăng nhập hoặc dùng email khác." });
+            }
+
+            await using var transaction = await _context.Database.BeginTransactionAsync();
+            var user = new User
+            {
+                UserName = pending.UserName,
+                Name = pending.Name,
+                Email = pending.Email,
+                Phone = pending.Phone,
+                UserType = pending.UserType,
+                Password = pending.Password,
+                Salt = pending.Salt,
+                IsActive = true,
+                Created = DateTime.Now,
+                Position = MapRole(pending.UserType),
+                Contact = "",
+                Image = ""
+            };
+
+            _context.Users.Add(user);
+            await _context.SaveChangesAsync();
+
+            AddDefaultProfileForRegisteredUser(user);
+            _context.PendingRegistrations.Remove(pending);
+            await _context.SaveChangesAsync();
+            await transaction.CommitAsync();
+
+            await RecordAuditAsync(user.Id, "Auth.RegisterVerified", "User", user.Id, $"Role={MapRole(user.UserType)}");
+            return Ok(new
+            {
+                message = "Xác minh email thành công. Bạn có thể đăng nhập.",
+                user = MapUserResponse(user)
+            });
         }
 
         [HttpGet("me")]
@@ -128,7 +263,7 @@ namespace BaseCore.AuthService.Controllers
             var user = await _userService.GetById(userId);
             if (user == null || !user.IsActive)
             {
-                return NotFound(new { message = "User not found" });
+                return NotFound(new { message = "Email hoặc tên đăng nhập không tồn tại trong hệ thống." });
             }
 
             return Ok(MapUserResponse(user));
@@ -178,7 +313,7 @@ namespace BaseCore.AuthService.Controllers
             if (!string.IsNullOrWhiteSpace(request.ConfirmNewPassword) &&
                 request.NewPassword != request.ConfirmNewPassword)
             {
-                return BadRequest(new { message = "New password and confirm password do not match" });
+                return BadRequest(new { message = "Mật khẩu xác nhận không khớp." });
             }
 
             if (!int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var userId))
@@ -189,7 +324,7 @@ namespace BaseCore.AuthService.Controllers
             var user = await _userService.GetById(userId);
             if (user == null || !user.IsActive)
             {
-                return NotFound(new { message = "User not found" });
+                return NotFound(new { message = "Email hoặc tên đăng nhập không tồn tại trong hệ thống." });
             }
 
             var verified = await _userService.AuthenticateByUsernameOrEmail(user.UserName, request.CurrentPassword);
@@ -435,9 +570,9 @@ namespace BaseCore.AuthService.Controllers
         private async Task<string?> ValidateRegisterRequestAsync(RegisterRequest request, string username)
         {
             if (username.Length < 3 || username.Length > 50)
-                return "Username must be between 3 and 50 characters";
+                return "Tên đăng nhập phải dài từ 3 đến 50 ký tự.";
             if (!Regex.IsMatch(username, "^[a-zA-Z0-9_-]+$"))
-                return "Username can only contain letters, numbers, underscore and hyphen";
+                return "Tên đăng nhập chỉ được chứa chữ cái, số, dấu gạch dưới và dấu gạch ngang.";
 
             if (request.Password.Length < 8)
                 return "Mật khẩu phải có ít nhất 8 ký tự.";
@@ -446,32 +581,32 @@ namespace BaseCore.AuthService.Controllers
 
             var userType = ResolveUserType(request);
             if (userType is < 0 or > 2)
-                return "Public registration only supports Volunteer, Organizer or Sponsor";
+                return "Đăng ký công khai chỉ hỗ trợ Tình nguyện viên, Nhà tổ chức hoặc Nhà tài trợ.";
 
             if (!string.IsNullOrWhiteSpace(request.Role) &&
                 !new[] { "Volunteer", "Organizer", "Sponsor" }.Contains(request.Role.Trim(), StringComparer.OrdinalIgnoreCase))
-                return "Invalid role";
+                return "Vai trò đăng ký không hợp lệ.";
 
-            if (!string.IsNullOrWhiteSpace(request.Email))
-            {
-                if (request.Email.Length > 100 || !IsValidEmail(request.Email.Trim()))
-                    return "Email is invalid";
-                var existingEmailUser = (await _userService.GetAll()).FirstOrDefault(u =>
-                    string.Equals(u.Email, request.Email.Trim(), StringComparison.OrdinalIgnoreCase));
-                if (existingEmailUser != null)
-                    return "Email already exists";
-            }
+            if (string.IsNullOrWhiteSpace(request.Email))
+                return "Email là bắt buộc để nhận mã xác minh đăng ký.";
 
-            if ((await _userService.GetAll()).Any(u => string.Equals(u.UserName, username, StringComparison.OrdinalIgnoreCase)))
-                return "Username already exists";
+            if (request.Email.Length > 100 || !IsValidEmail(request.Email.Trim()))
+                return "Email không hợp lệ.";
+
+            var allUsers = await _userService.GetAll();
+            var trimmedEmail = request.Email.Trim();
+            if (allUsers.Any(u => string.Equals(u.Email, trimmedEmail, StringComparison.OrdinalIgnoreCase)))
+                return "Email đã tồn tại.";
+
+            if (allUsers.Any(u => string.Equals(u.UserName, username, StringComparison.OrdinalIgnoreCase)))
+                return "Tên đăng nhập đã tồn tại.";
 
             if (!string.IsNullOrWhiteSpace(request.Phone) &&
                 (request.Phone.Trim().Length > 20 || !Regex.IsMatch(request.Phone.Trim(), @"^\+?[0-9\s.-]{8,20}$")))
-                return "Phone number is invalid";
+                return "Số điện thoại không hợp lệ.";
 
             return null;
         }
-
         private static bool IsValidEmail(string email)
         {
             try
@@ -553,6 +688,66 @@ namespace BaseCore.AuthService.Controllers
             return Base64UrlEncode(hmac.ComputeHash(Encoding.UTF8.GetBytes(payload)));
         }
 
+        private string HashRegistrationCode(string code, string email, string username)
+        {
+            var secretKey = _configuration["Jwt:SecretKey"] ?? "YourSecretKeyForAuthenticationShouldBeLongEnough";
+            var material = $"{secretKey}:{email.Trim().ToLowerInvariant()}:{username.Trim()}";
+            using var hmac = new HMACSHA256(Encoding.UTF8.GetBytes(material));
+            return Base64UrlEncode(hmac.ComputeHash(Encoding.UTF8.GetBytes(code)));
+        }
+
+        private void AddDefaultProfileForRegisteredUser(User user)
+        {
+            if (user.UserType == 0)
+            {
+                _context.VolunteerProfiles.Add(new VolunteerProfile
+                {
+                    UserId = user.Id,
+                    BloodType = "",
+                    Interests = "",
+                    Bio = "",
+                    AvatarUrl = "",
+                    KycStatus = "Unverified",
+                    IdentityFrontImageUrl = "",
+                    IdentityBackImageUrl = "",
+                    PortraitImageUrl = "",
+                    KycAdminNote = ""
+                });
+                return;
+            }
+
+            if (user.UserType == 1)
+            {
+                _context.OrganizerVerifications.Add(new OrganizerVerification
+                {
+                    OrganizerId = user.Id,
+                    OrganizationName = "",
+                    RepresentativeName = user.Name ?? "",
+                    ContactEmail = user.Email ?? "",
+                    Phone = user.Phone ?? "",
+                    Status = "Unverified",
+                    CreatedAt = DateTime.UtcNow,
+                    SubmittedAt = DateTime.UtcNow
+                });
+                return;
+            }
+
+            if (user.UserType == 2)
+            {
+                _context.SponsorProfiles.Add(new SponsorProfile
+                {
+                    UserId = user.Id,
+                    OrganizationName = "",
+                    RepresentativeName = user.Name ?? "",
+                    ContactEmail = user.Email ?? "",
+                    Phone = user.Phone ?? "",
+                    IsVerified = false,
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow
+                });
+            }
+        }
+
         private static string Base64UrlEncode(string value)
         {
             return Base64UrlEncode(Encoding.UTF8.GetBytes(value));
@@ -608,6 +803,13 @@ namespace BaseCore.AuthService.Controllers
         public string? Role { get; set; }
     }
 
+    public class VerifyRegistrationRequest
+    {
+        public string Username { get; set; } = "";
+        public string Email { get; set; } = "";
+        public string Code { get; set; } = "";
+    }
+
     public class ChangePasswordRequest
     {
         public string CurrentPassword { get; set; } = "";
@@ -632,3 +834,5 @@ namespace BaseCore.AuthService.Controllers
         public string RefreshToken { get; set; } = "";
     }
 }
+
+

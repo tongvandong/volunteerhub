@@ -20,18 +20,20 @@ namespace BaseCore.Services.VolunteerHub
 
         public async Task<Registration> RegisterAsync(int eventId, int userId, int? shiftId, string? note)
         {
-            await using var transaction = await _context.Database.BeginTransactionAsync(IsolationLevel.Serializable);
-
             var ev = await _context.Events
-                .FromSqlInterpolated($"SELECT * FROM [Events] WITH (UPDLOCK, ROWLOCK) WHERE [Id] = {eventId}")
-                .FirstOrDefaultAsync()
+                .FirstOrDefaultAsync(e => e.Id == eventId)
                 ?? throw new Exception("Không tìm thấy sự kiện");
+
             if (ev.Status != "Approved") throw new Exception("Sự kiện chưa mở đăng ký");
+
             var now = DateTime.UtcNow;
             if (now >= ev.StartDate) throw new Exception("Đã đóng đăng ký vì sự kiện đã bắt đầu");
             if (now >= ev.EndDate) throw new Exception("Đã đóng đăng ký vì sự kiện đã kết thúc");
-            var confirmedCount = await _context.Registrations.CountAsync(r => r.EventId == eventId && r.Status == "Confirmed");
-            if (confirmedCount >= ev.MaxParticipants) throw new Exception("Sự kiện đã đủ người");
+
+            var activeCount = await _context.Registrations.CountAsync(r =>
+                r.EventId == eventId && (r.Status == "Pending" || r.Status == "Confirmed"));
+            if (activeCount >= ev.MaxParticipants) throw new Exception("Sự kiện đã đủ người");
+
             if (ev.RequiresKyc)
             {
                 var kycStatus = await _context.VolunteerProfiles
@@ -49,8 +51,7 @@ namespace BaseCore.Services.VolunteerHub
             if (shiftId.HasValue)
             {
                 var shift = await _context.WorkShifts
-                    .FromSqlInterpolated($"SELECT * FROM [WorkShifts] WITH (UPDLOCK, ROWLOCK) WHERE [Id] = {shiftId.Value}")
-                    .FirstOrDefaultAsync()
+                    .FirstOrDefaultAsync(s => s.Id == shiftId.Value)
                     ?? throw new Exception("Không tìm thấy ca làm việc");
                 if (shift.EventId != eventId) throw new Exception("Ca làm việc không thuộc sự kiện này");
 
@@ -83,12 +84,8 @@ namespace BaseCore.Services.VolunteerHub
                 existing.CheckedOutAt = null;
                 existing.VolunteerHours = 0;
                 await _context.SaveChangesAsync();
-                await transaction.CommitAsync();
 
-                var existingVolunteer = await _context.Users.FindAsync(userId);
-                await _notificationService.SendAsync(ev.OrganizerId,
-                    "Đăng ký mới", $"{existingVolunteer?.Name} đã đăng ký sự kiện '{ev.Title}'.",
-                    "RegistrationConfirmed", eventId);
+                await NotifyOrganizerAboutRegistrationAsync(ev, userId);
 
                 return existing;
             }
@@ -104,15 +101,25 @@ namespace BaseCore.Services.VolunteerHub
             };
             _context.Registrations.Add(reg);
             await _context.SaveChangesAsync();
-            await transaction.CommitAsync();
 
-            // Notify organizer
-            var volunteer = await _context.Users.FindAsync(userId);
-            await _notificationService.SendAsync(ev.OrganizerId,
-                "Đăng ký mới", $"{volunteer?.Name} đã đăng ký sự kiện '{ev.Title}'.",
-                "RegistrationConfirmed", eventId);
+            await NotifyOrganizerAboutRegistrationAsync(ev, userId);
 
             return reg;
+        }
+
+        private async Task NotifyOrganizerAboutRegistrationAsync(Event ev, int userId)
+        {
+            try
+            {
+                var volunteer = await _context.Users.FindAsync(userId);
+                await _notificationService.SendAsync(ev.OrganizerId,
+                    "Đăng ký mới", $"{volunteer?.Name} đã đăng ký sự kiện '{ev.Title}'.",
+                    "RegistrationConfirmed", ev.Id);
+            }
+            catch
+            {
+                // Notification must not make the volunteer registration fail.
+            }
         }
 
         public async Task WithdrawAsync(int eventId, int userId)

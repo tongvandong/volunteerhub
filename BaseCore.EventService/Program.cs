@@ -4,6 +4,7 @@ using BaseCore.Repository.EFCore;
 using BaseCore.Repository.Infrastructure;
 using BaseCore.Services.VolunteerHub;
 using BaseCore.EventService.Hubs;
+using BaseCore.EventService.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
@@ -24,6 +25,7 @@ builder.Services.AddControllers()
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddHealthChecks();
+builder.Services.AddHttpClient();
 
 // Redis-backed distributed cache (falls back to in-memory when Redis is not configured).
 var redisConnectionString = builder.Services.AddVolunteerHubCache(builder.Configuration);
@@ -185,6 +187,7 @@ builder.Services.AddScoped<ICertificateService, CertificateService>();
 builder.Services.AddScoped<IEventService, EventService>();
 builder.Services.AddScoped<IRegistrationService, RegistrationService>();
 builder.Services.AddScoped<IInterviewService, InterviewService>();
+builder.Services.AddScoped<IDailyVideoService, DailyVideoService>();
 builder.Services.AddScoped<IChannelService, ChannelService>();
 builder.Services.AddScoped<IChannelRealtimeNotifier, SignalRChannelRealtimeNotifier>();
 builder.Services.AddScoped<IAuditLogService, AuditLogService>();
