@@ -136,7 +136,16 @@ export default function MainLayout({ children }) {
         }
         style={{ background: 'var(--c-surface)', borderRight: '1px solid var(--c-border)' }}
       >
-        <div className="flex items-center gap-2.5 px-5 py-4" style={{ borderBottom: '1px solid var(--c-border)' }}>
+        <Link
+          to="/"
+          onClick={closeSidebarOnMobile}
+          title="Về trang chủ"
+          aria-label="Về trang chủ VolunteerHub"
+          className="flex items-center gap-2.5 px-5 py-4 transition-colors"
+          style={{ borderBottom: '1px solid var(--c-border)', textDecoration: 'none' }}
+          onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--c-surface-2)')}
+          onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+        >
           <div
             className="w-8 h-8 rounded-[11px] flex items-center justify-center flex-shrink-0"
             style={{ background: 'linear-gradient(135deg, #1b61c9 0%, #1552b0 100%)', boxShadow: '0 3px 8px -2px rgba(27,97,201,0.5)' }}
@@ -146,7 +155,7 @@ export default function MainLayout({ children }) {
           <span className="font-bold text-[16px] tracking-[-0.02em]" style={{ color: 'var(--c-ink)' }}>
             Volunteer<b style={{ color: 'var(--c-primary)' }}>Hub</b>
           </span>
-        </div>
+        </Link>
 
         <div className="px-4 py-3.5" style={{ borderBottom: '1px solid var(--c-border)' }}>
           <div className="flex items-center gap-3">
