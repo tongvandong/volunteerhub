@@ -198,7 +198,7 @@ export const registrationApi = {
 };
 
 export const interviewCallApi = {
-  getTrtcToken: (slotId) => api.get(`/interviews/${slotId}/trtc-token`),
+  getDailyToken: (slotId) => api.get(`/interviews/${slotId}/daily-token`),
 };
 
 export const eventCategoryApi = {

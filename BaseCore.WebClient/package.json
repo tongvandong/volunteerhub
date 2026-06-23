@@ -13,8 +13,8 @@
     "test:e2e:report": "playwright show-report"
   },
   "dependencies": {
+    "@daily-co/daily-js": "^0.91.0",
     "@microsoft/signalr": "^10.0.0",
-    "@trtc/calls-uikit-react": "^4.5.1",
     "axios": "^1.13.4",
     "html5-qrcode": "^2.3.8",
     "leaflet": "^1.9.4",
