@@ -7,6 +7,7 @@ namespace BaseCore.AuthService.Services
     public interface IEmailSender
     {
         Task SendPasswordResetAsync(User user, string resetLink);
+        Task SendRegistrationCodeAsync(string email, string displayName, string code);
     }
 
     public class SmtpEmailSender : IEmailSender
@@ -20,11 +21,50 @@ namespace BaseCore.AuthService.Services
 
         public async Task SendPasswordResetAsync(User user, string resetLink)
         {
+            if (string.IsNullOrWhiteSpace(user.Email))
+            {
+                throw new InvalidOperationException("Tài khoản chưa có email để nhận liên kết đặt lại mật khẩu.");
+            }
+
+            using var client = CreateClient();
+            using var message = new MailMessage
+            {
+                From = CreateFromAddress(),
+                Subject = "Đặt lại mật khẩu VolunteerHub",
+                IsBodyHtml = true,
+                Body = BuildPasswordResetEmail(user.Name, resetLink)
+            };
+
+            message.To.Add(new MailAddress(user.Email, string.IsNullOrWhiteSpace(user.Name) ? user.UserName : user.Name));
+            await client.SendMailAsync(message);
+        }
+
+        public async Task SendRegistrationCodeAsync(string email, string displayName, string code)
+        {
+            if (string.IsNullOrWhiteSpace(email))
+            {
+                throw new InvalidOperationException("Email là bắt buộc để nhận mã xác minh đăng ký.");
+            }
+
+            using var client = CreateClient();
+            using var message = new MailMessage
+            {
+                From = CreateFromAddress(),
+                Subject = "Mã xác minh đăng ký VolunteerHub",
+                IsBodyHtml = true,
+                Body = BuildRegistrationCodeEmail(displayName, code)
+            };
+
+            message.To.Add(new MailAddress(email, string.IsNullOrWhiteSpace(displayName) ? email : displayName));
+            await client.SendMailAsync(message);
+        }
+
+        private SmtpClient CreateClient()
+        {
             var host = _configuration["Smtp:Host"];
             var username = _configuration["Smtp:Username"];
             var password = _configuration["Smtp:Password"];
             var fromEmail = _configuration["Smtp:FromEmail"];
-            var fromName = _configuration["Smtp:FromName"] ?? "VolunteerHub";
             var port = int.TryParse(_configuration["Smtp:Port"], out var parsedPort) ? parsedPort : 587;
             var enableSsl = !bool.TryParse(_configuration["Smtp:EnableSsl"], out var parsedSsl) || parsedSsl;
 
@@ -36,27 +76,24 @@ namespace BaseCore.AuthService.Services
                 throw new InvalidOperationException("SMTP chưa được cấu hình đầy đủ.");
             }
 
-            if (string.IsNullOrWhiteSpace(user.Email))
-            {
-                throw new InvalidOperationException("Tài khoản chưa có email để nhận liên kết đặt lại mật khẩu.");
-            }
-
-            using var client = new SmtpClient(host, port)
+            return new SmtpClient(host, port)
             {
                 EnableSsl = enableSsl,
                 Credentials = new NetworkCredential(username, password)
             };
+        }
 
-            using var message = new MailMessage
+        private MailAddress CreateFromAddress()
+        {
+            var fromEmail = _configuration["Smtp:FromEmail"];
+            var fromName = _configuration["Smtp:FromName"] ?? "VolunteerHub";
+
+            if (string.IsNullOrWhiteSpace(fromEmail))
             {
-                From = new MailAddress(fromEmail, fromName),
-                Subject = "Đặt lại mật khẩu VolunteerHub",
-                IsBodyHtml = true,
-                Body = BuildPasswordResetEmail(user.Name, resetLink)
-            };
+                throw new InvalidOperationException("SMTP chưa được cấu hình đầy đủ.");
+            }
 
-            message.To.Add(new MailAddress(user.Email, string.IsNullOrWhiteSpace(user.Name) ? user.UserName : user.Name));
-            await client.SendMailAsync(message);
+            return new MailAddress(fromEmail, fromName);
         }
 
         private static string BuildPasswordResetEmail(string? displayName, string resetLink)
@@ -77,6 +114,27 @@ namespace BaseCore.AuthService.Services
     </p>
     <p>Liên kết này có hiệu lực trong 30 phút và sẽ tự vô hiệu sau khi bạn đổi mật khẩu.</p>
     <p style=""font-size:13px;color:#667085"">Nếu bạn không yêu cầu đặt lại mật khẩu, vui lòng bỏ qua email này.</p>
+  </div>
+</body>
+</html>";
+        }
+
+        private static string BuildRegistrationCodeEmail(string? displayName, string code)
+        {
+            var name = WebUtility.HtmlEncode(string.IsNullOrWhiteSpace(displayName) ? "bạn" : displayName);
+            var safeCode = WebUtility.HtmlEncode(code);
+
+            return $@"
+<!doctype html>
+<html lang=""vi"">
+<body style=""font-family:Arial,sans-serif;background:#f6f8fb;padding:24px;color:#172033"">
+  <div style=""max-width:560px;margin:0 auto;background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:28px"">
+    <h2 style=""margin:0 0 12px;color:#1552b0"">Xác minh đăng ký VolunteerHub</h2>
+    <p>Xin chào {name},</p>
+    <p>Nhập mã 6 số dưới đây để hoàn tất đăng ký tài khoản VolunteerHub.</p>
+    <div style=""font-size:32px;letter-spacing:8px;font-weight:800;color:#1552b0;background:#eef4ff;border-radius:10px;padding:16px 20px;text-align:center;margin:22px 0"">{safeCode}</div>
+    <p>Mã này có hiệu lực trong 10 phút. Không chia sẻ mã cho người khác.</p>
+    <p style=""font-size:13px;color:#667085"">Nếu bạn không đăng ký tài khoản VolunteerHub, vui lòng bỏ qua email này.</p>
   </div>
 </body>
 </html>";

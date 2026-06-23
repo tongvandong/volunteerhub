@@ -10,6 +10,7 @@ namespace BaseCore.Repository
         }
 
         public DbSet<User> Users { get; set; }
+        public DbSet<PendingRegistration> PendingRegistrations { get; set; }
 
         // --- VolunteerHub: Profile & Skills ---
         public DbSet<Skill> Skills { get; set; }
@@ -71,6 +72,22 @@ namespace BaseCore.Repository
                 entity.Property(e => e.Contact).HasMaxLength(200).IsRequired(false);
                 entity.Property(e => e.Image).HasMaxLength(500).IsRequired(false);
                 entity.HasIndex(e => e.UserName).IsUnique();
+            });
+
+            modelBuilder.Entity<PendingRegistration>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).ValueGeneratedOnAdd();
+                entity.Property(e => e.UserName).HasMaxLength(50).IsRequired();
+                entity.Property(e => e.Name).HasMaxLength(100).IsRequired(false);
+                entity.Property(e => e.Email).HasMaxLength(100).IsRequired();
+                entity.Property(e => e.Phone).HasMaxLength(20).IsRequired(false);
+                entity.Property(e => e.Password).HasMaxLength(255).IsRequired();
+                entity.Property(e => e.Salt).IsRequired();
+                entity.Property(e => e.CodeHash).HasMaxLength(256).IsRequired();
+                entity.HasIndex(e => e.UserName);
+                entity.HasIndex(e => e.Email);
+                entity.HasIndex(e => e.ExpiresAtUtc);
             });
 
             modelBuilder.Entity<AuthRefreshToken>(entity =>
