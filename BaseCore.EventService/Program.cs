@@ -166,10 +166,6 @@ builder.Services.AddSingleton<BaseCore.EventService.Graph.GraphSyncService>();
 builder.Services.AddHostedService<BaseCore.EventService.Graph.GraphSyncWorker>();
 builder.Services.AddScoped<BaseCore.EventService.Demo.DemoSeederService>();
 
-builder.Services.AddScoped<IProductRepositoryEF, ProductRepositoryEF>();
-builder.Services.AddScoped<ICategoryRepositoryEF, CategoryRepositoryEF>();
-builder.Services.AddScoped<IOrderRepositoryEF, OrderRepositoryEF>();
-builder.Services.AddScoped<IOrderDetailRepositoryEF, OrderDetailRepositoryEF>();
 builder.Services.AddScoped<ISkillRepositoryEF, SkillRepositoryEF>();
 builder.Services.AddScoped<IVolunteerProfileRepositoryEF, VolunteerProfileRepositoryEF>();
 builder.Services.AddScoped<IEventCategoryRepositoryEF, EventCategoryRepositoryEF>();

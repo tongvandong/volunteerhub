@@ -140,10 +140,6 @@ builder.Services.AddDbContext<MySqlDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("ConnectedDb"));
 });
 
-builder.Services.AddScoped<IProductRepositoryEF, ProductRepositoryEF>();
-builder.Services.AddScoped<ICategoryRepositoryEF, CategoryRepositoryEF>();
-builder.Services.AddScoped<IOrderRepositoryEF, OrderRepositoryEF>();
-builder.Services.AddScoped<IOrderDetailRepositoryEF, OrderDetailRepositoryEF>();
 builder.Services.AddScoped<ISkillRepositoryEF, SkillRepositoryEF>();
 builder.Services.AddScoped<IVolunteerProfileRepositoryEF, VolunteerProfileRepositoryEF>();
 builder.Services.AddScoped<IEventCategoryRepositoryEF, EventCategoryRepositoryEF>();
