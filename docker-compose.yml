@@ -113,6 +113,10 @@ services:
       # Cho phép endpoint seed dữ liệu demo chạy (môi trường Production trong container).
       # ĐẶT "false" hoặc xóa dòng này khi deploy thật để khóa /api/admin/dev/seed.
       Demo__SeedEnabled: "true"
+      TRTC__SdkAppId: ${TRTC_SDK_APP_ID:-0}
+      TRTC__SDKSecretKey: ${TRTC_SDK_SECRET_KEY:-}
+      TRTC__RestApiHost: ${TRTC_REST_API_HOST:-adminapisgp.im.qcloud.com}
+      TRTC__UserSigExpireSeconds: ${TRTC_USER_SIG_EXPIRE_SECONDS:-86400}
     volumes:
       - certificates_data:/app/wwwroot/certificates
     depends_on:
