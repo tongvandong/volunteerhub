@@ -313,6 +313,16 @@ export default function EventDetail() {
     }
   };
 
+  const handleDonationAmountChange = (value) => {
+    setDonationForm((f) => ({ ...f, amount: value }));
+    const amount = Number(value);
+    if (value !== '' && (!Number.isFinite(amount) || amount <= 0)) {
+      setMsg({ type: 'error', text: 'Số tiền ủng hộ phải lớn hơn 0.' });
+    } else if (msg.text === 'Số tiền ủng hộ phải lớn hơn 0.') {
+      setMsg({ type: '', text: '' });
+    }
+  };
+
   if (loading) {
     return (
       <div className="max-w-5xl mx-auto px-4 py-8">
@@ -1268,7 +1278,20 @@ export default function EventDetail() {
           )}
           <div>
             <label className="block text-sm font-medium text-warmink-2 mb-1">Số tiền *</label>
-            <input type="number" min="1" value={donationForm.amount} onChange={(e) => setDonationForm((f) => ({ ...f, amount: e.target.value }))} required className="input-field" />
+            <input
+              type="number"
+              min="1"
+              value={donationForm.amount}
+              onChange={(e) => handleDonationAmountChange(e.target.value)}
+              onInvalid={(e) => {
+                e.currentTarget.setCustomValidity('Số tiền ủng hộ phải lớn hơn 0.');
+                setMsg({ type: 'error', text: 'Số tiền ủng hộ phải lớn hơn 0.' });
+              }}
+              onInput={(e) => e.currentTarget.setCustomValidity('')}
+              required
+              className="input-field"
+            />
+            <p className="mt-1 text-xs text-warmink-2">Số tiền ủng hộ phải lớn hơn 0.</p>
           </div>
           <label className="flex items-center gap-2 text-sm text-warmink-2">
             <input type="checkbox" checked={donationForm.isAnonymous} onChange={(e) => setDonationForm((f) => ({ ...f, isAnonymous: e.target.checked }))} />

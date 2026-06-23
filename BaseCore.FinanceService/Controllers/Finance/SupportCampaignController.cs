@@ -359,9 +359,9 @@ namespace BaseCore.APIService.Controllers
                 ? Math.Min(1_000_000_000m, campaign.TargetAmount * 10m)
                 : 1_000_000_000m;
             if (dto.Amount > maxDonationAmount)
-                return BadRequest(new { message = $"Donation amount must not exceed {maxDonationAmount:0.##}" });
+                return BadRequest(new { message = $"Số tiền ủng hộ không được vượt quá {maxDonationAmount:0.##}." });
             if (campaign.MinimumAmount.HasValue && dto.Amount < campaign.MinimumAmount.Value)
-                return BadRequest(new { message = "Donation amount must be at least the campaign minimum amount" });
+                return BadRequest(new { message = "Số tiền ủng hộ chưa đạt mức tối thiểu của đợt kêu gọi." });
 
             var donation = new IndividualDonation
             {
@@ -731,15 +731,15 @@ namespace BaseCore.APIService.Controllers
         private static string? ValidateDonation(IndividualDonationDto dto)
         {
             if (dto.Amount <= 0)
-                return "Donation amount must be greater than zero";
+                return "Số tiền ủng hộ phải lớn hơn 0.";
             if (!dto.IsAnonymous && string.IsNullOrWhiteSpace(dto.DisplayName))
-                return "Display name is required when donation is public";
+                return "Vui lòng nhập tên hiển thị hoặc chọn ủng hộ ẩn danh.";
             if ((dto.DisplayName?.Length ?? 0) > 120 || (dto.Phone?.Length ?? 0) > 30 || (dto.Email?.Length ?? 0) > 120)
-                return "Donation contact fields are too long";
+                return "Thông tin liên hệ của khoản ủng hộ quá dài.";
             if ((dto.Note?.Length ?? 0) > 500 || (dto.ProofImageUrl?.Length ?? 0) > 500)
-                return "Donation note or proof URL is too long";
+                return "Ghi chú hoặc đường dẫn minh chứng ủng hộ quá dài.";
             if (!string.IsNullOrWhiteSpace(dto.ProofImageUrl) && !IsInternalUploadUrl(dto.ProofImageUrl))
-                return "Proof image must be uploaded through the system";
+                return "Minh chứng chuyển khoản phải được upload qua hệ thống.";
             return null;
         }
 

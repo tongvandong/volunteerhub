@@ -52,7 +52,7 @@ namespace BaseCore.AuthService.Controllers
             if (user == null)
             {
                 await RecordAuditAsync(null, "Auth.LoginFailed", "User", null, $"Identifier={MaskIdentifier(identifier)}");
-                return Unauthorized(new { message = "Invalid username/email or password" });
+                return Unauthorized(new { message = "Tên đăng nhập/email hoặc mật khẩu không đúng." });
             }
 
             var response = await CreateAuthResponseAsync(user);
@@ -342,9 +342,9 @@ namespace BaseCore.AuthService.Controllers
                 return "Username can only contain letters, numbers, underscore and hyphen";
 
             if (request.Password.Length < 8)
-                return "Password must be at least 8 characters";
+                return "Mật khẩu phải có ít nhất 8 ký tự.";
             if (!Regex.IsMatch(request.Password, "[A-Za-z]") || !Regex.IsMatch(request.Password, "[0-9]"))
-                return "Password must contain at least one letter and one number";
+                return "Mật khẩu phải có ít nhất một chữ cái và một chữ số.";
 
             var userType = ResolveUserType(request);
             if (userType is < 0 or > 2)
