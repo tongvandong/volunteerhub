@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import DailyIframe from '@daily-co/daily-js';
 import Modal from './Modal';
 import { interviewCallApi } from '../../services/api';
@@ -7,11 +7,47 @@ import { fmtDateTime } from '../../utils/format';
 export default function InterviewCallModal({ slot, onClose }) {
   const containerRef = useRef(null);
   const callFrameRef = useRef(null);
+  const loadTimerRef = useRef(null);
   const [payload, setPayload] = useState(null);
   const [loading, setLoading] = useState(false);
   const [joined, setJoined] = useState(false);
   const [closing, setClosing] = useState(false);
   const [error, setError] = useState('');
+  const [hint, setHint] = useState('');
+
+  const isOrganizer = payload?.role === 'Organizer' || payload?.canStartCall === true;
+  const tokenizedRoomUrl = useMemo(() => {
+    if (!payload?.roomUrl) return '';
+    if (!payload?.meetingToken) return payload.roomUrl;
+    const separator = payload.roomUrl.includes('?') ? '&' : '?';
+    return `${payload.roomUrl}${separator}t=${encodeURIComponent(payload.meetingToken)}`;
+  }, [payload?.roomUrl, payload?.meetingToken]);
+
+  const clearLoadTimer = () => {
+    if (loadTimerRef.current) {
+      window.clearTimeout(loadTimerRef.current);
+      loadTimerRef.current = null;
+    }
+  };
+
+  const destroyFrame = async () => {
+    clearLoadTimer();
+    const frame = callFrameRef.current;
+    callFrameRef.current = null;
+    if (!frame) return;
+
+    try {
+      await frame.leave();
+    } catch {
+      // The participant may already have left.
+    }
+
+    try {
+      frame.destroy();
+    } catch {
+      // Ignore cleanup errors so closing the modal never blocks UI.
+    }
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -21,6 +57,7 @@ export default function InterviewCallModal({ slot, onClose }) {
       setLoading(true);
       setJoined(false);
       setError('');
+      setHint('');
 
       try {
         const response = await interviewCallApi.getDailyToken(slot.id);
@@ -52,28 +89,63 @@ export default function InterviewCallModal({ slot, onClose }) {
         });
 
         callFrameRef.current = frame;
-        frame.on('joined-meeting', () => setJoined(true));
+
+        frame.on('loaded', () => {
+          if (cancelled) return;
+          setLoading(false);
+          clearLoadTimer();
+        });
+        frame.on('joining-meeting', () => {
+          if (cancelled) return;
+          setLoading(false);
+          clearLoadTimer();
+        });
+        frame.on('joined-meeting', () => {
+          if (cancelled) return;
+          setJoined(true);
+          setLoading(false);
+          setHint('');
+          clearLoadTimer();
+        });
         frame.on('left-meeting', () => {
           setJoined(false);
           onClose?.();
         });
+        frame.on('camera-error', () => {
+          if (cancelled) return;
+          setLoading(false);
+          setHint('Trình duyệt chưa cấp quyền camera/micro. Hãy cấp quyền hoặc mở phòng bằng tab mới.');
+        });
         frame.on('error', (event) => {
+          if (cancelled) return;
+          setLoading(false);
           setError(event?.errorMsg || event?.message || 'Daily gặp lỗi khi mở phòng phỏng vấn.');
+          clearLoadTimer();
         });
 
-        await frame.join({
+        loadTimerRef.current = window.setTimeout(() => {
+          if (cancelled || joined) return;
+          setLoading(false);
+          setHint('Daily đang phản hồi chậm hoặc bị trình duyệt chặn trong iframe. Bạn có thể bấm "Mở bằng tab mới" để vào phòng ngay.');
+        }, 12000);
+
+        frame.join({
           url: data.roomUrl,
           token: data.meetingToken,
           userName: data.selfName,
           startVideoOff: false,
           startAudioOff: false,
+        }).catch((err) => {
+          if (cancelled) return;
+          setLoading(false);
+          setError(err?.message || 'Không thể mở phòng phỏng vấn Daily.');
+          clearLoadTimer();
         });
       } catch (err) {
         if (!cancelled) {
+          setLoading(false);
           setError(err.response?.data?.message || err.message || 'Không thể mở phòng phỏng vấn Daily.');
         }
-      } finally {
-        if (!cancelled) setLoading(false);
       }
     };
 
@@ -84,24 +156,6 @@ export default function InterviewCallModal({ slot, onClose }) {
       destroyFrame();
     };
   }, [slot?.id]);
-
-  const destroyFrame = async () => {
-    const frame = callFrameRef.current;
-    callFrameRef.current = null;
-    if (!frame) return;
-
-    try {
-      await frame.leave();
-    } catch {
-      // The participant may already have left.
-    }
-
-    try {
-      frame.destroy();
-    } catch {
-      // Ignore cleanup errors so closing the modal never blocks UI.
-    }
-  };
 
   const closeRoom = async () => {
     setClosing(true);
@@ -114,9 +168,7 @@ export default function InterviewCallModal({ slot, onClose }) {
     ? 'Đang mở phòng Daily'
     : joined
       ? 'Đang trong phòng'
-      : 'Chưa vào phòng';
-
-  const isOrganizer = payload?.role === 'Organizer' || payload?.canStartCall === true;
+      : 'Sẵn sàng vào phòng';
 
   return (
     <Modal isOpen={!!slot} onClose={closeRoom} title="" size="xl">
@@ -152,15 +204,20 @@ export default function InterviewCallModal({ slot, onClose }) {
                 {error}
               </div>
             )}
+            {hint && (
+              <div className="mb-3 rounded-lg border border-amber-300/40 bg-amber-950/60 p-3 text-sm text-amber-50">
+                {hint}
+              </div>
+            )}
             <div ref={containerRef} className="relative h-[560px] overflow-hidden rounded-2xl border border-white/10 bg-black">
               {loading && (
-                <div className="absolute inset-0 flex items-center justify-center bg-slate-950 text-center text-white">
-                  <div>
-                    <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-white/10">
-                      <i className="fa-solid fa-spinner fa-spin" />
+                <div className="pointer-events-none absolute inset-x-4 top-4 z-10 rounded-xl border border-white/10 bg-slate-950/85 p-3 text-center text-white shadow-xl backdrop-blur">
+                  <div className="flex items-center justify-center gap-3">
+                    <i className="fa-solid fa-spinner fa-spin" />
+                    <div>
+                      <div className="font-medium">Đang kết nối Daily</div>
+                      <div className="mt-0.5 text-xs text-slate-300">Nếu Daily hỏi quyền camera/micro, hãy bấm cho phép trong trình duyệt.</div>
                     </div>
-                    <div className="font-medium">Đang mở phòng phỏng vấn</div>
-                    <div className="mt-1 text-sm text-slate-300">Daily sẽ hỏi quyền camera và micro.</div>
                   </div>
                 </div>
               )}
@@ -182,9 +239,9 @@ export default function InterviewCallModal({ slot, onClose }) {
               <div className="font-semibold">Cách dùng</div>
               <ul className="mt-2 space-y-1.5 text-xs leading-5">
                 <li>Organizer là người mở phòng và điều phối buổi phỏng vấn.</li>
-                <li>Volunteer chỉ cần vào phòng đúng giờ và chờ organizer tham gia.</li>
+                <li>Volunteer vào đúng giờ và chờ organizer tham gia.</li>
                 <li>Không ghi hình mặc định theo cấu hình hiện tại.</li>
-                <li>Khi bấm rời phòng hoặc đóng modal, phiên Daily trong tab này sẽ kết thúc.</li>
+                <li>Nếu iframe bị treo do quyền camera/micro, hãy mở bằng tab mới.</li>
               </ul>
             </div>
 
@@ -206,8 +263,8 @@ export default function InterviewCallModal({ slot, onClose }) {
               <button type="button" onClick={closeRoom} disabled={closing} className="btn-secondary w-full">
                 {closing ? 'Đang đóng phòng...' : 'Rời phòng'}
               </button>
-              {payload?.roomUrl && (
-                <a href={payload.roomUrl} target="_blank" rel="noopener noreferrer" className="btn-secondary w-full text-center no-underline">
+              {tokenizedRoomUrl && (
+                <a href={tokenizedRoomUrl} target="_blank" rel="noopener noreferrer" className="btn-secondary w-full text-center no-underline">
                   Mở bằng tab mới
                 </a>
               )}
