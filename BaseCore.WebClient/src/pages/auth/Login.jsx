@@ -5,7 +5,7 @@ import { getDefaultRouteByRole } from '../../utils/navigation';
 
 const BRAND_POINTS = [
   { icon: 'fa-wand-magic-sparkles', text: 'Gợi ý sự kiện phù hợp với kỹ năng của bạn' },
-  { icon: 'fa-qrcode', text: 'Điểm danh QR/GPS — minh bạch giờ tình nguyện' },
+  { icon: 'fa-qrcode', text: 'Điểm danh QR/GPS, minh bạch giờ tình nguyện' },
   { icon: 'fa-award', text: 'Nhận huy hiệu và chứng chỉ chính thức' },
 ];
 
@@ -22,7 +22,6 @@ export default function Login() {
     setLoading(true);
 
     const result = await login(form.identifier, form.password);
-
     setLoading(false);
 
     if (result.success) {
@@ -35,7 +34,6 @@ export default function Login() {
 
   return (
     <div className="min-h-screen grid lg:grid-cols-2" style={{ background: 'var(--c-canvas)' }}>
-      {/* Brand panel */}
       <div
         className="relative overflow-hidden hidden lg:flex flex-col justify-between p-12"
         style={{ background: 'linear-gradient(135deg, var(--c-primary) 0%, var(--c-primary-800) 100%)' }}
@@ -55,12 +53,12 @@ export default function Login() {
             Mỗi giờ bạn trao đi,<br />đều được ghi nhận.
           </h2>
           <div className="mt-8 space-y-4">
-            {BRAND_POINTS.map((p) => (
-              <div key={p.text} className="flex items-center gap-3">
+            {BRAND_POINTS.map((point) => (
+              <div key={point.text} className="flex items-center gap-3">
                 <span className="flex items-center justify-center flex-shrink-0" style={{ width: 38, height: 38, borderRadius: 11, background: 'rgba(255,255,255,0.14)', color: '#fff' }}>
-                  <i className={`fa-solid ${p.icon} text-sm`} />
+                  <i className={`fa-solid ${point.icon} text-sm`} />
                 </span>
-                <span className="text-[15px]" style={{ color: 'rgba(255,255,255,0.9)' }}>{p.text}</span>
+                <span className="text-[15px]" style={{ color: 'rgba(255,255,255,0.9)' }}>{point.text}</span>
               </div>
             ))}
           </div>
@@ -71,10 +69,8 @@ export default function Login() {
         </p>
       </div>
 
-      {/* Form panel */}
       <div className="flex items-center justify-center p-5 sm:p-8">
         <div className="w-full max-w-md">
-          {/* Mobile logo */}
           <Link to="/" className="lg:hidden flex items-center justify-center gap-2.5 mb-8 no-underline">
             <div className="w-9 h-9 rounded-[11px] flex items-center justify-center" style={{ background: 'linear-gradient(135deg, var(--c-primary) 0%, var(--c-primary-700) 100%)' }}>
               <i className="fa-solid fa-leaf text-white text-sm" />
@@ -122,6 +118,12 @@ export default function Login() {
                     className="input-field pl-10"
                   />
                 </div>
+              </div>
+
+              <div className="flex justify-end">
+                <Link to="/forgot-password" className="text-sm font-medium hover:underline" style={{ color: 'var(--c-primary)' }}>
+                  Quên mật khẩu?
+                </Link>
               </div>
 
               <button type="submit" disabled={loading} className="btn-primary w-full justify-center">

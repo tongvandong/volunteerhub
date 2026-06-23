@@ -1,4 +1,5 @@
 using BaseCore.Common;
+using BaseCore.AuthService.Services;
 using BaseCore.Entities;
 using BaseCore.Services.Authen;
 using BaseCore.Services.VolunteerHub;
@@ -6,7 +7,9 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using System.Net.Mail;
+using System.Security.Cryptography;
 using System.Security.Claims;
+using System.Text;
 using System.Text.RegularExpressions;
 
 namespace BaseCore.AuthService.Controllers
@@ -17,6 +20,7 @@ namespace BaseCore.AuthService.Controllers
     {
         private readonly IUserService _userService;
         private readonly IRefreshTokenService _refreshTokenService;
+        private readonly IEmailSender _emailSender;
         private readonly IAuditLogService _auditLogService;
         private readonly IConfiguration _configuration;
         private const int TokenExpirationMinutes = 480;
@@ -24,11 +28,13 @@ namespace BaseCore.AuthService.Controllers
         public AuthController(
             IUserService userService,
             IRefreshTokenService refreshTokenService,
+            IEmailSender emailSender,
             IAuditLogService auditLogService,
             IConfiguration configuration)
         {
             _userService = userService;
             _refreshTokenService = refreshTokenService;
+            _emailSender = emailSender;
             _auditLogService = auditLogService;
             _configuration = configuration;
         }
@@ -195,6 +201,83 @@ namespace BaseCore.AuthService.Controllers
             await _userService.Update(user, request.NewPassword);
             await RecordAuditAsync(user.Id, "Auth.ChangePassword", "User", user.Id);
             return Ok(new { message = "Password changed successfully" });
+        }
+
+        [HttpPost("forgot-password")]
+        [EnableRateLimiting("auth-sensitive")]
+        public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordRequest request)
+        {
+            if (request == null || string.IsNullOrWhiteSpace(request.Identifier))
+            {
+                return BadRequest(new { message = "Vui lòng nhập email hoặc tên đăng nhập." });
+            }
+
+            var identifier = request.Identifier.Trim();
+            var user = (await _userService.GetAll()).FirstOrDefault(u =>
+                string.Equals(u.UserName, identifier, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(u.Email, identifier, StringComparison.OrdinalIgnoreCase));
+
+            const string message = "Nếu tài khoản tồn tại, hệ thống đã tạo hướng dẫn đặt lại mật khẩu.";
+            if (user == null || !user.IsActive)
+            {
+                await RecordAuditAsync(null, "Auth.ForgotPassword", "User", null, $"Identifier={MaskIdentifier(identifier)};Result=NotFound");
+                return Ok(new { message });
+            }
+
+            try
+            {
+                var resetToken = GeneratePasswordResetToken(user);
+                var resetLink = BuildPasswordResetLink(resetToken);
+                await _emailSender.SendPasswordResetAsync(user, resetLink);
+                await RecordAuditAsync(user.Id, "Auth.ForgotPassword", "User", user.Id);
+            }
+            catch (Exception ex)
+            {
+                await RecordAuditAsync(user.Id, "Auth.ForgotPasswordFailed", "User", user.Id, ex.Message);
+                return StatusCode(StatusCodes.Status503ServiceUnavailable, new
+                {
+                    message = "Chưa gửi được email đặt lại mật khẩu. Vui lòng kiểm tra cấu hình SMTP."
+                });
+            }
+
+            return Ok(new { message });
+        }
+
+        [HttpPost("reset-password")]
+        [EnableRateLimiting("auth-sensitive")]
+        public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequest request)
+        {
+            if (request == null ||
+                string.IsNullOrWhiteSpace(request.Token) ||
+                string.IsNullOrWhiteSpace(request.NewPassword))
+            {
+                return BadRequest(new { message = "Token và mật khẩu mới là bắt buộc." });
+            }
+
+            if (!string.IsNullOrWhiteSpace(request.ConfirmNewPassword) &&
+                request.NewPassword != request.ConfirmNewPassword)
+            {
+                return BadRequest(new { message = "Mật khẩu xác nhận không khớp." });
+            }
+
+            var passwordValidation = ValidatePassword(request.NewPassword);
+            if (passwordValidation != null)
+            {
+                return BadRequest(new { message = passwordValidation });
+            }
+
+            var user = await ValidatePasswordResetTokenAsync(request.Token);
+            if (user == null)
+            {
+                return BadRequest(new { message = "Liên kết đặt lại mật khẩu không hợp lệ hoặc đã hết hạn." });
+            }
+
+            await _userService.Update(user, request.NewPassword);
+
+            await _refreshTokenService.RevokeAllForUserAsync(user.Id);
+
+            await RecordAuditAsync(user.Id, "Auth.ResetPassword", "User", user.Id);
+            return Ok(new { message = "Đặt lại mật khẩu thành công. Bạn có thể đăng nhập bằng mật khẩu mới." });
         }
 
         [HttpPost("logout")]
@@ -386,6 +469,108 @@ namespace BaseCore.AuthService.Controllers
                 return false;
             }
         }
+
+        private string GeneratePasswordResetToken(User user)
+        {
+            var expiresAt = DateTimeOffset.UtcNow.AddMinutes(30).ToUnixTimeSeconds();
+            var payload = $"{user.Id}:{expiresAt}:{Guid.NewGuid():N}";
+            var signature = SignPasswordResetPayload(payload, user);
+            return $"{Base64UrlEncode(payload)}.{signature}";
+        }
+
+        private string BuildPasswordResetLink(string resetToken)
+        {
+            var frontendBaseUrl = _configuration["Frontend:BaseUrl"];
+            if (string.IsNullOrWhiteSpace(frontendBaseUrl))
+            {
+                frontendBaseUrl = Request.Headers.Origin.FirstOrDefault();
+            }
+            if (string.IsNullOrWhiteSpace(frontendBaseUrl))
+            {
+                frontendBaseUrl = $"{Request.Scheme}://{Request.Host}";
+            }
+
+            return $"{frontendBaseUrl.TrimEnd('/')}/reset-password?token={Uri.EscapeDataString(resetToken)}";
+        }
+
+        private async Task<User?> ValidatePasswordResetTokenAsync(string token)
+        {
+            var parts = token.Split('.', 2);
+            if (parts.Length != 2)
+            {
+                return null;
+            }
+
+            string payload;
+            try
+            {
+                payload = Base64UrlDecode(parts[0]);
+            }
+            catch
+            {
+                return null;
+            }
+
+            var fields = payload.Split(':');
+            if (fields.Length != 3 ||
+                !int.TryParse(fields[0], out var userId) ||
+                !long.TryParse(fields[1], out var expiresAt) ||
+                DateTimeOffset.UtcNow.ToUnixTimeSeconds() > expiresAt)
+            {
+                return null;
+            }
+
+            var user = await _userService.GetById(userId);
+            if (user == null || !user.IsActive)
+            {
+                return null;
+            }
+
+            var expectedSignature = SignPasswordResetPayload(payload, user);
+            return FixedTimeEquals(parts[1], expectedSignature) ? user : null;
+        }
+
+        private string SignPasswordResetPayload(string payload, User user)
+        {
+            var secretKey = _configuration["Jwt:SecretKey"] ?? "YourSecretKeyForAuthenticationShouldBeLongEnough";
+            var material = $"{secretKey}:{user.Password}:{Convert.ToBase64String(user.Salt ?? Array.Empty<byte>())}";
+            using var hmac = new HMACSHA256(Encoding.UTF8.GetBytes(material));
+            return Base64UrlEncode(hmac.ComputeHash(Encoding.UTF8.GetBytes(payload)));
+        }
+
+        private static string Base64UrlEncode(string value)
+        {
+            return Base64UrlEncode(Encoding.UTF8.GetBytes(value));
+        }
+
+        private static string Base64UrlEncode(byte[] bytes)
+        {
+            return Convert.ToBase64String(bytes).TrimEnd('=').Replace('+', '-').Replace('/', '_');
+        }
+
+        private static string Base64UrlDecode(string value)
+        {
+            var padded = value.Replace('-', '+').Replace('_', '/');
+            padded = padded.PadRight(padded.Length + (4 - padded.Length % 4) % 4, '=');
+            return Encoding.UTF8.GetString(Convert.FromBase64String(padded));
+        }
+
+        private static bool FixedTimeEquals(string left, string right)
+        {
+            var leftBytes = Encoding.UTF8.GetBytes(left);
+            var rightBytes = Encoding.UTF8.GetBytes(right);
+            return leftBytes.Length == rightBytes.Length &&
+                CryptographicOperations.FixedTimeEquals(leftBytes, rightBytes);
+        }
+
+        private static string? ValidatePassword(string password)
+        {
+            if (password.Length < 8)
+                return "Mật khẩu phải có ít nhất 8 ký tự.";
+            if (!Regex.IsMatch(password, "[A-Za-z]") || !Regex.IsMatch(password, "[0-9]"))
+                return "Mật khẩu phải có ít nhất một chữ cái và một chữ số.";
+            return null;
+        }
     }
 
     public class LoginRequest
@@ -411,6 +596,18 @@ namespace BaseCore.AuthService.Controllers
     public class ChangePasswordRequest
     {
         public string CurrentPassword { get; set; } = "";
+        public string NewPassword { get; set; } = "";
+        public string? ConfirmNewPassword { get; set; }
+    }
+
+    public class ForgotPasswordRequest
+    {
+        public string Identifier { get; set; } = "";
+    }
+
+    public class ResetPasswordRequest
+    {
+        public string Token { get; set; } = "";
         public string NewPassword { get; set; } = "";
         public string? ConfirmNewPassword { get; set; }
     }

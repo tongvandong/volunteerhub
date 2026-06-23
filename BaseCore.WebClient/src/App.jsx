@@ -10,6 +10,8 @@ import { getDefaultRouteByRole } from './utils/navigation';
 
 const Login = lazy(() => import('./pages/auth/Login'));
 const Register = lazy(() => import('./pages/auth/Register'));
+const ForgotPassword = lazy(() => import('./pages/auth/ForgotPassword'));
+const ResetPassword = lazy(() => import('./pages/auth/ResetPassword'));
 const LandingPage = lazy(() => import('./pages/public/LandingPage'));
 const EventList = lazy(() => import('./pages/public/EventList'));
 const EventDetail = lazy(() => import('./pages/public/EventDetail'));
@@ -81,6 +83,8 @@ function AppRoutes() {
 
         <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
         <Route path="/register" element={<PublicRoute><Register /></PublicRoute>} />
+        <Route path="/forgot-password" element={<PublicRoute><ForgotPassword /></PublicRoute>} />
+        <Route path="/reset-password" element={<PublicRoute><ResetPassword /></PublicRoute>} />
 
         <Route path="/dashboard" element={<AppPage><Dashboard /></AppPage>} />
         <Route path="/notifications" element={<AppPage><Notifications /></AppPage>} />
