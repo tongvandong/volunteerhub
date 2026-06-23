@@ -217,11 +217,10 @@ namespace BaseCore.AuthService.Controllers
                 string.Equals(u.UserName, identifier, StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(u.Email, identifier, StringComparison.OrdinalIgnoreCase));
 
-            const string message = "Nếu tài khoản tồn tại, hệ thống đã tạo hướng dẫn đặt lại mật khẩu.";
             if (user == null || !user.IsActive)
             {
                 await RecordAuditAsync(null, "Auth.ForgotPassword", "User", null, $"Identifier={MaskIdentifier(identifier)};Result=NotFound");
-                return Ok(new { message });
+                return NotFound(new { message = "Email hoặc tên đăng nhập không tồn tại trong hệ thống." });
             }
 
             try
@@ -240,7 +239,8 @@ namespace BaseCore.AuthService.Controllers
                 });
             }
 
-            return Ok(new { message });
+            var destination = string.IsNullOrWhiteSpace(user.Email) ? "email của tài khoản" : MaskEmail(user.Email);
+            return Ok(new { message = $"Đã gửi liên kết đặt lại mật khẩu đến {destination}. Vui lòng kiểm tra hộp thư đến hoặc thư rác." });
         }
 
         [HttpPost("reset-password")]
@@ -318,6 +318,21 @@ namespace BaseCore.AuthService.Controllers
             }
 
             return $"{trimmed[..2]}***{trimmed[^1]}";
+        }
+
+        private static string MaskEmail(string email)
+        {
+            var trimmed = email.Trim();
+            var parts = trimmed.Split('@', 2);
+            if (parts.Length != 2 || parts[0].Length == 0)
+            {
+                return MaskIdentifier(trimmed);
+            }
+
+            var local = parts[0].Length <= 2
+                ? $"{parts[0][0]}***"
+                : $"{parts[0][0]}***{parts[0][^1]}";
+            return $"{local}@{parts[1]}";
         }
 
         private async Task<object> CreateAuthResponseAsync(User user, AuthRefreshToken? currentRefreshToken = null)

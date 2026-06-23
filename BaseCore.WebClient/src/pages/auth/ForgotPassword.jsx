@@ -16,7 +16,7 @@ export default function ForgotPassword() {
 
     try {
       const response = await authApi.forgotPassword(identifier);
-      setMessage(response.data?.message || 'Nếu tài khoản tồn tại, hệ thống đã gửi hướng dẫn đặt lại mật khẩu.');
+      setMessage(response.data?.message || 'Đã gửi liên kết đặt lại mật khẩu đến email của bạn.');
     } catch (err) {
       setError(err.response?.data?.message || 'Chưa gửi được email đặt lại mật khẩu. Vui lòng thử lại sau.');
     } finally {
@@ -37,7 +37,7 @@ export default function ForgotPassword() {
         <div className="card p-7 sm:p-8">
           <h1 className="text-[22px] font-semibold" style={{ color: 'var(--c-ink)' }}>Quên mật khẩu</h1>
           <p className="text-sm mt-1" style={{ color: 'var(--c-ink-2)' }}>
-            Nhập email hoặc tên đăng nhập. Nếu tài khoản tồn tại, chúng tôi sẽ gửi liên kết đặt lại mật khẩu.
+            Nhập email hoặc tên đăng nhập. Hệ thống sẽ kiểm tra và gửi liên kết đặt lại mật khẩu đến email của tài khoản.
           </p>
 
           {message && (
