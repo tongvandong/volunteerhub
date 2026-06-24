@@ -43,10 +43,10 @@ export default function CheckInTab({
       <div className="card p-6 space-y-4">
         <div className="text-center">
           <div className="w-16 h-16 bg-primary-100 rounded-2xl flex items-center justify-center mx-auto mb-3">
-            <i className="fa-solid fa-qrcode text-primary-600 text-2xl" />
+            <i className="fa-solid fa-location-crosshairs text-primary-600 text-2xl" />
           </div>
           <h2 className="font-semibold text-warmink">Điểm danh tình nguyện viên</h2>
-          <p className="text-sm text-warmink-2 mt-1">Chọn người đã được xác nhận, rồi nhập mã QR của sự kiện để ghi nhận tham gia</p>
+          <p className="text-sm text-warmink-2 mt-1">Chọn người đã được xác nhận, rồi dùng GPS để ghi nhận tham gia tại địa điểm sự kiện.</p>
         </div>
 
         <div className="space-y-3">

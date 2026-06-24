@@ -7,6 +7,7 @@ export default function VolunteerCheckInModal({ registration, onClose, onDone })
   const scannerId = `volunteer-checkin-reader-${registration?.id || 'x'}`;
   const scannerRef = useRef(null);
   const [code, setCode] = useState('');
+  const [method, setMethod] = useState('gps');
   const [scanning, setScanning] = useState(false);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
@@ -19,12 +20,19 @@ export default function VolunteerCheckInModal({ registration, onClose, onDone })
     setScanning(false);
   };
 
+  const switchMethod = async (nextMethod) => {
+    if (nextMethod === method) return;
+    if (method === 'qr') await stopScanner();
+    setMethod(nextMethod);
+    setMessage('');
+  };
+
   useEffect(() => () => { stopScanner(); }, []);
 
   const submit = async (nextCode = code, gps = null) => {
     const qrCode = (nextCode || '').trim();
     if (!qrCode && !gps) {
-      setMessage('Vui lòng quét QR hoặc nhập mã điểm danh.');
+      setMessage('Vui lòng chọn GPS hoặc quét mã QR điểm danh.');
       return;
     }
     setSaving(true);
@@ -83,21 +91,47 @@ export default function VolunteerCheckInModal({ registration, onClose, onDone })
       <div className="space-y-4">
         <div className="rounded-lg border border-warmborder bg-surface-2 p-3">
           <p className="text-sm font-semibold text-warmink">{registration.event?.title || `Sự kiện #${registration.eventId}`}</p>
-          <p className="text-xs text-warmink-2 mt-1">Quét QR do nhà tổ chức hiển thị tại địa điểm sự kiện.</p>
+          <p className="text-xs text-warmink-2 mt-1">Dùng GPS để xác nhận bạn đang ở trong bán kính điểm danh của sự kiện.</p>
         </div>
-
-        <div id={scannerId} className="overflow-hidden rounded-xl border border-warmborder bg-black/5" />
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-          <button type="button" onClick={scanning ? stopScanner : startScanner} disabled={saving} className="btn-secondary flex items-center justify-center gap-2">
-            <i className={`fa-solid ${scanning ? 'fa-stop' : 'fa-camera'}`} />
-            {scanning ? 'Dừng quét' : 'Quét QR'}
-          </button>
-          <button type="button" onClick={checkInWithGps} disabled={saving} className="btn-secondary flex items-center justify-center gap-2">
+          <button
+            type="button"
+            onClick={() => switchMethod('gps')}
+            disabled={saving}
+            className={`${method === 'gps' ? 'btn-primary' : 'btn-secondary'} flex items-center justify-center gap-2`}
+          >
             <i className="fa-solid fa-location-crosshairs" />
-            Dùng GPS
+            GPS
+          </button>
+          <button
+            type="button"
+            onClick={() => switchMethod('qr')}
+            disabled={saving}
+            className={`${method === 'qr' ? 'btn-primary' : 'btn-secondary'} flex items-center justify-center gap-2`}
+          >
+            <i className="fa-solid fa-qrcode" />
+            QR
           </button>
         </div>
+
+        {method === 'gps' ? (
+          <button type="button" onClick={checkInWithGps} disabled={saving} className="btn-primary w-full flex items-center justify-center gap-2">
+            {saving ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <i className="fa-solid fa-location-crosshairs" />}
+            Điểm danh bằng GPS
+          </button>
+        ) : (
+          <div className="space-y-3">
+            <div className="overflow-hidden rounded-xl border border-warmborder bg-black/5">
+              <div id={scannerId} />
+            </div>
+            <p className="text-xs text-warmink-2">Quét QR do nhà tổ chức hiển thị tại địa điểm sự kiện.</p>
+            <button type="button" onClick={scanning ? stopScanner : startScanner} disabled={saving} className="btn-secondary w-full flex items-center justify-center gap-2">
+              <i className={`fa-solid ${scanning ? 'fa-stop' : 'fa-camera'}`} />
+              {scanning ? 'Dừng quét' : 'Quét QR'}
+            </button>
+          </div>
+        )}
 
         {message && (
           <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
