@@ -263,22 +263,24 @@ export default function RegistrationsTab({
                             {hoursSaving[`checkout-${r.id}`] ? 'Đang lưu...' : 'Check-out'}
                           </button>
                         )}
-                        <input
-                          type="number"
-                          min="0"
-                          step="0.5"
-                          value={manualHours[r.id] ?? r.volunteerHours ?? 0}
-                          onChange={(e) => setManualHours((prev) => ({ ...prev, [r.id]: e.target.value }))}
-                          className="input-field w-24"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => onSaveAdjustedHours(r)}
-                          disabled={!!hoursSaving[`hours-${r.id}`]}
-                          className="btn-secondary btn-sm text-xs"
-                        >
-                          {hoursSaving[`hours-${r.id}`] ? 'Đang lưu...' : 'Lưu'}
-                        </button>
+                        <div className="inline-flex items-center gap-2 whitespace-nowrap">
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.5"
+                            value={manualHours[r.id] ?? r.volunteerHours ?? 0}
+                            onChange={(e) => setManualHours((prev) => ({ ...prev, [r.id]: e.target.value }))}
+                            className="input-field w-20 sm:w-24"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => onSaveAdjustedHours(r)}
+                            disabled={!!hoursSaving[`hours-${r.id}`]}
+                            className="btn-secondary btn-sm min-w-[56px] justify-center whitespace-nowrap text-xs"
+                          >
+                            {hoursSaving[`hours-${r.id}`] ? 'Đang lưu...' : 'Lưu'}
+                          </button>
+                        </div>
                       </div>
                     ) : (
                       <span className="text-xs text-warmink-3">Chưa có</span>
