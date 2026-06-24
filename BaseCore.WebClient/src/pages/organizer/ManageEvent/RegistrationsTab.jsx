@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { fmt, fmtDateTime, parseApiDate } from '../../../utils/format';
 import StatusBadge from '../../../components/ui/StatusBadge';
 import EmptyState from '../../../components/ui/EmptyState';
+import Modal from '../../../components/ui/Modal';
 import { SkillVerifyPill } from './helpers.jsx';
 
 const TH_STYLE = { fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'rgba(15,15,15,0.55)', background: 'rgba(15,15,15,0.03)' };
@@ -27,6 +28,15 @@ export default function RegistrationsTab({
   onEditRating,
   onCancelEditRating,
   onOpenWalkIn,
+  walkInModal,
+  setWalkInModal,
+  walkInForm,
+  setWalkInForm,
+  walkInSaving,
+  volunteerSearch,
+  setVolunteerSearch,
+  volunteerOptions,
+  onSubmitWalkIn,
   onOpenChangeShift,
   onScheduleInterview,
   onCancelInterview,
@@ -375,6 +385,72 @@ export default function RegistrationsTab({
           )}
         </div>
       )}
+
+      <Modal isOpen={walkInModal} onClose={() => setWalkInModal(false)} title="Đăng ký tại chỗ" size="md">
+        <form onSubmit={onSubmitWalkIn} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-warmink-2 mb-1">Tìm volunteer</label>
+            <input
+              value={volunteerSearch}
+              onChange={(e) => setVolunteerSearch(e.target.value)}
+              className="input-field"
+              placeholder="Nhập tên, username hoặc email"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-warmink-2 mb-1">Volunteer *</label>
+            <select
+              value={walkInForm.volunteerUserId}
+              onChange={(e) => setWalkInForm((prev) => ({ ...prev, volunteerUserId: e.target.value }))}
+              className="input-field"
+              required
+            >
+              <option value="">-- Chọn volunteer --</option>
+              {volunteerOptions.map((volunteer) => (
+                <option key={volunteer.id} value={volunteer.id}>
+                  {(volunteer.name || volunteer.userName)}{volunteer.profile?.kycStatus === 'Verified' ? ' · KYC' : ''}
+                </option>
+              ))}
+            </select>
+          </div>
+          {shifts.length > 0 && (
+            <div>
+              <label className="block text-sm font-medium text-warmink-2 mb-1">Ca làm việc *</label>
+              <select
+                value={walkInForm.shiftId}
+                onChange={(e) => setWalkInForm((prev) => ({ ...prev, shiftId: e.target.value }))}
+                className="input-field"
+                required
+              >
+                <option value="">-- Chọn ca --</option>
+                {shifts.map((shift) => (
+                  <option key={shift.id} value={shift.id}>
+                    {shift.title || shift.name || `Ca #${shift.id}`}
+                  </option>
+                ))}
+              </select>
+              <p className="mt-1 text-xs text-warmink-2">Sự kiện có ca làm việc nên walk-in phải gắn với ca cụ thể để tính giờ đúng.</p>
+            </div>
+          )}
+          <div>
+            <label className="block text-sm font-medium text-warmink-2 mb-1">Ghi chú</label>
+            <textarea
+              rows={3}
+              value={walkInForm.note}
+              onChange={(e) => setWalkInForm((prev) => ({ ...prev, note: e.target.value }))}
+              className="input-field resize-none"
+              placeholder="Ví dụ: volunteer đến trực tiếp tại điểm tập trung"
+            />
+          </div>
+          <div className="flex justify-end gap-3 pt-2">
+            <button type="button" onClick={() => setWalkInModal(false)} className="btn-secondary">Hủy</button>
+            <button type="submit" disabled={walkInSaving} className="btn-primary flex items-center gap-2">
+              {walkInSaving && <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />}
+              Xác nhận walk-in
+            </button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 }

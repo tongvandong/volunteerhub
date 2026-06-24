@@ -1116,6 +1116,11 @@ export default function ManageEvent() {
           onSaveAdjustedHours={saveAdjustedHours} onSubmitRating={submitVolunteerRating}
           onEditRating={editVolunteerRating} onCancelEditRating={cancelEditRating}
           onOpenWalkIn={openWalkInModal}
+          walkInModal={walkInModal} setWalkInModal={setWalkInModal}
+          walkInForm={walkInForm} setWalkInForm={setWalkInForm}
+          walkInSaving={walkInSaving} volunteerSearch={volunteerSearch}
+          setVolunteerSearch={setVolunteerSearch} volunteerOptions={volunteerOptions}
+          onSubmitWalkIn={submitWalkIn}
           onOpenChangeShift={handleOpenChangeShift}
           onScheduleInterview={openScheduleInterview}
           onCancelInterview={cancelInterviewReg}
