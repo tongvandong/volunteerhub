@@ -2,17 +2,14 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { adminApi } from '../../services/api';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import Pagination from '../../components/ui/Pagination';
+import { fmtDateTime } from '../../utils/format';
 
 const PAGE_SIZE = 25;
 const EMPTY_FILTERS = { action: '', entityType: '' };
 
 function formatDate(value) {
   if (!value) return '-';
-
-  return new Intl.DateTimeFormat('vi-VN', {
-    dateStyle: 'short',
-    timeStyle: 'medium',
-  }).format(new Date(value));
+  return fmtDateTime(value);
 }
 
 function statusTone(status) {

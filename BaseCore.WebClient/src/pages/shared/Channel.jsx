@@ -6,6 +6,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import ImageUploadField from '../../components/ui/ImageUploadField';
 import FileUploadField from '../../components/ui/FileUploadField';
+import { fmt as fmtDate, parseApiDate } from '../../utils/format';
 
 const typeMap = {
   announcement: { label: 'Thông báo', icon: 'fa-bullhorn', color: 'bg-orange-100 text-orange-700' },
@@ -22,8 +23,7 @@ const filterTabs = [
 
 function fmt(dt) {
   if (!dt) return '';
-  const raw = String(dt);
-  const d = new Date(raw.endsWith('Z') || raw.includes('+') ? raw : raw + 'Z');
+  const d = parseApiDate(dt);
   const now = new Date();
   const diff = (now - d) / 1000;
   if (diff < 0) return 'Vừa xong';
@@ -31,16 +31,16 @@ function fmt(dt) {
   if (diff < 3600) return `${Math.floor(diff / 60)} phút trước`;
   if (diff < 86400) return `${Math.floor(diff / 3600)} giờ trước`;
   if (diff < 604800) return `${Math.floor(diff / 86400)} ngày trước`;
-  return d.toLocaleDateString('vi-VN');
+  return fmtDate(d);
 }
 
 function sortPosts(items) {
   return [...items].sort((a, b) => {
     if (Boolean(a.isPinned) !== Boolean(b.isPinned)) return b.isPinned ? 1 : -1;
-    const pinA = a.pinnedAt ? new Date(a.pinnedAt).getTime() : 0;
-    const pinB = b.pinnedAt ? new Date(b.pinnedAt).getTime() : 0;
+    const pinA = a.pinnedAt ? parseApiDate(a.pinnedAt).getTime() : 0;
+    const pinB = b.pinnedAt ? parseApiDate(b.pinnedAt).getTime() : 0;
     if (pinA !== pinB) return pinB - pinA;
-    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    return parseApiDate(b.createdAt).getTime() - parseApiDate(a.createdAt).getTime();
   });
 }
 
@@ -211,7 +211,7 @@ function CommentSection({ channelId, postId, incomingComments = [] }) {
     setComments((prev) => {
       const map = new Map(prev.map((c) => [c.id, c]));
       items.forEach((c) => map.set(c.id, c));
-      return [...map.values()].sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+      return [...map.values()].sort((a, b) => parseApiDate(a.createdAt) - parseApiDate(b.createdAt));
     });
   };
 
@@ -345,7 +345,7 @@ function CommentSection({ channelId, postId, incomingComments = [] }) {
 function PollBox({ channelId, poll, onVote }) {
   if (!poll) return null;
   const total = (poll.options || []).reduce((sum, opt) => sum + (opt.voteCount || 0), 0);
-  const expired = poll.expiresAt && new Date(poll.expiresAt) < new Date();
+  const expired = poll.expiresAt && parseApiDate(poll.expiresAt) < new Date();
 
   return (
     <div className="mt-3 rounded-lg border border-warmborder bg-surface-2 p-3">

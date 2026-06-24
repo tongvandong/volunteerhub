@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { adminApi } from '../../services/api';
 import Modal from '../../components/ui/Modal';
 import ImageLightbox from '../../components/ui/ImageLightbox';
+import { fmtDateTime } from '../../utils/format';
 
 const STATUS = {
   PendingVerification: { label: 'Chờ duyệt', className: 'bg-amber-50 text-amber-700 border-amber-200' },
@@ -47,13 +48,7 @@ const REVIEW_COPY = {
 
 const formatDate = (value) => {
   if (!value) return '-';
-  return new Date(value).toLocaleString('vi-VN', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+  return fmtDateTime(value);
 };
 
 export default function AdminOrganizerVerifications({ embedded = false }) {

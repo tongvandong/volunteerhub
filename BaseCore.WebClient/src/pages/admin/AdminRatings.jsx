@@ -3,9 +3,10 @@ import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import Pagination from '../../components/ui/Pagination';
 import Modal from '../../components/ui/Modal';
 import { ratingApi } from '../../services/api';
+import { fmtDateTime } from '../../utils/format';
 
 function fmt(dt) {
-  return dt ? new Date(dt).toLocaleString('vi-VN') : '';
+  return dt ? fmtDateTime(dt) : '';
 }
 
 function HideRatingModal({ rating, onClose, onSubmit, saving }) {

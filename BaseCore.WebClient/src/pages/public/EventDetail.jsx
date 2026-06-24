@@ -18,7 +18,7 @@ import StatusBadge from '../../components/ui/StatusBadge';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import Modal from '../../components/ui/Modal';
 import ImageUploadField from '../../components/ui/ImageUploadField';
-import { fmtDateTime, money } from '../../utils/format';
+import { fmtDateTime, fmtTime, money, parseApiDate } from '../../utils/format';
 import VolunteerCheckInModal from '../../components/ui/VolunteerCheckInModal';
 import MobileActionBar from '../../components/ui/MobileActionBar';
 import { isWithinCheckinWindow } from '../../utils/checkin';
@@ -356,8 +356,8 @@ export default function EventDetail() {
   );
   const kycSatisfied = !event.requiresKyc || myProfile?.kycStatus === 'Verified';
   const now = new Date();
-  const eventStarted = event.startDate && new Date(event.startDate) <= now;
-  const eventEnded = event.endDate && new Date(event.endDate) <= now;
+  const eventStarted = event.startDate && parseApiDate(event.startDate) <= now;
+  const eventEnded = event.endDate && parseApiDate(event.endDate) <= now;
   const isOngoing = event.status === 'Approved' && eventStarted && !eventEnded;
   const canRegister = isAuthenticated && isVolunteer() && event.status === 'Approved' && !eventStarted && !activeRegistration && kycSatisfied;
   const canWithdraw = activeRegistration?.status === 'Pending';
@@ -907,7 +907,7 @@ export default function EventDetail() {
                   <div key={s.id} className="flex items-center justify-between p-3 bg-surface-2 rounded-lg text-sm">
                     <span className="font-medium">{s.name}</span>
                     <span className="text-warmink-2">
-                      {fmtDateTime(s.startTime)} - {new Date(s.endTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+                      {fmtDateTime(s.startTime)} - {fmtTime(s.endTime)}
                     </span>
                     <span className="text-primary-600 font-medium">Max {s.maxVolunteers}</span>
                   </div>
@@ -1116,7 +1116,7 @@ export default function EventDetail() {
                   <div className="rounded-lg border border-primary-100 bg-primary-50 px-3 py-2 text-sm text-primary-700">
                     <div className="font-medium">{activeRegistration.shift.name}</div>
                     <div className="text-xs text-primary-600 mt-1">
-                      {fmtDateTime(activeRegistration.shift.startTime)} - {new Date(activeRegistration.shift.endTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+                      {fmtDateTime(activeRegistration.shift.startTime)} - {fmtTime(activeRegistration.shift.endTime)}
                     </div>
                   </div>
                 )}
@@ -1194,9 +1194,9 @@ export default function EventDetail() {
                     </select>
                     {selectedShift && (
                       <p className="text-xs text-warmink-2 mt-1">
-                        {new Date(selectedShift.startTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+                        {fmtTime(selectedShift.startTime)}
                         {' - '}
-                        {new Date(selectedShift.endTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+                        {fmtTime(selectedShift.endTime)}
                         {selectedShift.requiredSkill?.name && (
                           <span className="ml-2 text-amber-600">Yêu cầu kỹ năng: {selectedShift.requiredSkill.name}</span>
                         )}

@@ -5,13 +5,10 @@ import StatusBadge from '../../components/ui/StatusBadge';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import Pagination from '../../components/ui/Pagination';
 import { eventApi } from '../../services/api';
-
-function fmtDate(dt) {
-  return dt ? new Date(dt).toLocaleDateString('vi-VN') : '';
-}
+import { fmt as fmtDate, fmtDateTime as formatDateTime } from '../../utils/format';
 
 function fmtDateTime(dt) {
-  return dt ? new Date(dt).toLocaleString('vi-VN') : '-';
+  return dt ? formatDateTime(dt) : '-';
 }
 
 function StatBox({ label, value }) {

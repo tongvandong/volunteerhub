@@ -2,9 +2,10 @@ import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { profileApi } from '../../services/api';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
+import { fmt } from '../../utils/format';
 
 function fmtDate(dt) {
-  return dt ? new Date(dt).toLocaleDateString('vi-VN') : '';
+  return dt ? fmt(dt) : '';
 }
 function fmtMoney(n) {
   return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 }).format(Number(n || 0));

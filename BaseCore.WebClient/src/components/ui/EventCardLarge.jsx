@@ -1,14 +1,11 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { fmt, parseApiDate } from '../../utils/format';
 
 function formatDate(d) {
   if (!d) return '';
   try {
-    return new Date(d).toLocaleDateString('vi-VN', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-    });
+    return fmt(d);
   } catch {
     return '';
   }
@@ -19,7 +16,7 @@ const MONTHS = ['TH1', 'TH2', 'TH3', 'TH4', 'TH5', 'TH6', 'TH7', 'TH8', 'TH9', '
 function dateParts(d) {
   if (!d) return null;
   try {
-    const dt = new Date(d);
+    const dt = parseApiDate(d);
     return { day: String(dt.getDate()).padStart(2, '0'), month: MONTHS[dt.getMonth()] };
   } catch {
     return null;

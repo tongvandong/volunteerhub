@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { certificateApi } from '../../services/api';
+import { fmt } from '../../utils/format';
 
 export default function VerifyCertificate() {
   const { code } = useParams();
@@ -88,7 +89,7 @@ export default function VerifyCertificate() {
               </div>
               <div>
                 <p className="text-xs text-warmink-3 uppercase tracking-wider mb-1">Ngày cấp</p>
-                <p className="font-semibold text-warmink">{new Date(cert.issuedAt).toLocaleDateString('vi-VN')}</p>
+                <p className="font-semibold text-warmink">{fmt(cert.issuedAt)}</p>
               </div>
             </div>
 

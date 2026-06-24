@@ -916,7 +916,7 @@ export default function ManageEvent() {
   ];
   const totalHours = attended.reduce((sum, r) => sum + (Number(r.volunteerHours) || 0), 0);
   const capacity = event?.maxParticipants || 0;
-  const eventHasEnded = event?.endDate ? new Date(event.endDate) <= new Date() : false;
+  const eventHasEnded = event?.endDate ? parseApiDate(event.endDate) <= new Date() : false;
   const canCompleteEvent = event?.status === 'Approved' && eventHasEnded;
   const fillRate = capacity > 0 ? Math.round((registrations.length / capacity) * 100) : 0;
   const attendanceRate = confirmed.length > 0 ? Math.round((attended.length / confirmed.length) * 100) : 0;

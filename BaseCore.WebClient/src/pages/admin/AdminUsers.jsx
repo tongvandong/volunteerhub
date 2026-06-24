@@ -5,6 +5,7 @@ import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import Pagination from '../../components/ui/Pagination';
 import Modal from '../../components/ui/Modal';
 import Tabs from '../../components/ui/Tabs';
+import { fmtDateTime } from '../../utils/format';
 
 const ROLE_TABS = [
   { key: 'all', label: 'Tất cả', role: '' },
@@ -339,7 +340,7 @@ export default function AdminUsers({
               <Info label="Email" value={detail.email} />
               <Info label="Số điện thoại" value={detail.phone || '-'} />
               <Info label="Trạng thái" value={detail.isActive ? 'Hoạt động' : 'Bị khóa'} />
-              <Info label="Ngày tạo" value={detail.created ? new Date(detail.created).toLocaleString('vi-VN') : '-'} />
+              <Info label="Ngày tạo" value={detail.created ? fmtDateTime(detail.created) : '-'} />
               <div>
                 <p className="text-xs text-warmink-2">Vai trò</p>
                 <RoleBadge userType={detail.userType} role={detail.role} />

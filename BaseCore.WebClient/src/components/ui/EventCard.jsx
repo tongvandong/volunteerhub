@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { fmt, parseApiDate } from '../../utils/format';
 
 const STATUS_LABEL = {
   Approved:  { label: 'Đang mở',    bg: 'rgba(22,163,74,0.12)',  color: '#15803d', border: 'rgba(22,163,74,0.25)' },
@@ -8,11 +9,6 @@ const STATUS_LABEL = {
   Cancelled: { label: 'Đã hủy',     bg: 'rgba(220,38,38,0.09)',  color: '#991b1b', border: 'rgba(220,38,38,0.20)' },
 };
 
-function fmt(dt) {
-  if (!dt) return '';
-  return new Date(dt).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
-}
-
 export default function EventCard({ event, distance }) {
   const [hovered, setHovered] = useState(false);
   const pct = event.maxParticipants > 0
@@ -20,7 +16,7 @@ export default function EventCard({ event, distance }) {
   const full = pct >= 100;
 
   const now = new Date();
-  const startDate = event.startDate ? new Date(event.startDate) : null;
+  const startDate = event.startDate ? parseApiDate(event.startDate) : null;
   const isOngoing = event.status === 'Approved' && startDate && startDate <= now;
   const st = isOngoing
     ? { label: 'Đang diễn ra', bg: 'rgba(245,158,11,0.12)', color: '#92400e', border: 'rgba(245,158,11,0.28)' }

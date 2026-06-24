@@ -3,9 +3,10 @@ import { Link } from 'react-router-dom';
 import { adminApi } from '../../services/api';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import StatusBadge from '../../components/ui/StatusBadge';
+import { fmt } from '../../utils/format';
 
 const money = (value) => `${Number(value || 0).toLocaleString('vi-VN')}đ`;
-const fmtDate = (value) => (value ? new Date(value).toLocaleDateString('vi-VN') : '-');
+const fmtDate = (value) => (value ? fmt(value) : '-');
 
 function Stat({ label, value, icon, tone = 'blue' }) {
   const colors = {

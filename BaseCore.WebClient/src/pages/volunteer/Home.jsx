@@ -7,6 +7,7 @@ import SectionLabel from '../../components/ui/SectionLabel';
 import ActionRow from '../../components/ui/ActionRow';
 import EventCardCompact from '../../components/ui/EventCardCompact';
 import { isWithinCheckinWindow } from '../../utils/checkin';
+import { fmtTime, parseApiDate } from '../../utils/format';
 
 const TINT = {
   primary: { background: 'var(--c-primary-50)', color: 'var(--c-primary-700)' },
@@ -37,7 +38,7 @@ function getGreeting() {
 function formatTime(d) {
   if (!d) return '';
   try {
-    return new Date(d).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+    return fmtTime(d);
   } catch {
     return '';
   }
@@ -90,7 +91,7 @@ export default function VolunteerHome() {
         const upcomingList = Array.isArray(evRes?.data?.items) ? evRes.data.items : [];
 
         const scored = (recList.length > 0 ? recList : upcomingList)
-          .filter((e) => e.status === 'Approved' && (!e.startDate || new Date(e.startDate) > now))
+          .filter((e) => e.status === 'Approved' && (!e.startDate || parseApiDate(e.startDate) > now))
           .map((e) => {
             let reqIds = [];
             try { reqIds = JSON.parse(e.requiredSkillIds || '[]'); } catch {}
@@ -99,7 +100,7 @@ export default function VolunteerHome() {
               : Math.round((reqIds.filter((id) => skillSet.has(id)).length / reqIds.length) * 100);
             return { ...e, _matchPct: match };
           })
-          .sort((a, b) => (b._matchPct ?? 0) - (a._matchPct ?? 0) || new Date(a.startDate) - new Date(b.startDate))
+          .sort((a, b) => (b._matchPct ?? 0) - (a._matchPct ?? 0) || parseApiDate(a.startDate) - parseApiDate(b.startDate))
           .slice(0, 8);
         setRecommended(scored);
 

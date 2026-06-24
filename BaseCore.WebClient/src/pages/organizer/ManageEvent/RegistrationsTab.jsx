@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { fmt, fmtDateTime } from '../../../utils/format';
+import { fmt, fmtDateTime, parseApiDate } from '../../../utils/format';
 import StatusBadge from '../../../components/ui/StatusBadge';
 import EmptyState from '../../../components/ui/EmptyState';
 import { SkillVerifyPill } from './helpers.jsx';
@@ -44,7 +44,7 @@ export default function RegistrationsTab({
   const confirmedNotAttended = registrations.filter((r) => r.status === 'Confirmed' && !r.isAttended);
   const pendingCount = registrations.filter((r) => r.status === 'Pending').length;
   const attendedCount = registrations.filter((r) => r.isAttended).length;
-  const eventEnded = event?.endDate && new Date(event.endDate) <= new Date();
+  const eventEnded = event?.endDate && parseApiDate(event.endDate) <= new Date();
   const isClosed = event?.status === 'Completed' || event?.status === 'Cancelled';
 
   return (

@@ -2,9 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { certificateApi } from '../../services/api';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import EmptyState from '../../components/ui/EmptyState';
+import { fmt as formatDate } from '../../utils/format';
 
 function fmt(dt) {
-  return dt ? new Date(dt).toLocaleDateString('vi-VN') : '';
+  return dt ? formatDate(dt) : '';
 }
 
 export default function MyCertificates({ embedded = false }) {

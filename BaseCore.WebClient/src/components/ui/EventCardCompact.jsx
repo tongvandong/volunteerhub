@@ -1,10 +1,11 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { parseApiDate } from '../../utils/format';
 
 function formatShortDate(d) {
   if (!d) return '';
   try {
-    return new Date(d).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' });
+    return parseApiDate(d).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' });
   } catch {
     return '';
   }

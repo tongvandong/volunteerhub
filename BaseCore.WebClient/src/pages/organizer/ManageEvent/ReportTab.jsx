@@ -1,5 +1,5 @@
 import React from 'react';
-import { fmtTime, money } from '../../../utils/format';
+import { fmtDateTime, fmtTime, money } from '../../../utils/format';
 import { translateAction } from './helpers.jsx';
 
 export default function ReportTab({
@@ -124,7 +124,7 @@ export default function ReportTab({
           <div className="space-y-2 max-h-64 overflow-y-auto">
             {history.map((h) => (
               <div key={h.id} className="flex items-start gap-3 text-sm border-l-2 border-warmborder pl-3 py-1">
-                <span className="text-xs text-warmink-3 w-28 flex-shrink-0">{new Date(h.createdAtUtc).toLocaleString('vi-VN')}</span>
+                <span className="text-xs text-warmink-3 w-28 flex-shrink-0">{fmtDateTime(h.createdAtUtc)}</span>
                 <span className="font-medium text-warmink-2">{h.actorName || 'Hệ thống'}</span>
                 <span className="text-warmink-2">{translateAction(h.action)}</span>
                 {h.metadata && h.metadata.includes('Reason=') && (

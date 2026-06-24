@@ -2,6 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import 'leaflet/dist/leaflet.css';
 import 'leaflet.markercluster/dist/MarkerCluster.css';
 import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
+import { fmt, parseApiDate } from '../../utils/format';
 
 const MONTH_COLORS = [
   '#0891b2', '#7c3aed', '#059669', '#0ea5e9', '#e11d48', '#d97706',
@@ -108,7 +109,7 @@ export default function MapView({ events, height = 480, userCoords = null }) {
 
       if (Number.isNaN(lat) || Number.isNaN(lng)) return;
 
-      const month = ev.startDate ? new Date(ev.startDate).getMonth() : 0;
+      const month = ev.startDate ? parseApiDate(ev.startDate).getMonth() : 0;
       const color = MONTH_COLORS[month];
 
       const icon = L.divIcon({
@@ -127,7 +128,7 @@ export default function MapView({ events, height = 480, userCoords = null }) {
         popupAnchor: [0, -38],
       });
 
-      const startFmt = ev.startDate ? new Date(ev.startDate).toLocaleDateString('vi-VN') : '';
+      const startFmt = ev.startDate ? fmt(ev.startDate) : '';
       const distanceBadge = ev._distance != null
         ? `<div style="font-size:11px;color:#059669;font-weight:700;margin-bottom:4px;">
              ${ev._distance < 1 ? Math.round(ev._distance * 1000) + ' m' : ev._distance.toFixed(1) + ' km'} từ bạn

@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { dashboardApi } from '../../services/api';
 import EmptyState from '../../components/ui/EmptyState';
+import { fmt } from '../../utils/format';
 
 const initialFilters = {
   from: '',
@@ -13,7 +14,7 @@ const initialFilters = {
 const formatNumber = (value) => new Intl.NumberFormat('vi-VN').format(Number(value || 0));
 const formatMoney = (value) =>
   new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 }).format(Number(value || 0));
-const formatDate = (value) => (value ? new Date(value).toLocaleDateString('vi-VN') : '-');
+const formatDate = (value) => (value ? fmt(value) : '-');
 
 const statusLabel = {
   Pending: 'Chờ duyệt',

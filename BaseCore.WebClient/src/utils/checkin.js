@@ -1,10 +1,12 @@
+import { parseApiDate } from './format';
+
 export function isWithinCheckinWindow(event, shift = null) {
   const startValue = shift?.startTime || event?.startDate;
   const endValue = shift?.endTime || event?.endDate;
   if (!startValue || !endValue) return false;
 
-  const start = new Date(startValue).getTime();
-  const end = new Date(endValue).getTime();
+  const start = parseApiDate(startValue).getTime();
+  const end = parseApiDate(endValue).getTime();
   if (!Number.isFinite(start) || !Number.isFinite(end)) return false;
 
   const leadTime = shift ? 15 * 60 * 1000 : 30 * 60 * 1000;

@@ -8,7 +8,7 @@ import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import EmptyState from '../../components/ui/EmptyState';
 import SectionLabel from '../../components/ui/SectionLabel';
 import Tabs from '../../components/ui/Tabs';
-import { fmt, fmtDateTime, money } from '../../utils/format';
+import { fmt, fmtDateTime, money, parseApiDate } from '../../utils/format';
 import { isWithinCheckinWindow } from '../../utils/checkin';
 
 /* ─── Status pill maps (ink color system) ─────────────────────────── */
@@ -34,7 +34,7 @@ const DON_PILL = {
 function buildGoogleCalendarUrl(r) {
   const slot = r.interviewSlot;
   if (!slot?.scheduledAt) return '#';
-  const start = new Date(slot.scheduledAt);
+  const start = parseApiDate(slot.scheduledAt);
   const end = new Date(start.getTime() + (slot.durationMinutes || 30) * 60000);
   const z = (d) => d.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
   const text = encodeURIComponent(`Phỏng vấn: ${r.event?.title || 'Sự kiện tình nguyện'}`);
@@ -45,13 +45,13 @@ function buildGoogleCalendarUrl(r) {
 /** Group registrations by event month (desc by startDate) */
 function groupByMonth(items) {
   const sorted = [...items].sort((a, b) => {
-    const da = a.event?.startDate ? new Date(a.event.startDate) : new Date(0);
-    const db = b.event?.startDate ? new Date(b.event.startDate) : new Date(0);
+    const da = a.event?.startDate ? parseApiDate(a.event.startDate) : new Date(0);
+    const db = b.event?.startDate ? parseApiDate(b.event.startDate) : new Date(0);
     return db - da;
   });
   const map = new Map();
   sorted.forEach((item) => {
-    const d = item.event?.startDate ? new Date(item.event.startDate) : null;
+    const d = item.event?.startDate ? parseApiDate(item.event.startDate) : null;
     const key = d
       ? d.toLocaleDateString('vi-VN', { month: 'long', year: 'numeric' })
       : 'Không có ngày';
@@ -665,7 +665,7 @@ function DonationsView({ donations, onReload }) {
 
   const filtered = useMemo(
     () => [...donations]
-      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+      .sort((a, b) => parseApiDate(b.createdAt) - parseApiDate(a.createdAt))
       .filter((d) => filter === 'all' || d.status === filter),
     [donations, filter],
   );

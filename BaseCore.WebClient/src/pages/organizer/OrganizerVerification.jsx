@@ -2,8 +2,9 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { organizerVerificationApi, eventApi } from '../../services/api';
 import ImageUploadField from '../../components/ui/ImageUploadField';
+import { fmtDateTime as formatApiDateTime } from '../../utils/format';
 
-const fmtDateTime = (dt) => (dt ? new Date(dt).toLocaleString('vi-VN') : '');
+const fmtDateTime = (dt) => (dt ? formatApiDateTime(dt) : '');
 
 const EMPTY_FORM = {
   organizationName: '',

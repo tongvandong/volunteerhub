@@ -5,6 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
 import Pagination from '../components/ui/Pagination';
 import Modal from '../components/ui/Modal';
+import { fmt, parseApiDate } from '../utils/format';
 
 const TYPE_ICON = {
   EventApproved:          { icon: 'fa-calendar-check', color: 'bg-green-100 text-green-600' },
@@ -145,15 +146,14 @@ function getNotificationLink(n, role) {
 }
 
 function timeAgo(dt) {
-  const raw = String(dt);
-  const d = new Date(raw.endsWith('Z') || raw.includes('+') ? raw : raw + 'Z');
+  const d = parseApiDate(dt);
   const diff = (Date.now() - d.getTime()) / 1000;
   if (diff < 0) return 'Vừa xong';
   if (diff < 60) return 'Vừa xong';
   if (diff < 3600) return `${Math.floor(diff / 60)} phút trước`;
   if (diff < 86400) return `${Math.floor(diff / 3600)} giờ trước`;
   if (diff < 604800) return `${Math.floor(diff / 86400)} ngày trước`;
-  return d.toLocaleDateString('vi-VN');
+  return fmt(d);
 }
 
 export default function Notifications() {

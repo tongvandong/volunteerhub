@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import StatusBadge from '../../components/ui/StatusBadge';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import EmptyState from '../../components/ui/EmptyState';
-import { fmt } from '../../utils/format';
+import { fmt, parseApiDate } from '../../utils/format';
 import { eventApi } from '../../services/api';
 
 export default function MyEvents() {
@@ -149,7 +149,7 @@ export default function MyEvents() {
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
                   <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--c-ink)' }}>{event.title}</span>
                   <StatusBadge status={event.status} />
-                  {event.status === 'Approved' && new Date(event.startDate) <= new Date() && new Date(event.endDate) > new Date() && (
+                  {event.status === 'Approved' && parseApiDate(event.startDate) <= new Date() && parseApiDate(event.endDate) > new Date() && (
                     <span style={{
                       fontSize: 11, fontWeight: 600, padding: '1px 8px', borderRadius: 999,
                       background: 'rgba(180,83,9,0.10)', color: '#b45309',
@@ -161,7 +161,7 @@ export default function MyEvents() {
                   {event.location && <span><i className="fa-solid fa-location-dot mr-1" />{event.location}</span>}
                   <span><i className="fa-solid fa-users mr-1" />{event.currentParticipants}/{event.maxParticipants}</span>
                 </div>
-                {event.status === 'Approved' && new Date(event.endDate) <= new Date() && (
+                {event.status === 'Approved' && parseApiDate(event.endDate) <= new Date() && (
                   <p style={{ fontSize: 12, color: '#b45309', marginTop: 4, fontWeight: 500 }}>
                     <i className="fa-solid fa-triangle-exclamation mr-1" />Sự kiện đã kết thúc — hãy hoàn thành hoặc hủy.
                   </p>

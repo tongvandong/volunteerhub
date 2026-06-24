@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { profileApi, certificateApi } from '../../services/api';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
+import { fmt as formatDate } from '../../utils/format';
 
 function fmt(dt) {
-  return dt ? new Date(dt).toLocaleDateString('vi-VN') : '';
+  return dt ? formatDate(dt) : '';
 }
 
 const LEVEL_PILL = {
