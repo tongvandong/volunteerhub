@@ -317,7 +317,7 @@ export default function RegistrationsTab({
                       )}
                       {r.status === 'Confirmed' && !r.isAttended && (
                         <>
-                          {eventEnded && (
+                          {!isClosed && (
                             <button
                               type="button"
                               onClick={() => onManualAttend(r)}
@@ -325,7 +325,7 @@ export default function RegistrationsTab({
                               className="btn-primary btn-sm text-xs"
                             >
                               <i className="fa-solid fa-user-check mr-1" />
-                              {hoursSaving[`attend-${r.id}`] ? 'Đang lưu...' : 'Ghi nhận tham gia'}
+                              {hoursSaving[`attend-${r.id}`] ? 'Đang lưu...' : 'Ghi nhận thủ công'}
                             </button>
                           )}
                           {shifts.length > 0 && onOpenChangeShift && (
