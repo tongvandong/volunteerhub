@@ -7,6 +7,8 @@ import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import { fmt } from '../../utils/format';
 import { registrationApi, ratingApi } from '../../services/api';
 import { isWithinCheckinWindow } from '../../utils/checkin';
+import RegistrationFilters from './components/RegistrationFilters';
+import { getRegistrationFilters, getVisibleRegistrations } from './helpers/registrations';
 
 function CancelRequestModal({ registration, onClose, onSubmit, saving }) {
   const [reason, setReason] = useState('');
@@ -20,7 +22,10 @@ function CancelRequestModal({ registration, onClose, onSubmit, saving }) {
   if (!registration) return null;
 
   return (
-    <Modal isOpen={!!registration} onClose={onClose} title="Xin hủy đăng ký" size="md">
+    <Modal isOpen={!!registration} 
+    onClose={onClose} 
+    title="Xin hủy đăng ký" 
+    size="md">
       <form
         className="space-y-4"
         onSubmit={(e) => {
@@ -95,7 +100,12 @@ export default function MyRegistrations() {
       const response = await registrationApi.requestCancelRegistration(cancelTarget.eventId, reason);
       setRegs((prev) => prev.map((registration) => (
         registration.id === cancelTarget.id
-          ? { ...registration, ...response.data, event: registration.event, shift: registration.shift }
+          ? { 
+            ...registration, 
+            ...response.data, 
+            event: registration.event, 
+            shift: registration.shift 
+          }
           : registration
       )));
       setCancelTarget(null);
@@ -114,7 +124,10 @@ export default function MyRegistrations() {
       return;
     }
 
-    setRatingForms((prev) => ({ ...prev, [registration.id]: { ...form, saving: true } }));
+    setRatingForms((prev) => ({ 
+      ...prev, 
+      [registration.id]: { ...form, saving: true } 
+    }));
     try {
       const payload = {
         rateeId,
@@ -153,41 +166,14 @@ export default function MyRegistrations() {
     alert(`Đã ghi nhận check-in. Giờ tình nguyện hiện tại: ${updated.volunteerHours || 0}h. Giờ thực tế sẽ cập nhật khi ban tổ chức check-out.`);
   };
 
-  const filtered = filter === 'all'
-    ? regs
-    : regs.filter((r) => {
-        if (filter === 'attended') return r.isAttended;
-        if (filter === 'Confirmed') return r.status === 'Confirmed' && !r.isAttended;
-        return r.status === filter;
-      });
-
-  const filters = [
-    { key: 'all', label: 'Tất cả', count: regs.length },
-    { key: 'Pending', label: 'Chờ xác nhận', count: regs.filter((registration) => registration.status === 'Pending').length },
-    { key: 'Confirmed', label: 'Đã xác nhận', count: regs.filter((r) => r.status === 'Confirmed' && !r.isAttended).length },
-    { key: 'attended', label: 'Đã tham gia', count: regs.filter((registration) => registration.isAttended).length },
-    { key: 'Cancelled', label: 'Đã hủy', count: regs.filter((registration) => registration.status === 'Cancelled').length },
-  ];
+  const filtered = getVisibleRegistrations(regs, filter);
+  const filters = getRegistrationFilters(regs);
 
   return (
     <div className="space-y-5">
       <h1 className="text-xl font-bold text-warmink">Đăng ký của tôi</h1>
 
-      <div className="flex gap-2 flex-wrap">
-        {filters.map((item) => (
-          <button
-            key={item.key}
-            type="button"
-            onClick={() => setFilter(item.key)}
-            className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
-              filter === item.key ? 'bg-primary-600 text-white' : 'bg-white border border-warmborder text-warmink-2 hover:border-primary-300'
-            }`}
-          >
-            {item.label}
-            <span className="ml-1.5 text-xs opacity-70">{item.count}</span>
-          </button>
-        ))}
-      </div>
+      <RegistrationFilters filters={filters} selectedFilter={filter} onSelect={setFilter} />
 
       {loading ? <LoadingSpinner /> : filtered.length === 0 ? (
         <div className="card p-12 text-center">

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { registrationApi, ratingApi, supportCampaignApi } from '../../services/api';
 import VolunteerCheckInModal from '../../components/ui/VolunteerCheckInModal';
@@ -10,6 +10,7 @@ import SectionLabel from '../../components/ui/SectionLabel';
 import Tabs from '../../components/ui/Tabs';
 import { fmt, fmtDateTime, money, parseApiDate } from '../../utils/format';
 import { isWithinCheckinWindow } from '../../utils/checkin';
+import { getRegistrationFilters, getVisibleRegistrations } from './helpers/registrations';
 
 /* ─── Status pill maps (ink color system) ─────────────────────────── */
 
@@ -59,6 +60,24 @@ function groupByMonth(items) {
     map.get(key).push(item);
   });
   return Array.from(map.entries()).map(([label, list]) => ({ label, list }));
+}
+
+function getVisibleDonations(donations, filter) {
+  const sortedDonations = [...donations].sort((firstDonation, secondDonation) => (
+    parseApiDate(secondDonation.createdAt) - parseApiDate(firstDonation.createdAt)
+  ));
+
+  if (filter === 'all') {
+    return sortedDonations;
+  }
+
+  return sortedDonations.filter((donation) => donation.status === filter);
+}
+
+function getDonationTotal(donations, status) {
+  return donations
+    .filter((donation) => donation.status === status)
+    .reduce((total, donation) => total + (Number(donation.amount) || 0), 0);
 }
 
 function RegStatusPill({ registration }) {
@@ -269,20 +288,8 @@ export default function Activity() {
 function RegistrationsView({ regs, ratingForms, setRatingForms, onCheckin, onOpenInterviewCall, onCancel, onReload }) {
   const [filter, setFilter] = useState('all');
 
-  const filtered = useMemo(() => {
-    if (filter === 'all')       return regs;
-    if (filter === 'attended')  return regs.filter((r) => r.isAttended);
-    if (filter === 'Confirmed') return regs.filter((r) => r.status === 'Confirmed' && !r.isAttended);
-    return regs.filter((r) => r.status === filter);
-  }, [regs, filter]);
-
-  const filterOptions = [
-    { key: 'all',       label: 'Tất cả',       count: regs.length },
-    { key: 'Pending',   label: 'Chờ xác nhận', count: regs.filter((r) => r.status === 'Pending').length },
-    { key: 'Confirmed', label: 'Đã xác nhận',  count: regs.filter((r) => r.status === 'Confirmed' && !r.isAttended).length },
-    { key: 'attended',  label: 'Đã tham gia',  count: regs.filter((r) => r.isAttended).length },
-    { key: 'Cancelled', label: 'Đã hủy',       count: regs.filter((r) => r.status === 'Cancelled').length },
-  ];
+  const filtered = getVisibleRegistrations(regs, filter);
+  const filterOptions = getRegistrationFilters(regs);
 
   const withdraw = async (eventId) => {
     if (!confirm('Bạn có chắc muốn rút đăng ký?')) return;
@@ -663,25 +670,9 @@ function RegistrationCard({
 function DonationsView({ donations, onReload }) {
   const [filter, setFilter] = useState('all');
 
-  const filtered = useMemo(
-    () => [...donations]
-      .sort((a, b) => parseApiDate(b.createdAt) - parseApiDate(a.createdAt))
-      .filter((d) => filter === 'all' || d.status === filter),
-    [donations, filter],
-  );
-
-  const totalConfirmed = useMemo(
-    () => donations
-      .filter((d) => d.status === 'Confirmed')
-      .reduce((s, d) => s + (Number(d.amount) || 0), 0),
-    [donations],
-  );
-  const totalPending = useMemo(
-    () => donations
-      .filter((d) => d.status === 'PendingConfirmation')
-      .reduce((s, d) => s + (Number(d.amount) || 0), 0),
-    [donations],
-  );
+  const filtered = getVisibleDonations(donations, filter);
+  const totalConfirmed = getDonationTotal(donations, 'Confirmed');
+  const totalPending = getDonationTotal(donations, 'PendingConfirmation');
 
   const cancel = async (donation) => {
     if (!confirm('Hủy khoản ủng hộ đang chờ xác nhận này?')) return;

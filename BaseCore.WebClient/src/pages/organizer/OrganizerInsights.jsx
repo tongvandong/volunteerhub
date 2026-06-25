@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { dashboardApi } from '../../services/api';
 import EmptyState from '../../components/ui/EmptyState';
 import { fmt } from '../../utils/format';
@@ -124,10 +124,7 @@ export default function OrganizerInsights() {
   const funnel = data?.funnel || {};
   const maxFunnel = Math.max(funnel.registrations || 0, 1);
 
-  const activeFilterCount = useMemo(
-    () => Object.values(appliedFilters).filter((value) => value !== '').length,
-    [appliedFilters]
-  );
+  const activeFilterCount = Object.values(appliedFilters).filter((value) => value !== '').length;
 
   const handleChange = (field, value) => {
     setFilters((prev) => ({ ...prev, [field]: value }));

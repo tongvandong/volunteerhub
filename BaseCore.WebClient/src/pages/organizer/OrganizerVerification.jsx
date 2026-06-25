@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { organizerVerificationApi, eventApi } from '../../services/api';
 import ImageUploadField from '../../components/ui/ImageUploadField';
@@ -44,6 +44,27 @@ const asForm = (data = {}) => ({
   commitmentAccepted: Boolean(data.commitmentAccepted),
 });
 
+function hasIdentityChanged(form, originalIdentity) {
+  return (form.organizationName || '').trim() !== (originalIdentity.organizationName || '').trim()
+    || (form.representativeName || '').trim() !== (originalIdentity.representativeName || '').trim()
+    || (form.documentUrl || '') !== (originalIdentity.documentUrl || '');
+}
+
+function getOrganizerStats(events) {
+  const organizedEvents = events.filter((event) => {
+    const status = (event.status || '').toLowerCase();
+    return status === 'approved' || status === 'completed';
+  });
+  const completedEvents = events.filter((event) => (event.status || '').toLowerCase() === 'completed');
+  const totalConfirmed = organizedEvents.reduce((total, event) => total + Number(event.currentParticipants || 0), 0);
+
+  return {
+    eventsCount: organizedEvents.length,
+    finishedCount: completedEvents.length,
+    totalConfirmed,
+  };
+}
+
 export default function OrganizerVerification() {
   const [verification, setVerification] = useState(null);
   const [form, setForm] = useState(EMPTY_FORM);
@@ -54,15 +75,11 @@ export default function OrganizerVerification() {
   const [myEvents, setMyEvents] = useState([]);
   const [originalIdentity, setOriginalIdentity] = useState({ organizationName: '', representativeName: '', documentUrl: '' });
 
-  const statusInfo = useMemo(() => STATUS[verification?.status] || STATUS.Unverified, [verification?.status]);
+  const statusInfo = STATUS[verification?.status] || STATUS.Unverified;
   const isVerified = verification?.status === 'Verified';
 
   // Chỉ đổi tên tổ chức / người đại diện / tài liệu minh chứng mới phải xác minh lại.
-  const identityChanged = useMemo(() => (
-    (form.organizationName || '').trim() !== (originalIdentity.organizationName || '').trim() ||
-    (form.representativeName || '').trim() !== (originalIdentity.representativeName || '').trim() ||
-    (form.documentUrl || '') !== (originalIdentity.documentUrl || '')
-  ), [form.organizationName, form.representativeName, form.documentUrl, originalIdentity]);
+  const identityChanged = hasIdentityChanged(form, originalIdentity);
   const willRequireReverify = isVerified && identityChanged;
 
   useEffect(() => {
@@ -84,19 +101,7 @@ export default function OrganizerVerification() {
       .catch(() => { /* silent — stats just won't show */ });
   }, []);
 
-  const stats = useMemo(() => {
-    const list = myEvents || [];
-    // Chỉ tính sự kiện đã thực sự tổ chức (đã duyệt/đã hoàn thành), bỏ Pending/Rejected/Cancelled.
-    const organized = list.filter((e) => ['approved', 'completed'].includes((e.status || '').toLowerCase()));
-    const finished = list.filter((e) => (e.status || '').toLowerCase() === 'completed');
-    // currentParticipants = số TNV đã xác nhận của mỗi sự kiện.
-    const totalConfirmed = organized.reduce((sum, e) => sum + Number(e.currentParticipants || 0), 0);
-    return {
-      eventsCount: organized.length,
-      finishedCount: finished.length,
-      totalConfirmed,
-    };
-  }, [myEvents]);
+  const stats = getOrganizerStats(myEvents);
 
   const set = (key, value) => setForm((current) => ({ ...current, [key]: value }));
 

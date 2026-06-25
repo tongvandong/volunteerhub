@@ -13,6 +13,18 @@ import ShiftsTab from './ShiftsTab';
 import CampaignsTab from './CampaignsTab';
 import CorporateTab from './CorporateTab';
 import ReportTab from './ReportTab';
+import CancelEventModal from './modals/CancelEventModal';
+import {
+  EMPTY_CAMPAIGN_FORM,
+  EMPTY_EDIT_SHIFT_FORM,
+  EMPTY_FINANCIAL_REPORT_FORM,
+  EMPTY_INTERVIEW_FORM,
+  EMPTY_PROPOSAL_FORM,
+  EMPTY_SHIFT_FORM,
+  EMPTY_WALK_IN_FORM,
+  MANAGE_EVENT_TABS,
+} from './constants';
+import { loadManageEventData } from './data';
 
 export default function ManageEvent() {
   const { id } = useParams();
@@ -24,9 +36,8 @@ export default function ManageEvent() {
   const [registrations, setRegistrations] = useState([]);
   const [shifts, setShifts] = useState([]);
   const [loading, setLoading] = useState(true);
-  const VALID_TABS = ['registrations', 'shifts', 'checkin', 'campaigns', 'corporate', 'report'];
   const [tab, setTab] = useState(
-    VALID_TABS.includes(searchParams.get('tab')) ? searchParams.get('tab') : 'registrations'
+    MANAGE_EVENT_TABS.includes(searchParams.get('tab')) ? searchParams.get('tab') : 'registrations'
   );
 
   // ─── Check-in state ───────────────────────────────────────
@@ -49,7 +60,7 @@ export default function ManageEvent() {
 
   // ─── Shift state ──────────────────────────────────────────
   const [shiftModal, setShiftModal] = useState(false);
-  const [shiftForm, setShiftForm] = useState({ name: '', startTime: '', endTime: '', maxVolunteers: 10, createChannel: true });
+  const [shiftForm, setShiftForm] = useState(EMPTY_SHIFT_FORM);
   const [shiftSaving, setShiftSaving] = useState(false);
   const [shiftError, setShiftError] = useState('');
 
@@ -60,11 +71,7 @@ export default function ManageEvent() {
   const [campaigns, setCampaigns] = useState([]);
   const [campaignModal, setCampaignModal] = useState(false);
   const [campaignSaving, setCampaignSaving] = useState(false);
-  const [campaignForm, setCampaignForm] = useState({
-    title: '', description: '', targetAmount: '', minimumAmount: '',
-    startDate: '', endDate: '', receiveInfo: '', transparencyNote: '', status: 'Draft',
-    bankBin: '', bankAccountNo: '', bankAccountName: '',
-  });
+  const [campaignForm, setCampaignForm] = useState(EMPTY_CAMPAIGN_FORM);
   const [donationModal, setDonationModal] = useState(false);
   const [selectedCampaign, setSelectedCampaign] = useState(null);
   const [donations, setDonations] = useState([]);
@@ -75,9 +82,7 @@ export default function ManageEvent() {
   const [sponsorUsers, setSponsorUsers] = useState([]);
   const [proposalModal, setProposalModal] = useState(false);
   const [proposalSaving, setProposalSaving] = useState(false);
-  const [proposalForm, setProposalForm] = useState({
-    sponsorId: '', title: '', message: '', requestedAmount: '', purpose: '', sponsorBenefits: '', attachmentUrl: '',
-  });
+  const [proposalForm, setProposalForm] = useState(EMPTY_PROPOSAL_FORM);
   const [receivedProposal, setReceivedProposal] = useState(null);
   const [receivedAmount, setReceivedAmount] = useState('');
   const [receivedSaving, setReceivedSaving] = useState(false);
@@ -88,16 +93,14 @@ export default function ManageEvent() {
   const [financialReportTarget, setFinancialReportTarget] = useState(null);
   const [financialReportType, setFinancialReportType] = useState('');
   const [financialReportSaving, setFinancialReportSaving] = useState(false);
-  const [financialReportForm, setFinancialReportForm] = useState({
-    usedAmount: '', summary: '', expenseDetails: '', attachmentUrl: '',
-  });
+  const [financialReportForm, setFinancialReportForm] = useState(EMPTY_FINANCIAL_REPORT_FORM);
 
   // ─── Walk-in state ────────────────────────────────────────
   const [walkInModal, setWalkInModal] = useState(false);
   const [walkInSaving, setWalkInSaving] = useState(false);
   const [volunteerOptions, setVolunteerOptions] = useState([]);
   const [volunteerSearch, setVolunteerSearch] = useState('');
-  const [walkInForm, setWalkInForm] = useState({ volunteerUserId: '', shiftId: '', note: '' });
+  const [walkInForm, setWalkInForm] = useState(EMPTY_WALK_IN_FORM);
 
   // ─── Manual hours state ───────────────────────────────────
   const [manualHours, setManualHours] = useState({});
@@ -113,7 +116,7 @@ export default function ManageEvent() {
   // ─── Shift edit/delete state ──────────────────────────────
   const [editShiftModal, setEditShiftModal] = useState(false);
   const [editShiftTarget, setEditShiftTarget] = useState(null);
-  const [editShiftForm, setEditShiftForm] = useState({ name: '', startTime: '', endTime: '', maxVolunteers: 10 });
+  const [editShiftForm, setEditShiftForm] = useState(EMPTY_EDIT_SHIFT_FORM);
   const [editShiftSaving, setEditShiftSaving] = useState(false);
   const [editShiftError, setEditShiftError] = useState('');
   const [deletingShiftId, setDeletingShiftId] = useState(null);
@@ -123,7 +126,7 @@ export default function ManageEvent() {
 
   // ─── Interview state ──────────────────────────────────────
   const [interviewModal, setInterviewModal] = useState(null); // { regId, mode: 'create' | 'edit' }
-  const [interviewForm, setInterviewForm] = useState({ scheduledAt: '', meetingUrl: '', durationMinutes: 30, note: '' });
+  const [interviewForm, setInterviewForm] = useState(EMPTY_INTERVIEW_FORM);
   const [interviewSaving, setInterviewSaving] = useState(false);
   const [interviewError, setInterviewError] = useState('');
   const [interviewCallSlot, setInterviewCallSlot] = useState(null);
@@ -133,23 +136,15 @@ export default function ManageEvent() {
   // ═══════════════════════════════════════════════════════════
 
   useEffect(() => {
-    Promise.all([
-      eventApi.getById(id),
-      eventApi.getRegistrations(id),
-      eventApi.getShifts(id),
-      supportCampaignApi.getByEvent(id).catch(() => ({ data: [] })),
-      sponsorshipProposalApi.getByEvent(id).catch(() => ({ data: [] })),
-      sponsorshipProposalApi.getSponsorUsers().catch(() => ({ data: [] })),
-      eventApi.getEventHistory(id).catch(() => ({ data: [] })),
-    ])
-      .then(([evRes, regRes, shiftRes, campaignRes, proposalRes, sponsorUserRes, historyRes]) => {
-        setEvent(evRes.data);
-        setRegistrations(regRes.data || []);
-        setShifts(shiftRes.data || []);
-        setCampaigns(campaignRes.data || []);
-        setProposals(proposalRes.data || []);
-        setSponsorUsers(sponsorUserRes.data || []);
-        setHistory(historyRes.data || []);
+    loadManageEventData(id)
+      .then((data) => {
+        setEvent(data.event);
+        setRegistrations(data.registrations);
+        setShifts(data.shifts);
+        setCampaigns(data.campaigns);
+        setProposals(data.proposals);
+        setSponsorUsers(data.sponsorUsers);
+        setHistory(data.history);
       })
       .catch(() => navigate('/my-events'))
       .finally(() => setLoading(false));
@@ -405,7 +400,7 @@ export default function ManageEvent() {
 
   const openWalkInModal = async () => {
     setVolunteerSearch('');
-    setWalkInForm({ volunteerUserId: '', shiftId: '', note: '' });
+    setWalkInForm(EMPTY_WALK_IN_FORM);
     setWalkInModal(true);
     try { await loadVolunteerOptions(''); }
     catch (err) { alert(err.response?.data?.message || 'Không tải được danh sách volunteer'); }
@@ -621,7 +616,7 @@ export default function ManageEvent() {
       setShifts(r.data || []);
       setTab('shifts');
       setShiftModal(false);
-      setShiftForm({ name: '', startTime: '', endTime: '', maxVolunteers: 10, createChannel: true });
+      setShiftForm(EMPTY_SHIFT_FORM);
     } catch (err) {
       setShiftError(err.response?.data?.message || 'Tạo ca thất bại');
     } finally { setShiftSaving(false); }
@@ -795,7 +790,7 @@ export default function ManageEvent() {
   // ═══════════════════════════════════════════════════════════
 
   const openInviteSponsor = () => {
-    setProposalForm({ sponsorId: '', title: '', message: '', requestedAmount: '', purpose: '', sponsorBenefits: '', attachmentUrl: '' });
+    setProposalForm(EMPTY_PROPOSAL_FORM);
     setProposalModal(true);
   };
 
@@ -1380,41 +1375,14 @@ export default function ManageEvent() {
         </div>
       </Modal>
 
-      {/* Cancel Event Modal */}
-      <Modal isOpen={cancelEventModal} onClose={() => setCancelEventModal(false)} title="Hủy sự kiện" size="md">
-        <form onSubmit={submitCancelEvent} className="space-y-4">
-          <div className="rounded-lg border border-red-100 bg-red-50 p-3 text-sm text-red-700">
-            <i className="fa-solid fa-circle-exclamation mr-1" />
-            Hệ thống sẽ dừng nhận đăng ký mới và đánh dấu sự kiện là đã hủy.
-          </div>
-          <div>
-            <div className="flex items-center justify-between mb-1">
-              <label className="block text-sm font-medium text-warmink-2">Lý do hủy *</label>
-              <span className={`text-xs ${cancelEventReason.trim().length < 10 ? 'text-red-500' : 'text-warmink-3'}`}>
-                {cancelEventReason.trim().length}/10 ký tự tối thiểu
-              </span>
-            </div>
-            <textarea
-              rows={4}
-              value={cancelEventReason}
-              onChange={(e) => setCancelEventReason(e.target.value)}
-              className="input-field resize-none"
-              placeholder="Ví dụ: thời tiết xấu, thay đổi kế hoạch, địa điểm không khả dụng..."
-            />
-          </div>
-          <div className="flex justify-end gap-3 pt-2">
-            <button type="button" onClick={() => setCancelEventModal(false)} className="btn-secondary">Đóng</button>
-            <button
-              type="submit"
-              disabled={cancelEventSaving || cancelEventReason.trim().length < 10}
-              className="btn-danger flex items-center gap-2 disabled:opacity-60"
-            >
-              {cancelEventSaving && <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />}
-              Xác nhận hủy
-            </button>
-          </div>
-        </form>
-      </Modal>
+      <CancelEventModal
+        isOpen={cancelEventModal}
+        onClose={() => setCancelEventModal(false)}
+        onSubmit={submitCancelEvent}
+        reason={cancelEventReason}
+        onReasonChange={setCancelEventReason}
+        saving={cancelEventSaving}
+      />
 
       {/* Edit Shift Modal */}
       <Modal isOpen={editShiftModal} onClose={() => setEditShiftModal(false)} title="Sửa ca làm việc" size="md">

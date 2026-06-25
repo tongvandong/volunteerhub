@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { supportCampaignApi } from '../../services/api';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
@@ -28,41 +28,48 @@ function DonationStatusBadge({ status }) {
   );
 }
 
+function getVisibleDonations(donations, statusFilter) {
+  if (statusFilter === 'all') {
+    return donations;
+  }
+
+  return donations.filter((donation) => donation.status === statusFilter);
+}
+
+function getDonationSummary(donations) {
+  const confirmedDonations = donations.filter((donation) => donation.status === 'Confirmed');
+  const pendingDonations = donations.filter((donation) => donation.status === 'PendingConfirmation');
+
+  return {
+    totalConfirmed: confirmedDonations.reduce((total, donation) => total + (Number(donation.amount) || 0), 0),
+    totalPending: pendingDonations.reduce((total, donation) => total + (Number(donation.amount) || 0), 0),
+    confirmedCount: confirmedDonations.length,
+    pendingCount: pendingDonations.length,
+  };
+}
+
 export default function MyDonations() {
   const [donations, setDonations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState('all');
 
-  const load = async () => {
+  const loadDonations = async () => {
     const r = await supportCampaignApi.getMyDonations();
     setDonations(r.data || []);
   };
 
   useEffect(() => {
-    load().finally(() => setLoading(false));
+    loadDonations().finally(() => setLoading(false));
   }, []);
 
-  const filteredDonations = useMemo(
-    () => donations.filter((donation) => statusFilter === 'all' || donation.status === statusFilter),
-    [donations, statusFilter],
-  );
-
-  const summary = useMemo(() => {
-    const confirmed = donations.filter((donation) => donation.status === 'Confirmed');
-    const pending = donations.filter((donation) => donation.status === 'PendingConfirmation');
-    return {
-      totalConfirmed: confirmed.reduce((sum, donation) => sum + (Number(donation.amount) || 0), 0),
-      totalPending: pending.reduce((sum, donation) => sum + (Number(donation.amount) || 0), 0),
-      confirmedCount: confirmed.length,
-      pendingCount: pending.length,
-    };
-  }, [donations]);
+  const filteredDonations = getVisibleDonations(donations, statusFilter);
+  const summary = getDonationSummary(donations);
 
   const cancelDonation = async (donation) => {
     if (!confirm('Hủy khoản ủng hộ đang chờ xác nhận này?')) return;
     try {
       await supportCampaignApi.cancelDonation(donation.id);
-      await load();
+      await loadDonations();
     } catch (err) {
       alert(err.response?.data?.message || 'Hủy thất bại. Vui lòng thử lại.');
     }

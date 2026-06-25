@@ -1,4 +1,4 @@
-import React, { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
+import React, { lazy, Suspense, useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { eventApi, eventCategoryApi, organizerVerificationApi, skillApi } from '../../services/api';
 import ImageUploadField from '../../components/ui/ImageUploadField';
@@ -99,29 +99,21 @@ export default function EventForm() {
   const [maxUnlockedStep, setMaxUnlockedStep] = useState(0);
   const [draftSaved, setDraftSaved] = useState(false);
 
-  const selectedSkillIds = useMemo(() => {
-    try {
-      const value = JSON.parse(form.requiredSkillIds || '[]');
-      return Array.isArray(value) ? value : [];
-    } catch {
-      return [];
+  let selectedSkillIds = [];
+  try {
+    const requiredSkillIds = JSON.parse(form.requiredSkillIds || '[]');
+    if (Array.isArray(requiredSkillIds)) {
+      selectedSkillIds = requiredSkillIds;
     }
-  }, [form.requiredSkillIds]);
+  } catch {
+    selectedSkillIds = [];
+  }
 
-  const selectedSkills = useMemo(
-    () => skills.filter((skill) => selectedSkillIds.includes(skill.id)),
-    [skills, selectedSkillIds]
-  );
-
-  const selectedCategory = useMemo(
-    () => categories.find((category) => String(category.id) === String(form.categoryId)),
-    [categories, form.categoryId]
-  );
-
+  const selectedSkills = skills.filter((skill) => selectedSkillIds.includes(skill.id));
+  const selectedCategory = categories.find((category) => String(category.id) === String(form.categoryId));
   const MAX_DURATION_DAYS = 30;
-  const MIN_LEAD_MS = 60 * 60 * 1000; // 1 giờ
-  // Ngày bắt đầu tối thiểu (chỉ áp cho tạo mới): hiện tại + 1 giờ
-  const minStartLocal = useMemo(() => toDateTimeLocal(new Date(Date.now() + MIN_LEAD_MS)), [MIN_LEAD_MS]);
+  const MIN_LEAD_MS = 60 * 60 * 1000;
+  const minStartLocal = toDateTimeLocal(new Date(Date.now() + MIN_LEAD_MS));
 
   const numericMax = parseInt(form.maxParticipants, 10);
   const maxInvalid = Number.isInteger(numericMax) && numericMax < 1;
