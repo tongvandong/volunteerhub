@@ -135,6 +135,25 @@ services:
     restart: unless-stopped
     networks: [volunteerhub]
 
+  reportservice:
+    build:
+      context: ./RubyReportService
+    environment:
+      RACK_ENV: production
+      PORT: 8080
+      DATABASE_URL: "Server=sqlserver,1433;Database=VolunteerHub;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=true;Encrypt=false"
+      JWT_SECRET: ${JWT_SECRET}
+    depends_on:
+      sqlserver: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8080/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+    networks: [volunteerhub]
+
   gateway:
     build:
       context: .
@@ -147,6 +166,7 @@ services:
       authservice: { condition: service_healthy }
       eventservice: { condition: service_healthy }
       financeservice: { condition: service_healthy }
+      reportservice: { condition: service_healthy }
     healthcheck: *dotnet-healthcheck
     restart: unless-stopped
     networks: [volunteerhub]

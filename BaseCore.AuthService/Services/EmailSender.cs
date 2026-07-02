@@ -102,21 +102,21 @@ namespace BaseCore.AuthService.Services
             var link = WebUtility.HtmlEncode(resetLink);
 
             return $@"
-<!doctype html>
-<html lang=""vi"">
-<body style=""font-family:Arial,sans-serif;background:#f6f8fb;padding:24px;color:#172033"">
-  <div style=""max-width:560px;margin:0 auto;background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:28px"">
-    <h2 style=""margin:0 0 12px;color:#1552b0"">Đặt lại mật khẩu VolunteerHub</h2>
-    <p>Xin chào {name},</p>
-    <p>Chúng tôi nhận được yêu cầu đặt lại mật khẩu cho tài khoản của bạn. Nhấn nút bên dưới để tạo mật khẩu mới.</p>
-    <p style=""margin:24px 0"">
-      <a href=""{link}"" style=""background:#1b61c9;color:#fff;text-decoration:none;padding:12px 18px;border-radius:8px;font-weight:700"">Đặt lại mật khẩu</a>
-    </p>
-    <p>Liên kết này có hiệu lực trong 30 phút và sẽ tự vô hiệu sau khi bạn đổi mật khẩu.</p>
-    <p style=""font-size:13px;color:#667085"">Nếu bạn không yêu cầu đặt lại mật khẩu, vui lòng bỏ qua email này.</p>
-  </div>
-</body>
-</html>";
+            <!doctype html>
+            <html lang=""vi"">
+            <body style=""font-family:Arial,sans-serif;background:#f6f8fb;padding:24px;color:#172033"">
+              <div style=""max-width:560px;margin:0 auto;background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:28px"">
+                <h2 style=""margin:0 0 12px;color:#1552b0"">Đặt lại mật khẩu VolunteerHub</h2>
+                <p>Xin chào {name},</p>
+                <p>Chúng tôi nhận được yêu cầu đặt lại mật khẩu cho tài khoản của bạn. Nhấn nút bên dưới để tạo mật khẩu mới.</p>
+                <p style=""margin:24px 0"">
+                  <a href=""{link}"" style=""background:#1b61c9;color:#fff;text-decoration:none;padding:12px 18px;border-radius:8px;font-weight:700"">Đặt lại mật khẩu</a>
+                </p>
+                <p>Liên kết này có hiệu lực trong 30 phút và sẽ tự vô hiệu sau khi bạn đổi mật khẩu.</p>
+                <p style=""font-size:13px;color:#667085"">Nếu bạn không yêu cầu đặt lại mật khẩu, vui lòng bỏ qua email này.</p>
+              </div>
+            </body>
+            </html>";
         }
 
         private static string BuildRegistrationCodeEmail(string? displayName, string code)
@@ -125,19 +125,19 @@ namespace BaseCore.AuthService.Services
             var safeCode = WebUtility.HtmlEncode(code);
 
             return $@"
-<!doctype html>
-<html lang=""vi"">
-<body style=""font-family:Arial,sans-serif;background:#f6f8fb;padding:24px;color:#172033"">
-  <div style=""max-width:560px;margin:0 auto;background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:28px"">
-    <h2 style=""margin:0 0 12px;color:#1552b0"">Xác minh đăng ký VolunteerHub</h2>
-    <p>Xin chào {name},</p>
-    <p>Nhập mã 6 số dưới đây để hoàn tất đăng ký tài khoản VolunteerHub.</p>
-    <div style=""font-size:32px;letter-spacing:8px;font-weight:800;color:#1552b0;background:#eef4ff;border-radius:10px;padding:16px 20px;text-align:center;margin:22px 0"">{safeCode}</div>
-    <p>Mã này có hiệu lực trong 10 phút. Không chia sẻ mã cho người khác.</p>
-    <p style=""font-size:13px;color:#667085"">Nếu bạn không đăng ký tài khoản VolunteerHub, vui lòng bỏ qua email này.</p>
-  </div>
-</body>
-</html>";
+            <!doctype html>
+            <html lang=""vi"">
+            <body style=""font-family:Arial,sans-serif;background:#f6f8fb;padding:24px;color:#172033"">
+              <div style=""max-width:560px;margin:0 auto;background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:28px"">
+                <h2 style=""margin:0 0 12px;color:#1552b0"">Xác minh đăng ký VolunteerHub</h2>
+                <p>Xin chào {name},</p>
+                <p>Nhập mã 6 số dưới đây để hoàn tất đăng ký tài khoản VolunteerHub.</p>
+                <div style=""font-size:32px;letter-spacing:8px;font-weight:800;color:#1552b0;background:#eef4ff;border-radius:10px;padding:16px 20px;text-align:center;margin:22px 0"">{safeCode}</div>
+                <p>Mã này có hiệu lực trong 10 phút. Không chia sẻ mã cho người khác.</p>
+                <p style=""font-size:13px;color:#667085"">Nếu bạn không đăng ký tài khoản VolunteerHub, vui lòng bỏ qua email này.</p>
+              </div>
+            </body>
+            </html>";
         }
     }
 }

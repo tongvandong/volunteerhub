@@ -1,5 +1,5 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
-import { authApi, authStorage } from '../services/api';
+import React, { createContext, useContext, useEffect, useState } from "react";
+import { authApi, authStorage } from "../services/api";
 
 const AuthContext = createContext(null);
 
@@ -7,7 +7,7 @@ export const useAuth = () => {
   const context = useContext(AuthContext);
 
   if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
+    throw new Error("useAuth must be used within an AuthProvider");
   }
 
   return context;
@@ -54,7 +54,7 @@ export const AuthProvider = ({ children }) => {
       const token = payload?.token || payload?.accessToken;
 
       if (!token) {
-        throw new Error('API đăng nhập không trả về token.');
+        throw new Error("API đăng nhập không trả về token.");
       }
 
       authStorage.setAuth({
@@ -68,7 +68,7 @@ export const AuthProvider = ({ children }) => {
     } catch (error) {
       return {
         success: false,
-        message: error.response?.data?.message || 'Đăng nhập thất bại',
+        message: error.response?.data?.message || "Đăng nhập thất bại",
       };
     }
   };
@@ -95,10 +95,10 @@ export const AuthProvider = ({ children }) => {
     });
   };
 
-  const isVolunteer = () => user?.role === 'Volunteer';
-  const isOrganizer = () => user?.role === 'Organizer';
-  const isSponsor = () => user?.role === 'Sponsor';
-  const isAdmin = () => user?.role === 'Admin';
+  const isVolunteer = () => user?.role === "Volunteer";
+  const isOrganizer = () => user?.role === "Organizer";
+  const isSponsor = () => user?.role === "Sponsor";
+  const isAdmin = () => user?.role === "Admin";
 
   return (
     <AuthContext.Provider

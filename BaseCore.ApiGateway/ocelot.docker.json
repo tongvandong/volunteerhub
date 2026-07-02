@@ -1,6 +1,22 @@
 ﻿{
   "Routes": [
     {
+      "DownstreamPathTemplate": "/api/reports/{everything}",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [{ "Host": "reportservice", "Port": 8080 }],
+      "UpstreamPathTemplate": "/api/reports/{everything}",
+      "UpstreamHttpMethod": [ "GET", "OPTIONS" ],
+      "Priority": 195
+    },
+    {
+      "DownstreamPathTemplate": "/api/reports",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [{ "Host": "reportservice", "Port": 8080 }],
+      "UpstreamPathTemplate": "/api/reports",
+      "UpstreamHttpMethod": [ "GET", "OPTIONS" ],
+      "Priority": 195
+    },
+    {
       "DownstreamPathTemplate": "/api/auth/{everything}",
       "DownstreamScheme": "http",
       "DownstreamHostAndPorts": [{ "Host": "authservice", "Port": 8080 }],

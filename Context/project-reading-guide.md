@@ -15,7 +15,6 @@ File này là living document để lần sau đọc project nhanh, không cần
 - `BaseCore.Services`: business logic (shared).
 - `BaseCore.Entities`: domain entities (shared).
 - `BaseCore.WebClient`: frontend chính đang dùng.
-- `volunteerhub-frontend`: frontend khác, không phải source chính hiện tại.
 
 Repo vẫn còn dấu vết domain cũ `Product/Category/Order`, nhưng hướng chính hiện tại là VolunteerHub.
 
@@ -101,11 +100,11 @@ Frontend đang dùng:
 
 Các file quan trọng:
 
-- Router: `D:\FW\FW\BaseCore\BaseCore.WebClient\src\App.jsx`
+- Router: `D:\FW\FW\BaseCore\BaseCore.WebClient\src\app\routes\AppRoutes.jsx`
 - Auth state: `D:\FW\FW\BaseCore\BaseCore.WebClient\src\contexts\AuthContext.jsx`
-- API contract: `D:\FW\FW\BaseCore\BaseCore.WebClient\src\services\api.js`
+- API contract: `D:\FW\FW\BaseCore\BaseCore.WebClient\src\api\`
 
-Không mặc định sửa `volunteerhub-frontend` nếu mục tiêu là app đang chạy thật.
+Frontend cũ/thử nghiệm đã được dọn khỏi repo; khi debug UI chạy thật, chỉ đi theo `BaseCore.WebClient`.
 
 Landing page public đã được nâng cấp:
 

@@ -1,43 +1,48 @@
-# VolunteerHub
+﻿# VolunteerHub
 
-VolunteerHub là hệ thống quản lý hoạt động tình nguyện gồm backend `.NET 8` và frontend React/Vite.
+VolunteerHub lÃ  há»‡ thá»‘ng quáº£n lÃ½ hoáº¡t Ä‘á»™ng tÃ¬nh nguyá»‡n gá»“m backend `.NET 8` vÃ  frontend React/Vite.
 
-Frontend chính đang dùng nằm ở `BaseCore.WebClient`.
+Frontend chÃ­nh Ä‘ang dÃ¹ng náº±m á»Ÿ `BaseCore.WebClient`.
 
-## Kiến Trúc Chạy Local
+## Kiáº¿n TrÃºc Cháº¡y Local
 
-Các service local:
+CÃ¡c service local:
 
 | Service | Project | Port | URL |
 | --- | --- | ---: | --- |
 | API Gateway | `BaseCore.ApiGateway` | `5000` | `http://localhost:5000` |
-| Core API | `BaseCore.APIService` | `5001` | `http://localhost:5001` |
 | Auth API | `BaseCore.AuthService` | `5002` | `http://localhost:5002` |
+| Event API | `BaseCore.EventService` | `5003` | `http://localhost:5003` |
+| Finance API | `BaseCore.FinanceService` | `5004` | `http://localhost:5004` |
+| Report API | `RubyReportService` | `5005` | `http://localhost:5005` |
 | Frontend | `BaseCore.WebClient` | `3000` | `http://localhost:3000` |
 
-Frontend gọi API qua `/api`, Vite proxy `/api` về Gateway `http://localhost:5000`.
+Frontend gá»i API qua `/api`, Vite proxy `/api` vá» Gateway `http://localhost:5000`.
 
 Gateway route:
 
 - `/api/auth/*` -> AuthService `5002`
 - `/api/users/*` -> AuthService `5002`
-- `/api/*` còn lại -> APIService `5001`
+- `/api/events/*`, `/api/dashboard/*`, `/api/channels/*` -> EventService `5003`
+- `/api/donations/*`, `/api/support-campaigns/*`, `/api/admin/finance/*` -> FinanceService `5004`
+- `/api/reports/*` -> RubyReportService `5005`
+- `/api/*` fallback -> AuthService `5002`
 
-## Yêu Cầu Môi Trường
+## YÃªu Cáº§u MÃ´i TrÆ°á»ng
 
 - .NET SDK 8+
-- Node.js 20+ và npm
+- Node.js 20+ vÃ  npm
 - SQL Server
 - Git
 
-## Cấu Hình SQL Server
+## Cáº¥u HÃ¬nh SQL Server
 
-Connection string hiện nằm trong:
+Connection string hiá»‡n náº±m trong:
 
 - `BaseCore.APIService/appsettings.json`
 - `BaseCore.AuthService/appsettings.json`
 
-Mặc định hiện tại:
+Máº·c Ä‘á»‹nh hiá»‡n táº¡i:
 
 ```json
 "ConnectionStrings": {
@@ -45,7 +50,7 @@ Mặc định hiện tại:
 }
 ```
 
-Khi chạy trên máy khác, đổi `Data Source` theo SQL Server instance local của bạn. Ví dụ:
+Khi cháº¡y trÃªn mÃ¡y khÃ¡c, Ä‘á»•i `Data Source` theo SQL Server instance local cá»§a báº¡n. VÃ­ dá»¥:
 
 ```json
 "ConnectionStrings": {
@@ -53,7 +58,7 @@ Khi chạy trên máy khác, đổi `Data Source` theo SQL Server instance local
 }
 ```
 
-Hoặc nếu dùng SQL login:
+Hoáº·c náº¿u dÃ¹ng SQL login:
 
 ```json
 "ConnectionStrings": {
@@ -61,9 +66,9 @@ Hoặc nếu dùng SQL login:
 }
 ```
 
-Database tên `VolunteerHub`. Hai service `APIService` và `AuthService` tự chạy EF migration khi startup qua `DatabaseMigrationRunner`, nên chỉ cần SQL Server truy cập được.
+Database tÃªn `VolunteerHub`. Hai service `APIService` vÃ  `AuthService` tá»± cháº¡y EF migration khi startup qua `DatabaseMigrationRunner`, nÃªn chá»‰ cáº§n SQL Server truy cáº­p Ä‘Æ°á»£c.
 
-## Cài Package
+## CÃ i Package
 
 Backend restore:
 
@@ -79,9 +84,9 @@ cd D:\FW\FW\BaseCore\BaseCore.WebClient
 npm install
 ```
 
-## Chạy Project Local
+## Cháº¡y Project Local
 
-Mở 4 terminal riêng.
+Má»Ÿ 4 terminal riÃªng.
 
 Terminal 1: AuthService
 
@@ -111,7 +116,7 @@ cd D:\FW\FW\BaseCore\BaseCore.WebClient
 npm run dev -- --host 127.0.0.1
 ```
 
-Mở app:
+Má»Ÿ app:
 
 ```text
 http://localhost:3000
@@ -123,9 +128,9 @@ Swagger:
 - Core API: `http://localhost:5001/swagger`
 - Auth API: `http://localhost:5002/swagger`
 
-## Tài Khoản Demo
+## TÃ i Khoáº£n Demo
 
-Các tài khoản này được seed trong `BaseCore.Repository/MySqlDbContext.cs` khi migration tạo database:
+CÃ¡c tÃ i khoáº£n nÃ y Ä‘Æ°á»£c seed trong `BaseCore.Repository/MySqlDbContext.cs` khi migration táº¡o database:
 
 | Role | Username | Email | Password |
 | --- | --- | --- | --- |
@@ -134,47 +139,47 @@ Các tài khoản này được seed trong `BaseCore.Repository/MySqlDbContext.c
 | Sponsor | `sponsor` | `sponsor@volunteerhub.vn` | `sponsor123` |
 | Volunteer | `volunteer` | `volunteer@volunteerhub.vn` | `volunteer123` |
 
-Bạn cũng có thể đăng ký tài khoản mới trực tiếp từ UI.
+Báº¡n cÅ©ng cÃ³ thá»ƒ Ä‘Äƒng kÃ½ tÃ i khoáº£n má»›i trá»±c tiáº¿p tá»« UI.
 
 ## Seed Data Demo
 
-Migration mặc định seed dữ liệu nền:
+Migration máº·c Ä‘á»‹nh seed dá»¯ liá»‡u ná»n:
 
 - 4 user demo theo role.
-- Category, product cũ của base project.
+- Category, product cÅ© cá»§a base project.
 - Skill, event category, badge.
-- Một số event mẫu, work shift, channel, registration, certificate.
+- Má»™t sá»‘ event máº«u, work shift, channel, registration, certificate.
 
-File `seed_data.sql` có thêm dữ liệu demo mở rộng cho SQL Server. Chạy file này sau khi database đã được tạo và migration đã chạy.
+File `seed_data.sql` cÃ³ thÃªm dá»¯ liá»‡u demo má»Ÿ rá»™ng cho SQL Server. Cháº¡y file nÃ y sau khi database Ä‘Ã£ Ä‘Æ°á»£c táº¡o vÃ  migration Ä‘Ã£ cháº¡y.
 
-Ví dụ bằng `sqlcmd`:
+VÃ­ dá»¥ báº±ng `sqlcmd`:
 
 ```powershell
 sqlcmd -S "localhost" -d "VolunteerHub" -E -i ".\seed_data.sql"
 ```
 
-Nếu dùng SQL login:
+Náº¿u dÃ¹ng SQL login:
 
 ```powershell
 sqlcmd -S "localhost" -d "VolunteerHub" -U "sa" -P "YOUR_PASSWORD" -i ".\seed_data.sql"
 ```
 
-Lưu ý: `seed_data.sql` dùng ID cố định. Nếu database đã có dữ liệu test nhiều lần, nên dùng database sạch hoặc kiểm tra trùng ID trước khi chạy.
+LÆ°u Ã½: `seed_data.sql` dÃ¹ng ID cá»‘ Ä‘á»‹nh. Náº¿u database Ä‘Ã£ cÃ³ dá»¯ liá»‡u test nhiá»u láº§n, nÃªn dÃ¹ng database sáº¡ch hoáº·c kiá»ƒm tra trÃ¹ng ID trÆ°á»›c khi cháº¡y.
 
-Reset database local về trạng thái demo:
+Reset database local vá» tráº¡ng thÃ¡i demo:
 
 ```powershell
 cd D:\FW\FW\BaseCore
 .\scripts\reset-demo-data.ps1 -ConfirmReset
 ```
 
-Mặc định script dùng LocalDB `(localdb)\MSSQLLocalDB` và database `VolunteerHub`. Có thể chỉ định SQL Server khác:
+Máº·c Ä‘á»‹nh script dÃ¹ng LocalDB `(localdb)\MSSQLLocalDB` vÃ  database `VolunteerHub`. CÃ³ thá»ƒ chá»‰ Ä‘á»‹nh SQL Server khÃ¡c:
 
 ```powershell
 .\scripts\reset-demo-data.ps1 -Server "localhost" -Database "VolunteerHub" -ConfirmReset
 ```
 
-## Kiểm Tra Build
+## Kiá»ƒm Tra Build
 
 Backend:
 
@@ -200,18 +205,18 @@ dotnet list BaseCore.sln package --vulnerable --include-transitive
 ## Flow Demo Nhanh
 
 1. Login `organizer / organizer123`.
-2. Tạo event mới ở `Tạo sự kiện`.
+2. Táº¡o event má»›i á»Ÿ `Táº¡o sá»± kiá»‡n`.
 3. Login `admin / admin123`.
-4. Vào `Duyệt sự kiện`, approve event.
+4. VÃ o `Duyá»‡t sá»± kiá»‡n`, approve event.
 5. Login `volunteer / volunteer123`.
-6. Vào danh sách sự kiện, mở event đã duyệt, đăng ký event.
-7. Login lại organizer.
-8. Vào `Sự kiện của tôi` -> quản lý event.
-9. Xác nhận đăng ký, check-in bằng QR của event.
-10. Hoàn thành event và xem lịch sử/chứng chỉ nếu có.
+6. VÃ o danh sÃ¡ch sá»± kiá»‡n, má»Ÿ event Ä‘Ã£ duyá»‡t, Ä‘Äƒng kÃ½ event.
+7. Login láº¡i organizer.
+8. VÃ o `Sá»± kiá»‡n cá»§a tÃ´i` -> quáº£n lÃ½ event.
+9. XÃ¡c nháº­n Ä‘Äƒng kÃ½, check-in báº±ng QR cá»§a event.
+10. HoÃ n thÃ nh event vÃ  xem lá»‹ch sá»­/chá»©ng chá»‰ náº¿u cÃ³.
 
-## Ghi Chú Project
+## Ghi ChÃº Project
 
-- `BaseCore.WebClient` là frontend chính.
-- `volunteerhub-frontend` là frontend cũ/khác, không phải app chính hiện tại.
-- `Context/project-reading-guide.md` là living document ghi lại hiểu biết và trạng thái E2E gần nhất của project.
+- `BaseCore.WebClient` lÃ  frontend chÃ­nh. CÃ¡c frontend cÅ©/thá»­ nghiá»‡m Ä‘Ã£ Ä‘Æ°á»£c dá»n khá»i repo Ä‘á»ƒ trÃ¡nh nháº§m source khi debug.
+- `RubyReportService` lÃ  module backend Ruby/Sinatra Ä‘á»ƒ xuáº¥t bÃ¡o cÃ¡o CSV qua `/api/reports/*`.
+- `Context/project-reading-guide.md` lÃ  living document ghi láº¡i hiá»ƒu biáº¿t vÃ  tráº¡ng thÃ¡i E2E gáº§n nháº¥t cá»§a project.
